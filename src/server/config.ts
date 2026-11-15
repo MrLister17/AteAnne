@@ -2,10 +2,19 @@ import { z } from "zod";
 
 const schema = z.object({
   DATABASE_URL: z.string().min(1),
-  APP_ORIGIN: z.string().url().default("http://localhost:3000"),
+  APP_ORIGIN: z
+    .string()
+    .url()
+    .default(
+      process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000",
+    ),
+  /** "database" (default; works on Vercel) or "disk" (self-hosting with a persistent volume). */
+  STORAGE_DRIVER: z.enum(["database", "disk"]).default("database"),
   JOIN_CODE_HASH_KEY: z.string().min(32, "JOIN_CODE_HASH_KEY must be at least 32 characters; run npm run setup"),
   PRIVATE_UPLOAD_DIR: z.string().min(1).default("./storage/uploads"),
   CLEANUP_TOKEN: z.string().optional(),
+  /** Set by Vercel Cron; accepted as the cleanup bearer token. */
+  CRON_SECRET: z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 });
 

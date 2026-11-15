@@ -448,3 +448,12 @@ model RateLimitBucket {
   windowStart  DateTime
   count        Int      @default(0)
 }
+
+/// Private image bytes when STORAGE_DRIVER=database (default; required on Vercel,
+/// whose filesystem is not persistent). Keyed by Asset.storageKey. Never served
+/// directly — only through the authorised /api/assets/:id route.
+model AssetBlob {
+  key        String   @id
+  bytes      Bytes
+  createdAt  DateTime @default(now())
+}

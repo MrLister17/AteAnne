@@ -5,6 +5,7 @@ import { api } from "../api";
 import { Icon } from "../components/Icon";
 import { Avatar, Badge, Button, Card, Notice, Sheet } from "../components/ui";
 import { php } from "../format";
+import { MAX_CLIENT_UPLOAD_BYTES, prepareImage, uploadName } from "../image";
 import { ReceiptEditor } from "./ReceiptEditor";
 import { ReceiptView, useAction, useEvent } from "./EventContext";
 
@@ -164,11 +165,17 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
                 onChange={async (e) => {
                   const f = e.target.files?.[0];
                   if (!f) return;
+                  setUploading(true);
+                  const img = await prepareImage(f, "RECEIPT");
+                  if (img.size > MAX_CLIENT_UPLOAD_BYTES) {
+                    setUploading(false);
+                    alert("That photo is too large to upload. Try a smaller photo or a screenshot of it.");
+                    return;
+                  }
                   const fd = new FormData();
-                  fd.set("file", f);
+                  fd.set("file", img, uploadName(img));
                   fd.set("kind", "RECEIPT");
                   fd.set("receiptId", r.id);
-                  setUploading(true);
                   await act(() => api.post(`/api/events/${event.id}/assets`, fd), "Photo attached (private to this event)");
                   setUploading(false);
                   e.target.value = "";

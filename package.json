@@ -5,7 +5,7 @@
   "description": "AteAnne — hatian na malinaw. Mobile-first shared-expense app with exact-centavo item splitting and recipient-verified settlement.",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   },
   "scripts": {
     "setup": "node scripts/setup.mjs && prisma migrate deploy && prisma generate",
@@ -25,7 +25,8 @@
     "db:test:reset": "tsx scripts/reset-test-db.ts",
     "data:cleanup": "tsx scripts/cleanup.ts",
     "icons": "node scripts/make-icons.mjs",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "vercel-build": "node scripts/vercel-build.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "7.10.1",

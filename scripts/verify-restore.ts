@@ -16,12 +16,14 @@ for (const s of snaps) {
   }
 }
 const assets = await db.asset.findMany({ select: { storageKey: true } });
+const disk = process.env.STORAGE_DRIVER === "disk";
 for (const a of assets) {
   try {
-    await access(path.resolve(process.env.PRIVATE_UPLOAD_DIR!, a.storageKey.slice(0, 2), a.storageKey));
+    if (disk) await access(path.resolve(process.env.PRIVATE_UPLOAD_DIR!, a.storageKey.slice(0, 2), a.storageKey));
+    else if (!(await db.assetBlob.findUnique({ where: { key: a.storageKey }, select: { key: true } }))) throw new Error("missing");
   } catch {
     failures++;
-    console.error(`Missing file for asset ${a.storageKey}`);
+    console.error(`Missing image bytes for asset ${a.storageKey}`);
   }
 }
 console.log(`Checked ${snaps.length} snapshots and ${assets.length} assets: ${failures ? `${failures} problem(s)` : "OK"}`);

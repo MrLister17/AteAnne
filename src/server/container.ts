@@ -11,7 +11,7 @@ import { PaymentService } from "./services/PaymentService";
 import { QueryService } from "./services/QueryService";
 import { ReceiptService } from "./services/ReceiptService";
 import { RecoveryService } from "./services/RecoveryService";
-import { LocalDiskStorage, PrivateStorage } from "./storage/PrivateStorage";
+import { DatabaseStorage, LocalDiskStorage, PrivateStorage } from "./storage/PrivateStorage";
 
 /**
  * Composition root: wires services with their dependencies once per process.
@@ -51,7 +51,9 @@ const g = globalThis as unknown as { __ateanneContainer?: AppContainer };
 export function container(): AppContainer {
   if (!g.__ateanneContainer) {
     const cfg = config();
-    g.__ateanneContainer = new AppContainer(prisma(), new LocalDiskStorage(cfg.PRIVATE_UPLOAD_DIR), cfg.JOIN_CODE_HASH_KEY);
+    const db = prisma();
+    const storage = cfg.STORAGE_DRIVER === "disk" ? new LocalDiskStorage(cfg.PRIVATE_UPLOAD_DIR) : new DatabaseStorage(db);
+    g.__ateanneContainer = new AppContainer(db, storage, cfg.JOIN_CODE_HASH_KEY);
   }
   return g.__ateanneContainer;
 }

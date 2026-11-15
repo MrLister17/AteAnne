@@ -7,7 +7,7 @@ Display names (aliases are fine), event data, manually entered receipts and allo
 ## Where data lives
 
 - PostgreSQL: all records. Money is stored as integer centavos. Credentials are stored only as SHA-256 hashes.
-- Private images: `PRIVATE_UPLOAD_DIR` (outside `public/`), random file names, re-encoded with metadata stripped. They are served only through `/api/assets/:id` after a membership check. QR images go only to their owner and to people who owe them.
+- Private images: in the database table `AssetBlob` by default (or `PRIVATE_UPLOAD_DIR` outside `public/` with `STORAGE_DRIVER=disk`), random keys, re-encoded with metadata stripped. They are served only through `/api/assets/:id` after a membership check. QR images go only to their owner and to people who owe them.
 - Logs never contain request bodies, cookies, recovery keys, join codes or image bytes. Unexpected errors log a request ID, error name and message only.
 - The service worker caches only public shell files (icons, offline page, hashed JS/CSS). It never caches API responses or images.
 

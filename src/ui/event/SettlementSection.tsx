@@ -5,6 +5,7 @@ import { api, newIdempotencyKey } from "../api";
 import { Icon } from "../components/Icon";
 import { Badge, BalanceBanner, Button, Card, Field, MoneyInput, Notice, Progress, SectionTitle, Sheet, balanceLabel } from "../components/ui";
 import { php, phpAbs, timeAgo, toCentavos, toInput } from "../format";
+import { MAX_CLIENT_UPLOAD_BYTES, prepareImage, uploadName } from "../image";
 import { EdgeView, useAction, useEvent } from "./EventContext";
 
 /**
@@ -318,10 +319,16 @@ function InstructionsEditor() {
               busy={busy}
               onClick={async () => {
                 setBusy(true);
-                const ok = file
+                const img = file ? await prepareImage(file, "QR") : null;
+                if (img && img.size > MAX_CLIENT_UPLOAD_BYTES) {
+                  setBusy(false);
+                  alert("That QR image is too large. Try a screenshot of your QR instead.");
+                  return;
+                }
+                const ok = img
                   ? await act(() => {
                       const fd = new FormData();
-                      fd.set("file", file);
+                      fd.set("file", img, uploadName(img));
                       fd.set("kind", "QR");
                       fd.set("acceptsCash", String(cash));
                       fd.set("cashNote", cashNote);

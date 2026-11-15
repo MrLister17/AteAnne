@@ -10,7 +10,7 @@
 import "dotenv/config";
 import { AppContainer } from "../src/server/container";
 import { createPrisma } from "../src/server/db";
-import { LocalDiskStorage } from "../src/server/storage/PrivateStorage";
+import { DatabaseStorage, LocalDiskStorage } from "../src/server/storage/PrivateStorage";
 
 if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRODUCTION_SEED !== "1") {
   console.error("Refusing to seed a production database. Set ALLOW_PRODUCTION_SEED=1 only for a disposable demo.");
@@ -22,7 +22,8 @@ const solo: Record<string, number> = { Mark: 35000, Juan: 25000, Ana: 30000, Ben
 
 async function main() {
   const db = createPrisma(process.env.DATABASE_URL!);
-  const app = new AppContainer(db, new LocalDiskStorage(process.env.PRIVATE_UPLOAD_DIR ?? "./storage/uploads"), process.env.JOIN_CODE_HASH_KEY!);
+  const storage = process.env.STORAGE_DRIVER === "disk" ? new LocalDiskStorage(process.env.PRIVATE_UPLOAD_DIR ?? "./storage/uploads") : new DatabaseStorage(db);
+  const app = new AppContainer(db, storage, process.env.JOIN_CODE_HASH_KEY!);
   const process_ = { RATE_LIMIT_DISABLED: process.env.RATE_LIMIT_DISABLED };
   process.env.RATE_LIMIT_DISABLED = "1";
 

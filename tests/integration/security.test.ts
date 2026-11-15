@@ -5,7 +5,9 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import sharp from "sharp";
-import { eventWith, makeApp, newActor, pesos, resetDb, version } from "./helpers";
+import { eventWith, makeApp, newActor, pesos, resetDb, version, TEST_KEY } from "./helpers";
+import { AppContainer } from "@/server/container";
+import { DatabaseStorage } from "@/server/storage/PrivateStorage";
 
 const { app, db } = makeApp();
 
@@ -171,6 +173,27 @@ describe("private images", () => {
     await expect(app.assets.upload(a.people.Img1.actorId, a.eventId, "RECEIPT", Buffer.alloc(9 * 1024 * 1024), receiptId)).rejects.toThrow(/8 MB/);
     const row = await db.asset.findUniqueOrThrow({ where: { id: assetId } });
     expect(row.storageKey).toMatch(/^[a-f0-9]{48}\.jpg$/);
+  });
+
+  it("database storage (Vercel default) stores, serves and deletes private bytes", async () => {
+    const dbApp = new AppContainer(db, new DatabaseStorage(db), TEST_KEY);
+    const e = await eventWith(dbApp, ["Db1", "Db2"]);
+    const { receiptId } = await dbApp.receipts.create(e.people.Db1.actorId, e.eventId, {
+      label: "Blob receipt",
+      payerMemberId: e.people.Db1.memberId,
+      payable: "100",
+      lines: [{ label: "x", quantity: 1, amount: "100", mode: "SHARED" }],
+      adjustments: [],
+    });
+    const jpeg = await sharp({ create: { width: 40, height: 40, channels: 3, background: "#0a0" } }).jpeg().toBuffer();
+    const { assetId } = await dbApp.assets.upload(e.people.Db1.actorId, e.eventId, "RECEIPT", jpeg, receiptId);
+    const row = await db.asset.findUniqueOrThrow({ where: { id: assetId } });
+    expect(await db.assetBlob.count({ where: { key: row.storageKey } })).toBe(1);
+    const read = await dbApp.assets.read(e.people.Db2.actorId, assetId);
+    expect(read.mimeType).toBe("image/jpeg");
+    expect(read.bytes.length).toBeGreaterThan(100);
+    await dbApp.assets.removeReceiptImage(e.people.Db1.actorId, receiptId);
+    expect(await db.assetBlob.count({ where: { key: row.storageKey } })).toBe(0);
   });
 
   it("QR codes are visible only to their owner and people who owe them", async () => {

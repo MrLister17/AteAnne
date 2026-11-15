@@ -27,6 +27,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: false,
     timeout: 60_000,
-    env: { ...process.env, DATABASE_URL: testDb, APP_ORIGIN: `http://localhost:${PORT}`, RATE_LIMIT_DISABLED: "1", PRIVATE_UPLOAD_DIR: "./storage/e2e-uploads" } as Record<string, string>,
+    env: { ...process.env, DATABASE_URL: testDb, APP_ORIGIN: `http://localhost:${PORT}`, RATE_LIMIT_DISABLED: "1", STORAGE_DRIVER: "database", PRIVATE_UPLOAD_DIR: "./storage/e2e-uploads" } as Record<string, string>,
   },
 });

@@ -8,5 +8,5 @@ SRC="$1"
 ( cd "$SRC" && sha256sum -c MANIFEST.sha256 )
 pg_restore --no-owner --clean --if-exists --dbname "$RESTORE_DATABASE_URL" "$SRC/db.dump"
 mkdir -p "$RESTORE_UPLOAD_DIR"
-tar -C "$RESTORE_UPLOAD_DIR" --strip-components=1 -xzf "$SRC/uploads.tgz"
+tar -C "$RESTORE_UPLOAD_DIR" --strip-components=1 -xzf "$SRC/uploads.tgz" 2>/dev/null || true
 DATABASE_URL="$RESTORE_DATABASE_URL" PRIVATE_UPLOAD_DIR="$RESTORE_UPLOAD_DIR" npx tsx scripts/verify-restore.ts

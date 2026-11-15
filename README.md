@@ -10,6 +10,8 @@ AteAnne (a pun on *hatian*, splitting a bill) is a **mobile-first, installable w
 
 Built for small groups of friends in Lucena City. It is designed for **iPhone first** (Safari → Share → *Add to Home Screen*) and also installs on Android (Chrome → *Install app*). No accounts, no bank logins, no payment processing, no AI/OCR.
 
+> **Deploy:** ready for Vercel + PostgreSQL. Follow [docs/deploy-vercel.md](docs/deploy-vercel.md).
+
 > Status: engineering complete for the P0 workflow and verified locally (see [docs/test-report.md](docs/test-report.md)). **Not deployed** yet, and **not piloted** with real groups. See [docs/handoff.md](docs/handoff.md).
 
 ## Quick start (local)
@@ -47,6 +49,7 @@ To test on your phone during development, run `npm run dev -- -H 0.0.0.0` and op
 | `npm run test:e2e` | Playwright, iPhone + 360px, against a production build. Run `npm run build` first |
 | `npm run test:reference` | Supplied Python reference assertions |
 | `npm run data:cleanup` | Daily housekeeping (expired sessions, orphan uploads, retention purge) |
+| `npm run vercel-build` | What Vercel runs: env check → `prisma generate` → migrate (production only) → `next build` |
 | `npm run icons` | Regenerate PWA / iOS icons |
 | `scripts/backup.sh`, `scripts/restore.sh` | Database + private-image backup and verified restore |
 
@@ -87,6 +90,7 @@ Read [docs/architecture.md](docs/architecture.md) for the class, ER, lifecycle a
 - [docs/financial-rules.md](docs/financial-rules.md): exact-money rules with worked examples
 - [docs/test-report.md](docs/test-report.md): commands run and actual results
 - [docs/privacy-and-recovery.md](docs/privacy-and-recovery.md): privacy, retention, recovery limits
+- [docs/deploy-vercel.md](docs/deploy-vercel.md): step-by-step Vercel deployment
 - [docs/runbooks.md](docs/runbooks.md): deploy, storage, migration, backup, restore, rollback, cleanup
 - [docs/pilot-guide.md](docs/pilot-guide.md): running a real small-group pilot
 - [docs/case-study-template.md](docs/case-study-template.md): honest portfolio write-up template

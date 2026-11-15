@@ -1,5 +1,7 @@
 # Runbooks
 
+> **Vercel:** see [deploy-vercel.md](deploy-vercel.md). The steps below are for self-hosting with Docker.
+
 ## Production prerequisites
 
 - A Node 22 host (container or VM), **persistent PostgreSQL**, **HTTPS** and a **persistent private volume** for uploads mounted at `PRIVATE_UPLOAD_DIR`. An ephemeral or serverless filesystem would lose receipt photos and QRs. Check current pricing and limits before provisioning; no free tier is assumed.
