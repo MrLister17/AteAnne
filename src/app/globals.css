@@ -1,0 +1,197 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------
+   AteAnne design tokens — warm off-white with restrained violet/coral.
+   Mobile-first (360–430px), iPhone safe areas, light + dark.
+   ------------------------------------------------------------------ */
+:root {
+  --bg: #fbf7f2;
+  --surface: #ffffff;
+  --surface-2: #f4eee6;
+  --ink: #1e1a24;
+  --muted: #6b6475;
+  --line: #e7dfd5;
+  --violet: #5b3fd0;
+  --violet-ink: #ffffff;
+  --violet-soft: #eee9ff;
+  --coral: #d9573e;
+  --coral-soft: #fde9e4;
+  --receive: #17703f;
+  --receive-soft: #e3f4ea;
+  --pay: #b3261e;
+  --pay-soft: #fbe6e4;
+  --warn: #8a5a00;
+  --warn-soft: #fff3d6;
+  --focus: #5b3fd0;
+  --shadow: 0 1px 2px rgb(30 26 36 / 0.06), 0 8px 24px rgb(30 26 36 / 0.06);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --tabbar-h: 64px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15121b;
+    --surface: #201c28;
+    --surface-2: #2a2534;
+    --ink: #f3eef7;
+    --muted: #aaa2b5;
+    --line: #362f41;
+    --violet: #a594ff;
+    --violet-ink: #15121b;
+    --violet-soft: #2c2547;
+    --coral: #ff8e77;
+    --coral-soft: #3a2420;
+    --receive: #62d69c;
+    --receive-soft: #183224;
+    --pay: #ff8a80;
+    --pay-soft: #3a1d1b;
+    --warn: #ffd27a;
+    --warn-soft: #3a2f16;
+    --focus: #c3b8ff;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15121b;
+  --surface: #201c28;
+  --surface-2: #2a2534;
+  --ink: #f3eef7;
+  --muted: #aaa2b5;
+  --line: #362f41;
+  --violet: #a594ff;
+  --violet-ink: #15121b;
+  --violet-soft: #2c2547;
+  --coral: #ff8e77;
+  --coral-soft: #3a2420;
+  --receive: #62d69c;
+  --receive-soft: #183224;
+  --pay: #ff8a80;
+  --pay-soft: #3a1d1b;
+  --warn: #ffd27a;
+  --warn-soft: #3a2f16;
+  --focus: #c3b8ff;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-violet: var(--violet);
+  --color-violet-ink: var(--violet-ink);
+  --color-violet-soft: var(--violet-soft);
+  --color-coral: var(--coral);
+  --color-coral-soft: var(--coral-soft);
+  --color-receive: var(--receive);
+  --color-receive-soft: var(--receive-soft);
+  --color-pay: var(--pay);
+  --color-pay-soft: var(--pay-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --shadow-card: var(--shadow);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  background: var(--bg);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  min-height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* iOS zooms into inputs smaller than 16px — keep every control at 16px+. */
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  font-size: max(16px, 1rem);
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.safe-top {
+  padding-top: var(--safe-top);
+}
+.safe-bottom {
+  padding-bottom: var(--safe-bottom);
+}
+/* Space so content never hides behind the fixed tab bar. */
+.pb-tabbar {
+  padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 24px);
+}
+
+/* Component classes live in a layer so Tailwind utilities (e.g. pl-8) can override them. */
+@layer components {
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.field {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  padding: 10px 14px;
+}
+.field:focus {
+  border-color: var(--violet);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--violet-soft);
+}
+.field[aria-invalid="true"] {
+  border-color: var(--pay);
+}
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.animate-sheet {
+  animation: sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

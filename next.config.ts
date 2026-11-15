@@ -25,7 +25,6 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  output: "standalone",
   poweredByHeader: false,
   serverExternalPackages: ["sharp", "@prisma/client", "pg"],
   async headers() {

@@ -1,0 +1,40 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ateanne
+          POSTGRES_PASSWORD: ateanne
+          POSTGRES_DB: ateanne_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ateanne" --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://ateanne:ateanne@localhost:5432/ateanne_dev
+      TEST_DATABASE_URL: postgresql://ateanne:ateanne@localhost:5432/ateanne_test
+      APP_ORIGIN: http://localhost:3000
+      JOIN_CODE_HASH_KEY: ci-only-not-secret-join-code-hash-key-0123456789
+      PRIVATE_UPLOAD_DIR: ./storage/uploads
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: PGPASSWORD=ateanne psql -h localhost -U ateanne -d ateanne_test -c "CREATE DATABASE ateanne_dev"
+      - run: npm ci
+      - run: npm run test:reference
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:unit
+      - run: npm run test:integration
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e -- --trace off
