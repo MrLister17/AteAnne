@@ -12,7 +12,7 @@ import { ReceiptReconciler } from "@/domain/receipt/ReceiptReconciler";
 import { EventLedger } from "@/domain/event/EventLedger";
 import { SettlementPlanner } from "@/domain/settlement/SettlementPlanner";
 import { LedgerReport, PaymentLedger } from "@/domain/payments/PaymentLedger";
-import type { LineInput, ReceiptInput } from "@/domain/receipt/types";
+import type { LineInput, MemberReceiptShare, ReceiptInput } from "@/domain/receipt/types";
 
 const alloc = new LargestRemainderAllocator();
 const toNum = (m: Map<string, bigint>) => Object.fromEntries([...m].map(([k, v]) => [k, Number(v)]));
@@ -181,8 +181,9 @@ describe("synthetic_scoped_discount", () => {
     };
     const calc = new ReceiptCalculator().calculate(receipt, ["p01", "p02", "p03"]);
     if (!calc.ok) throw new Error(JSON.stringify(calc.issues));
-    const pick = (f: (x: ReturnType<typeof calc.shares.get> & object) => bigint) =>
-      Object.fromEntries(["p01", "p02", "p03"].map((id) => [id, Number(f(calc.shares.get(id)!))]));
+    const shares = calc.shares;
+    const pick = (f: (x: MemberReceiptShare) => bigint) =>
+      Object.fromEntries(["p01", "p02", "p03"].map((id) => [id, Number(f(shares.get(id)!))]));
     expect(pick((x) => x.discountTotal)).toEqual(s.discount_allocations_centavos);
     expect(pick((x) => x.itemsGross - x.discountTotal)).toEqual(s.post_discount_item_shares_centavos);
     expect(pick((x) => x.chargeTotal)).toEqual(s.service_allocations_centavos);

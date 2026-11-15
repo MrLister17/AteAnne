@@ -1,0 +1,450 @@
+// AteAnne data model. Money is always integer centavos in BigInt columns.
+// History tables (snapshots, reports, decisions, reversals, audit) are append-only.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Phase {
+  COLLECTING
+  ALLOCATING
+  REVIEWING
+  SETTLING
+  DONE
+}
+
+enum Intent {
+  WILL_PAY_ONLY
+  PAID_EXPENSE
+}
+
+enum ShareMode {
+  SHARED
+  UNITS
+}
+
+enum AdjustmentKind {
+  DISCOUNT
+  SERVICE
+  CHARGE
+}
+
+enum ReceiptAckKind {
+  FINISHED
+  NONE
+}
+
+enum SnapshotStatus {
+  ACTIVE
+  SUPERSEDED
+}
+
+enum PaymentMethod {
+  CASH
+  QR
+}
+
+enum ReportStatus {
+  REPORTED
+  VERIFIED
+  REJECTED
+  CANCELLED
+}
+
+enum DisputeStatus {
+  OPEN
+  AWAITING_REPLACEMENT
+  RESOLVED
+}
+
+enum DisputeResolution {
+  NO_TRANSFER
+  REPLACEMENT
+}
+
+enum AssetKind {
+  RECEIPT
+  QR
+}
+
+/// A browser identity. Holds no personal data; members bind to it.
+model Actor {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  sessions  Session[]
+  members   Member[]
+}
+
+/// Opaque session credential (only its SHA-256 hash is stored).
+model Session {
+  id         String    @id @default(cuid())
+  actorId    String
+  actor      Actor     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+
+  @@index([expiresAt])
+}
+
+model Event {
+  id                  String     @id @default(cuid())
+  title               String     @db.VarChar(80)
+  note                String     @default("") @db.VarChar(500)
+  phase               Phase      @default(COLLECTING)
+  cancelled           Boolean    @default(false)
+  ownerMemberId       String?    @unique
+  /// HMAC-SHA256(JOIN_CODE_HASH_KEY, normalized code). Null once joins close.
+  joinCodeHash        String?    @unique
+  /// AES-GCM ciphertext so the owner can re-display a still-valid code.
+  joinCodeCiphertext  String?
+  joinCodeExpiresAt   DateTime?
+  /// Bumped by roster/structure changes.
+  structuralVersion   Int        @default(1)
+  /// Bumped by every change that affects money; review approvals bind to it.
+  financialVersion    Int        @default(1)
+  nextMemberSeq       Int        @default(1)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  rosterLockedAt      DateTime?
+  completedAt         DateTime?
+
+  owner        Member?          @relation("EventOwner", fields: [ownerMemberId], references: [id], onDelete: Restrict)
+  members      Member[]         @relation("EventMembers")
+  receipts     Receipt[]
+  approvals    ReviewApproval[]
+  snapshots    Snapshot[]
+  assets       Asset[]
+  audit        AuditEvent[]
+}
+
+/// Stable financial identity of a person inside one event. Never recreated by recovery.
+model Member {
+  id                 String    @id @default(cuid())
+  eventId            String
+  event              Event     @relation("EventMembers", fields: [eventId], references: [id], onDelete: Cascade)
+  /// Stable participant order used for deterministic tie-breaking and netting.
+  seq                Int
+  /// Current browser binding; null after deactivation.
+  actorId            String?
+  actor              Actor?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  displayName        String    @db.VarChar(40)
+  intent             Intent    @default(WILL_PAY_ONLY)
+  active             Boolean   @default(true)
+  entryComplete      Boolean   @default(false)
+  /// Per-member claim version: optimistic concurrency for this member's own claims.
+  claimVersion       Int       @default(1)
+  recoveryHash       String    @unique
+  recoveryExpiresAt  DateTime
+  joinedAt           DateTime  @default(now())
+
+  ownedEvent         Event?    @relation("EventOwner")
+  authoredReceipts   Receipt[] @relation("ReceiptAuthor")
+  paidReceipts       Receipt[] @relation("ReceiptPayer")
+  claims             Claim[]
+  receiptAcks        ReceiptAck[]
+  fundingAcks        FundingAck[]
+  approvals          ReviewApproval[]
+  instructions       PaymentInstruction[]
+  ownedAssets        Asset[]
+  sentReports        PaymentReport[] @relation("ReportSender")
+  receivedReports    PaymentReport[] @relation("ReportRecipient")
+  edgesFrom          SettlementEdge[] @relation("EdgeFrom")
+  edgesTo            SettlementEdge[] @relation("EdgeTo")
+  shares             SnapshotShare[]
+
+  @@unique([eventId, actorId])
+  @@unique([eventId, seq])
+  @@index([actorId])
+}
+
+model Receipt {
+  id               String    @id @default(cuid())
+  eventId          String
+  event            Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  authorMemberId   String
+  author           Member    @relation("ReceiptAuthor", fields: [authorMemberId], references: [id], onDelete: Restrict)
+  payerMemberId    String
+  payer            Member    @relation("ReceiptPayer", fields: [payerMemberId], references: [id], onDelete: Restrict)
+  label            String    @db.VarChar(80)
+  payableCentavos  BigInt
+  /// Bumped on every edit; claims/acks from older versions become stale drafts.
+  version          Int       @default(1)
+  position         Int
+  imageAssetId     String?   @unique
+  image            Asset?    @relation("ReceiptImage", fields: [imageAssetId], references: [id], onDelete: SetNull)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  lines        ReceiptLine[]
+  adjustments  Adjustment[]
+  fundingAcks  FundingAck[]
+  receiptAcks  ReceiptAck[]
+
+  @@index([eventId])
+}
+
+model ReceiptLine {
+  id                 String     @id @default(cuid())
+  receiptId          String
+  receipt            Receipt    @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  position           Int
+  label              String     @db.VarChar(80)
+  quantity           Int
+  amountCentavos     BigInt
+  unitPriceCentavos  BigInt?
+  mode               ShareMode  @default(SHARED)
+  claims             Claim[]
+
+  @@index([receiptId])
+}
+
+model Adjustment {
+  id               String          @id @default(cuid())
+  receiptId        String
+  receipt          Receipt         @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  position         Int
+  kind             AdjustmentKind
+  label            String          @db.VarChar(80)
+  amountCentavos   BigInt
+  scopeAll         Boolean         @default(true)
+  /// Line IDs this adjustment applies to when scopeAll is false.
+  eligibleLineIds  String[]
+
+  @@index([receiptId])
+}
+
+/// The named payer confirms they actually paid this exact amount for this version.
+model FundingAck {
+  id              String   @id @default(cuid())
+  receiptId       String
+  receipt         Receipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  memberId        String
+  member          Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  receiptVersion  Int
+  amountCentavos  BigInt
+  createdAt       DateTime @default(now())
+
+  @@unique([receiptId, receiptVersion])
+}
+
+model Claim {
+  id              String      @id @default(cuid())
+  memberId        String
+  member          Member      @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  lineId          String
+  line            ReceiptLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  /// SHARED lines: 1. UNITS lines: whole units claimed.
+  units           Int
+  receiptVersion  Int
+  updatedAt       DateTime    @updatedAt
+
+  @@unique([memberId, lineId])
+  @@index([lineId])
+}
+
+/// "I finished this receipt" or "I got nothing from this receipt", per receipt version.
+model ReceiptAck {
+  id              String          @id @default(cuid())
+  memberId        String
+  member          Member          @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  receiptId       String
+  receipt         Receipt         @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  kind            ReceiptAckKind
+  receiptVersion  Int
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([memberId, receiptId])
+}
+
+model ReviewApproval {
+  id                String   @id @default(cuid())
+  eventId           String
+  event             Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  memberId          String
+  member            Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  financialVersion  Int
+  createdAt         DateTime @default(now())
+
+  @@unique([memberId, financialVersion])
+  @@index([eventId, financialVersion])
+}
+
+/// Immutable frozen statement. Never updated except status ACTIVE → SUPERSEDED.
+model Snapshot {
+  id                String          @id @default(cuid())
+  eventId           String
+  event             Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  financialVersion  Int
+  status            SnapshotStatus  @default(ACTIVE)
+  policyVersion     String
+  /// Frozen receipts, lines, adjustments, claims and per-receipt statements.
+  facts             Json
+  /// Set the first time any payment report is created; blocks reopening forever.
+  firstReportAt     DateTime?
+  createdAt         DateTime        @default(now())
+  supersededAt      DateTime?
+
+  shares  SnapshotShare[]
+  edges   SettlementEdge[]
+
+  @@index([eventId, status])
+}
+
+model SnapshotShare {
+  id                String   @id @default(cuid())
+  snapshotId        String
+  snapshot          Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  memberId          String
+  member            Member   @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  fundingCentavos   BigInt
+  costCentavos      BigInt
+  netCentavos       BigInt
+
+  @@unique([snapshotId, memberId])
+}
+
+model SettlementEdge {
+  id              String   @id @default(cuid())
+  snapshotId      String
+  snapshot        Snapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  position        Int
+  fromMemberId    String
+  from            Member   @relation("EdgeFrom", fields: [fromMemberId], references: [id], onDelete: Restrict)
+  toMemberId      String
+  to              Member   @relation("EdgeTo", fields: [toMemberId], references: [id], onDelete: Restrict)
+  amountCentavos  BigInt
+
+  reports   PaymentReport[]
+  disputes  Dispute[]
+
+  @@unique([snapshotId, position])
+}
+
+/// Versioned payment instructions; a new row per change, old rows retained.
+model PaymentInstruction {
+  id         String         @id @default(cuid())
+  memberId   String
+  member     Member         @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  version    Int
+  acceptsCash Boolean       @default(true)
+  cashNote   String         @default("") @db.VarChar(200)
+  qrAssetId  String?
+  qrAsset    Asset?         @relation(fields: [qrAssetId], references: [id], onDelete: Restrict)
+  qrLabel    String         @default("") @db.VarChar(60)
+  current    Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+
+  reports    PaymentReport[]
+
+  @@unique([memberId, version])
+}
+
+model PaymentReport {
+  id                 String         @id @default(cuid())
+  edgeId             String
+  edge               SettlementEdge @relation(fields: [edgeId], references: [id], onDelete: Restrict)
+  senderMemberId     String
+  sender             Member         @relation("ReportSender", fields: [senderMemberId], references: [id], onDelete: Restrict)
+  recipientMemberId  String
+  recipient          Member         @relation("ReportRecipient", fields: [recipientMemberId], references: [id], onDelete: Restrict)
+  amountCentavos     BigInt
+  method             PaymentMethod
+  instructionId      String?
+  instruction        PaymentInstruction? @relation(fields: [instructionId], references: [id], onDelete: Restrict)
+  note               String         @default("") @db.VarChar(200)
+  status             ReportStatus   @default(REPORTED)
+  /// Bumped on every status change (optimistic concurrency).
+  version            Int            @default(1)
+  idempotencyKey     String         @db.VarChar(64)
+  /// Links a replacement record to the rejected original for the SAME money.
+  replacesReportId   String?        @unique
+  replaces           PaymentReport? @relation("Replacement", fields: [replacesReportId], references: [id], onDelete: Restrict)
+  replacedBy         PaymentReport? @relation("Replacement")
+  rejectReason       String?        @db.VarChar(200)
+  createdAt          DateTime       @default(now())
+  decidedAt          DateTime?
+
+  reversal  PaymentReversal?
+  dispute   Dispute?        @relation("DisputeOrigin")
+
+  @@unique([senderMemberId, idempotencyKey])
+  @@index([edgeId])
+}
+
+/// Recipient's single, reasoned correction of their own mistaken verification.
+model PaymentReversal {
+  id              String        @id @default(cuid())
+  reportId        String        @unique
+  report          PaymentReport @relation(fields: [reportId], references: [id], onDelete: Restrict)
+  actorMemberId   String
+  reason          String        @db.VarChar(200)
+  createdAt       DateTime      @default(now())
+}
+
+/// Opened by a rejection. Both counterparties must pick the same resolution.
+model Dispute {
+  id                 String              @id @default(cuid())
+  edgeId             String
+  edge               SettlementEdge      @relation(fields: [edgeId], references: [id], onDelete: Restrict)
+  rejectedReportId   String              @unique
+  rejectedReport     PaymentReport       @relation("DisputeOrigin", fields: [rejectedReportId], references: [id], onDelete: Restrict)
+  status             DisputeStatus       @default(OPEN)
+  senderChoice       DisputeResolution?
+  recipientChoice    DisputeResolution?
+  /// Bumped whenever either side changes their choice.
+  version            Int                 @default(1)
+  resolution         DisputeResolution?
+  createdAt          DateTime            @default(now())
+  resolvedAt         DateTime?
+
+  @@index([edgeId])
+}
+
+/// Private image. Bytes live in PRIVATE_UPLOAD_DIR under a random key, never in public/.
+model Asset {
+  id             String     @id @default(cuid())
+  eventId        String
+  event          Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ownerMemberId  String
+  owner          Member     @relation(fields: [ownerMemberId], references: [id], onDelete: Restrict)
+  kind           AssetKind
+  storageKey     String     @unique
+  mimeType       String
+  byteSize       Int
+  width          Int
+  height         Int
+  createdAt      DateTime   @default(now())
+
+  receipt        Receipt?   @relation("ReceiptImage")
+  instructions   PaymentInstruction[]
+
+  @@index([eventId])
+}
+
+/// Non-sensitive operation history. Never contains secrets or image bytes.
+model AuditEvent {
+  id             String   @id @default(cuid())
+  eventId        String
+  event          Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  actorMemberId  String?
+  type           String   @db.VarChar(60)
+  detail         Json     @default("{}")
+  createdAt      DateTime @default(now())
+
+  @@index([eventId, createdAt])
+}
+
+/// Fixed-window rate limit counters (DB-backed, survives restarts).
+model RateLimitBucket {
+  key          String   @id
+  windowStart  DateTime
+  count        Int      @default(0)
+}
