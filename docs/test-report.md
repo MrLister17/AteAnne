@@ -9,9 +9,13 @@ All commands were run from a clean working tree. The output below is copied from
 | `npm run lint` | exit 0, no warnings |
 | `npm run typecheck` | exit 0 |
 | `npm run test:unit` | **2 files, 32 tests passed** |
-| `npm run test:integration` | **2 files, 23 tests passed** (real PostgreSQL) |
+| `npm run test:integration` | **2 files, 24 tests passed** (real PostgreSQL) |
 | `npm run build` | Compiled successfully; 35 routes |
 | `npx playwright test --trace off` | **22 passed** (iPhone 15 emulation + 360px Android width) |
+
+## Vercel deployment simulation
+
+A fresh `git clone` with no `.env`: `npm ci` (no env vars) passed. `npm run vercel-build` with no variables exits with a clear "Missing environment variables" message. With only `DATABASE_URL`, `JOIN_CODE_HASH_KEY`, `CRON_SECRET`, `VERCEL_ENV=production` and `VERCEL_PROJECT_PRODUCTION_URL`, it applied all 3 migrations to an empty database and built successfully. `next start` on that build, with database image storage, passed these checks: health ok; create event; private `no-store` response; `Secure` session cookie; QR upload stored in `AssetBlob`; member reads image 200 and stranger 401; cleanup cron 401 without the secret and 200 with `CRON_SECRET`; forged cross-site POST 403. This simulation caught and fixed a `.gitignore` rule that had excluded `src/server/storage/` from git. No real Vercel deployment has been made.
 
 ## What the suites cover
 
