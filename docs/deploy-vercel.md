@@ -41,6 +41,7 @@ Project → **Settings → Environment Variables** (Production; add to Preview t
 | `APP_ORIGIN` | optional. Your public URL, e.g. `https://ateanne.vercel.app` or your custom domain. Defaults to the project's production URL. |
 | `DATABASE_URL` | Supabase **transaction pooler** URL (or set automatically by the Neon integration) |
 | `DIRECT_URL` | Supabase **session pooler** URL (Neon: not needed; `DATABASE_URL_UNPOOLED` is used automatically) |
+| `DATABASE_SSL_CA` | Supabase server root CA certificate in PEM format, downloaded from its Connect panel. Required if Node reports a self-signed certificate chain. Certificate verification stays enabled. |
 
 No secrets go in the repository. `.env` is ignored by git.
 
@@ -65,7 +66,7 @@ Preview deployments skip migrations so they never touch production data. To migr
 
 - **Uploads:** phones shrink photos before upload (Vercel's request limit is 4.5 MB). The server re-encodes them and strips metadata. They are stored privately and served only to members of that event.
 - **Cleanup:** runs daily at 03:17 Manila time (`vercel.json` → crons). It removes expired sessions and abandoned uploads, and **deletes every event 30 days after it was created, finished or not** (`EVENT_RETENTION_DAYS`). The app shows each event's deletion date on its Home tab and warns in the last 7 days.
-- **Backups:** your database provider's backups/point-in-time restore cover everything, images included. For your own copy: `DATABASE_URL=<direct url> scripts/backup.sh`.
+- **Backups:** database exports include these database-backed images. Supabase Free does not include the paid-plan automatic backup access; keep your own exports with `DATABASE_URL=<session pooler url> scripts/backup.sh`. Store them privately.
 - **Custom domain:** Project → Settings → Domains. Then set `APP_ORIGIN` to it and redeploy.
 - **Logs:** Project → Logs. Errors show a request ID only; no personal data or secrets are logged.
 
@@ -77,3 +78,4 @@ Preview deployments skip migrations so they never touch production data. To migr
 | Build fails at `prisma migrate deploy` | The database isn't reachable. Check the URL, and that `DATABASE_URL_UNPOOLED` or `DIRECT_URL` is a direct connection |
 | "Cross-site request blocked" | Set `APP_ORIGIN` to the exact URL you open (including `https://`) and redeploy |
 | Photo upload says "too large" | Use a smaller photo or a screenshot (the limit after shrinking is about 4 MB) |
+| Health check fails with a self-signed certificate chain | Set `DATABASE_SSL_CA` to Supabase's root CA PEM and redeploy. Do not use `NODE_TLS_REJECT_UNAUTHORIZED=0` or disable certificate validation. |

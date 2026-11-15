@@ -1,6 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 import { config } from "./config";
+import { postgresOptions } from "./PostgresOptions";
 
 export type Db = PrismaClient;
 /** Interactive-transaction client. */
@@ -9,7 +10,7 @@ export type Tx = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$trans
 const globalForPrisma = globalThis as unknown as { __ateannePrisma?: PrismaClient };
 
 export function createPrisma(url = config().DATABASE_URL): PrismaClient {
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
+  return new PrismaClient({ adapter: new PrismaPg(postgresOptions(url)) });
 }
 
 /** One client per process (survives Next.js dev hot reloads). */
