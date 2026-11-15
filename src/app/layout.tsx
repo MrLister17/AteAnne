@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ServiceWorkerRegistrar } from "@/ui/pwa/ServiceWorkerRegistrar";
 import { TutorialProvider } from "@/ui/tutorial/TutorialProvider";
+import { SetupBanner } from "@/ui/pwa/SetupBanner";
 
 export const metadata: Metadata = {
   title: { default: "AteAnne", template: "%s · AteAnne" },
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en-PH">
       <body className="antialiased">
+        <SetupBanner />
         <TutorialProvider>{children}</TutorialProvider>
         <ServiceWorkerRegistrar />
       </body>

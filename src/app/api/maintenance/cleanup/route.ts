@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "node:crypto";
-import { config } from "@/server/config";
+import { config, configProblems } from "@/server/config";
 import { container } from "@/server/container";
 
 /**
@@ -15,6 +15,7 @@ function authorized(req: NextRequest): boolean {
 }
 
 async function run(req: NextRequest) {
+  if (configProblems().length) return NextResponse.json({ error: { code: "not_configured" } }, { status: 503 });
   if (!authorized(req)) return NextResponse.json({ error: { code: "unauthorized" } }, { status: 401 });
   const result = await container().cleanup.run();
   return NextResponse.json(result, { headers: { "cache-control": "no-store" } });

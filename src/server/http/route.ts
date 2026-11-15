@@ -2,7 +2,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { DomainError } from "@/domain/errors";
-import { config } from "../config";
+import { config, configProblems } from "../config";
 import { container, AppContainer } from "../container";
 import { SESSION_COOKIE, SESSION_TTL_MS } from "../auth/SessionManager";
 import { HttpError, UnauthenticatedError, statusFor } from "./HttpError";
@@ -40,6 +40,10 @@ function assertSameOrigin(req: NextRequest) {
   if (req.method === "GET" || req.method === "HEAD") return;
   const origin = req.headers.get("origin");
   const allowed = new Set([config().APP_ORIGIN, req.nextUrl.origin]);
+  // Behind a proxy (Vercel, preview tools) the public host arrives as X-Forwarded-Host.
+  // Browsers cannot set this header cross-site without a CORS preflight we never grant.
+  const fwdHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  if (fwdHost) allowed.add(`${req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https"}://${fwdHost}`);
   if (!origin || !allowed.has(origin)) throw new HttpError(403, "bad_origin", "Cross-site request blocked");
 }
 
@@ -58,6 +62,9 @@ export function route<P = Record<string, string>>(handler: Handler<P>) {
     const requestId = randomUUID();
     let newSession: { token: string; expiresAt: Date } | null = null;
     try {
+      if (configProblems().length) {
+        throw new HttpError(503, "not_configured", "AteAnne isn't connected to its database yet, so nothing can be saved. Try again once setup is finished.");
+      }
       assertSameOrigin(req);
       const app = container();
       const cookieToken = req.cookies.get(SESSION_COOKIE)?.value;

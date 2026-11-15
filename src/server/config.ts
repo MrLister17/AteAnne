@@ -33,6 +33,16 @@ export function config(): AppConfig {
   return cached;
 }
 
+/**
+ * Missing/invalid settings, without throwing. Empty when fully configured.
+ * Used for "preview mode": the UI can be deployed and explored before the
+ * database is connected; every API call then answers 503 not_configured.
+ */
+export function configProblems(): string[] {
+  const parsed = schema.safeParse(process.env);
+  return parsed.success ? [] : [...new Set(parsed.error.issues.map((i) => String(i.path[0])))];
+}
+
 /** Test hook: forget cached config after mutating process.env. */
 export function resetConfigForTests(): void {
   cached = null;
