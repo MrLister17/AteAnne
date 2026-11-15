@@ -13,6 +13,8 @@ const schema = z.object({
   JOIN_CODE_HASH_KEY: z.string().min(32, "JOIN_CODE_HASH_KEY must be at least 32 characters; run npm run setup"),
   PRIVATE_UPLOAD_DIR: z.string().min(1).default("./storage/uploads"),
   CLEANUP_TOKEN: z.string().optional(),
+  /** Every event (finished or not) is deleted this many days after creation. */
+  EVENT_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(30),
   /** Set by Vercel Cron; accepted as the cleanup bearer token. */
   CRON_SECRET: z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),

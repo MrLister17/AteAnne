@@ -268,7 +268,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Done!",
     points: [
       "When every transfer is confirmed by the people who received it, the organizer taps “Mark as Done”.",
-      "The event becomes a read-only record. Export it as CSV or JSON from People if you want a copy.",
+      "The event becomes a read-only record. Every event is deleted 30 days after it was created — finished or not — so export a CSV/JSON copy from People if you want one.",
       "Lost your phone later? Use “Recover access” with your recovery key.",
     ],
     art: (

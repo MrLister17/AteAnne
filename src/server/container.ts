@@ -1,4 +1,5 @@
 import { config } from "./config";
+import { RetentionPolicy } from "@/domain/event/RetentionPolicy";
 import { Db, prisma } from "./db";
 import { SessionManager } from "./auth/SessionManager";
 import { EventViewBuilder } from "./readmodels/EventViewBuilder";
@@ -32,6 +33,7 @@ export class AppContainer {
     readonly db: Db,
     readonly storage: PrivateStorage,
     joinCodeKey: string,
+    readonly retention = new RetentionPolicy(),
   ) {
     const codes = new JoinCodeCodec(joinCodeKey);
     this.limiter = new RateLimiter(db);
@@ -41,8 +43,8 @@ export class AppContainer {
     this.payments = new PaymentService(db, this.limiter);
     this.recovery = new RecoveryService(db, this.limiter);
     this.assets = new AssetService(db, storage, this.limiter);
-    this.queries = new QueryService(db, new EventViewBuilder(db, this.events));
-    this.cleanup = new CleanupService(db, storage, this.events);
+    this.queries = new QueryService(db, new EventViewBuilder(db, this.events, retention));
+    this.cleanup = new CleanupService(db, storage, this.events, retention);
   }
 }
 
@@ -53,7 +55,7 @@ export function container(): AppContainer {
     const cfg = config();
     const db = prisma();
     const storage = cfg.STORAGE_DRIVER === "disk" ? new LocalDiskStorage(cfg.PRIVATE_UPLOAD_DIR) : new DatabaseStorage(db);
-    g.__ateanneContainer = new AppContainer(db, storage, cfg.JOIN_CODE_HASH_KEY);
+    g.__ateanneContainer = new AppContainer(db, storage, cfg.JOIN_CODE_HASH_KEY, new RetentionPolicy(cfg.EVENT_RETENTION_DAYS));
   }
   return g.__ateanneContainer;
 }

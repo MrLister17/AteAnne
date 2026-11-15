@@ -57,6 +57,7 @@ export default function NewEvent() {
         <Button type="submit" full busy={busy}>
           Create event
         </Button>
+        <p className="text-center text-[13px] text-muted">Events are deleted automatically 30 days after they’re created, finished or not.</p>
         <p className="text-center text-[13px] text-muted">You become the organizer. Organizers guide the steps but can never confirm payments for someone else.</p>
       </form>
     </PageShell>

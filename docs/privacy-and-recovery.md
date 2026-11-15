@@ -15,8 +15,7 @@ Display names (aliases are fine), event data, manually entered receipts and allo
 
 | Data | Default |
 | --- | --- |
-| Done events | Purged with photos 180 days after completion (`npm run data:cleanup`) |
-| Active or cancelled events with money outstanding | **Never auto-purged.** The owner exports or explicitly deletes. Cancelling never forgives debts |
+| **Every event, finished or not** | Deleted with all photos **30 days after it was created** (`EVENT_RETENTION_DAYS`, daily cleanup). Each event shows its deletion date and warns in the last 7 days. Deleting the record does not cancel real-world debts; export a copy first if you need one |
 | Expired or revoked sessions | Deleted daily |
 | Uploads never attached to a receipt or instruction | Deleted after 24 h |
 | Backups | Target: daily, encrypted, 7-day retention (see runbooks) |

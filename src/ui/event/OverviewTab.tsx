@@ -25,6 +25,8 @@ export function OverviewTab() {
 
       <MyTodo phase={phase} onGo={setTab} />
 
+      <DeletionNotice />
+
       {event.note && (
         <Card>
           <p className="text-[14px] font-semibold text-muted">Note from the organizer</p>
@@ -42,6 +44,25 @@ export function OverviewTab() {
 
       {phase === "COLLECTING" && <EntryCompleteToggle />}
     </div>
+  );
+}
+
+/** Every event auto-deletes N days after creation; warn clearly, louder in the last week. */
+function DeletionNotice() {
+  const { event, setTab } = useEvent();
+  const deletesAt = new Date(event.deletesAt);
+  const daysLeft = event.daysUntilDeletion;
+  const date = deletesAt.toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric", timeZone: "Asia/Manila" });
+  const soon = daysLeft <= 7;
+  return (
+    <Notice tone={soon ? "warn" : "info"} title={soon ? `Deletes in ${daysLeft} day${daysLeft === 1 ? "" : "s"} (${date})` : `Auto-deletes on ${date}`}>
+      <p>
+        Every event is deleted {event.retentionDays} days after it was created{event.phase === "DONE" ? "" : ", even if it isn’t finished"}. Deleting the record doesn’t cancel what people owe.{" "}
+        <button type="button" onClick={() => setTab("people")} className="font-semibold text-violet underline underline-offset-2">
+          Export a copy
+        </button>
+      </p>
+    </Notice>
   );
 }
 

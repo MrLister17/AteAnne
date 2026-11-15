@@ -1,19 +1,21 @@
 import type { Db } from "../db";
 import type { PrivateStorage } from "../storage/PrivateStorage";
 import type { EventService } from "./EventService";
-
-export const COMPLETED_RETENTION_DAYS = 180;
+import { RetentionPolicy } from "@/domain/event/RetentionPolicy";
 
 /**
  * Daily housekeeping: expired sessions, stale rate-limit buckets, abandoned
- * unreferenced uploads, and whole-event purge of Done events past retention.
- * Active/cancelled events with unresolved money are NEVER auto-purged.
+ * unreferenced uploads, and whole-event purge of every event older than the
+ * retention period (default 30 days from creation, finished or not — owner
+ * decision). Purging goes through EventService.purge so rows are removed in
+ * dependency order and image bytes are deleted too.
  */
 export class CleanupService {
   constructor(
     private readonly db: Db,
     private readonly storage: PrivateStorage,
     private readonly events: EventService,
+    private readonly retention = new RetentionPolicy(),
   ) {}
 
   async run(now = new Date()) {
@@ -30,8 +32,7 @@ export class CleanupService {
       await this.storage.delete(a.storageKey).catch(() => undefined);
     }
 
-    const cutoff = new Date(now.getTime() - COMPLETED_RETENTION_DAYS * 24 * 3600_000);
-    const expired = await this.db.event.findMany({ where: { phase: "DONE", completedAt: { lt: cutoff } }, select: { id: true } });
+    const expired = await this.db.event.findMany({ where: { createdAt: { lt: this.retention.cutoff(now) } }, select: { id: true } });
     let purgedEvents = 0;
     for (const e of expired) {
       const keys = (await this.db.asset.findMany({ where: { eventId: e.id }, select: { storageKey: true } })).map((a) => a.storageKey);

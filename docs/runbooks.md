@@ -22,7 +22,7 @@ Never run `npm run db:seed` against production (it refuses unless `ALLOW_PRODUCT
 
 ## Scheduled cleanup
 
-Daily: `curl -X POST -H "Authorization: Bearer $CLEANUP_TOKEN" https://<host>/api/maintenance/cleanup`, or `npm run data:cleanup` from a job with DB and volume access. It deletes expired sessions, stale rate buckets, abandoned uploads (24 h) and Done events older than 180 days. It never deletes active or cancelled events with money outstanding.
+Daily: `curl -X POST -H "Authorization: Bearer $CLEANUP_TOKEN" https://<host>/api/maintenance/cleanup`, or `npm run data:cleanup` from a job with DB and volume access. It deletes expired sessions, stale rate buckets, abandoned uploads (24 h), and every event (finished or not) older than `EVENT_RETENTION_DAYS` (default 30) together with its images. This is the owner's retention decision (docs/decisions.md D24).
 
 ## Backup
 

@@ -2,6 +2,7 @@ import type { EventAggregate, MemberRecord, SnapshotRecord } from "../aggregate/
 import type { Db } from "../db";
 import { JoinCodeCodec } from "../security/Crypto";
 import type { EventService } from "../services/EventService";
+import { RetentionPolicy } from "@/domain/event/RetentionPolicy";
 
 const s = (v: bigint) => v.toString();
 
@@ -14,6 +15,7 @@ export class EventViewBuilder {
   constructor(
     private readonly db: Db,
     private readonly events: EventService,
+    private readonly retention = new RetentionPolicy(),
   ) {}
 
   async build(agg: EventAggregate, me: MemberRecord) {
@@ -46,6 +48,9 @@ export class EventViewBuilder {
         rosterLockedAt: e.rosterLockedAt?.toISOString() ?? null,
         completedAt: e.completedAt?.toISOString() ?? null,
         createdAt: e.createdAt.toISOString(),
+        deletesAt: this.retention.deletesAt(e.createdAt).toISOString(),
+        retentionDays: this.retention.days,
+        daysUntilDeletion: this.retention.daysLeft(e.createdAt),
       },
       members: e.members.map((m) => ({
         id: m.id,

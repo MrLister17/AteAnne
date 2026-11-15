@@ -170,7 +170,7 @@ export function PeopleTab() {
           <li>Your recovery key moves you to a new phone without changing what you paid or owe. Without it, access can’t be restored in v1.</li>
           <li>Payments happen outside AteAnne. Only the person receiving money can confirm it.</li>
           <li>Once any payment is reported, the bill can’t be edited (v1). After Done, the record is read-only.</li>
-          <li>Done events are deleted after 180 days. Export first if you want a copy.</li>
+          <li>Every event — finished or not — is deleted {event.retentionDays} days after it was created. Export first if you want a copy.</li>
         </ul>
       </details>
 
