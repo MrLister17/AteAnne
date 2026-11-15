@@ -8,7 +8,7 @@ All commands were run from a clean working tree. The output below is copied from
 | `npm run test:reference` | `PASS: reconciliation, allocations, conservation, net transfers, partial/rejected/verified reports, and centavo rounding.` The regenerated JSON was byte-identical to the supplied fixture |
 | `npm run lint` | exit 0, no warnings |
 | `npm run typecheck` | exit 0 |
-| `npm run test:unit` | **2 files, 32 tests passed** |
+| `npm run test:unit` | **3 files, 36 tests passed** |
 | `npm run test:integration` | **3 files, 26 tests passed** (real PostgreSQL) |
 | `npm run build` | Compiled successfully; 35 routes |
 | `npx playwright test --trace off` | **22 passed** (iPhone 15 emulation + 360px Android width) |

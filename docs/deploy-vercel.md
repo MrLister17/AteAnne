@@ -4,6 +4,10 @@ AteAnne runs on Vercel with **one PostgreSQL database** and nothing else: privat
 
 > Pricing and free-tier limits change. Check Vercel's and your database provider's current plans before you rely on them. Vercel's Hobby plan is for personal, non-commercial projects.
 
+## 0. Just want to look around first? (preview mode)
+
+You can import and deploy **before** the database exists. With no `DATABASE_URL` / `JOIN_CODE_HASH_KEY`, the build prints "PREVIEW MODE", skips migrations and still deploys. Every screen, button and the tutorial work. A banner says the database isn't connected, and anything that would save shows "AteAnne isn't connected to its database yet". Add the variables later and **Redeploy** (Deployments → ⋯ → Redeploy) to switch to the real thing.
+
 ## 1. Create the project
 
 1. Sign in at **vercel.com** with GitHub.
