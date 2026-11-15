@@ -1,0 +1,567 @@
+{
+  "schema_version": 1,
+  "currency": "PHP",
+  "all_money_fields_are_integer_centavos": true,
+  "pictured_receipt_reconciliation": {
+    "kind": "visible_receipt_totals_only",
+    "note": "Manual visual transcription for reconciliation; no image, names, receipt identifiers, or actual diner claims retained. Verify input in the app before finalizing.",
+    "gross_items_centavos": 442500,
+    "price_excluding_vat_centavos": 395089,
+    "printed_loyalty_discount_ex_vat_centavos": 59263,
+    "net_ex_vat_centavos": 335826,
+    "included_vat_centavos": 40299,
+    "net_items_including_vat_centavos": 376125,
+    "effective_discount_on_gross_including_vat_centavos": 66375,
+    "service_charge_centavos": 28545,
+    "total_due_centavos": 404670,
+    "vat_mode": "already_included_do_not_add_again",
+    "service_mode": "use_printed_amount_do_not_infer_percentage",
+    "claimed_allocations": null,
+    "participants": null
+  },
+  "synthetic_nine_person_dinner": {
+    "kind": "synthetic_illustrative_example_not_the_pictured_receipt",
+    "participants": {
+      "p01": "Joy",
+      "p02": "Leanne",
+      "p03": "Ana",
+      "p04": "Ben",
+      "p05": "Cara",
+      "p06": "Dan",
+      "p07": "Eli",
+      "p08": "Faye",
+      "p09": "Gio"
+    },
+    "receipt": {
+      "id": "dinner-r1",
+      "shared_dishes_centavos": 180000,
+      "rice_quantity": 3,
+      "rice_unit_centavos": 6000,
+      "rice_line_centavos": 18000,
+      "rice_policy": "three bowls shared equally by eight participants; Leanne opted out",
+      "solo_meals_centavos": {
+        "p01": 35000,
+        "p02": 25000,
+        "p03": 30000,
+        "p04": 40000,
+        "p05": 20000,
+        "p06": 30000,
+        "p07": 25000,
+        "p08": 35000,
+        "p09": 40000
+      },
+      "gross_items_centavos": 478000,
+      "service_charge_centavos": 47800,
+      "service_policy": "proportional to assigned post-discount item spending; no discount in this fixture",
+      "total_due_centavos": 525800,
+      "payer_contributions_centavos": {
+        "p01": 525800,
+        "p02": 0,
+        "p03": 0,
+        "p04": 0,
+        "p05": 0,
+        "p06": 0,
+        "p07": 0,
+        "p08": 0,
+        "p09": 0
+      }
+    },
+    "allocation_centavos": {
+      "p01": {
+        "shared_dishes": 20000,
+        "rice": 2250,
+        "solo": 35000,
+        "base": 57250,
+        "service": 5725,
+        "owed": 62975,
+        "paid": 525800,
+        "net_receive_positive_send_negative": 462825
+      },
+      "p02": {
+        "shared_dishes": 20000,
+        "rice": 0,
+        "solo": 25000,
+        "base": 45000,
+        "service": 4500,
+        "owed": 49500,
+        "paid": 0,
+        "net_receive_positive_send_negative": -49500
+      },
+      "p03": {
+        "shared_dishes": 20000,
+        "rice": 2250,
+        "solo": 30000,
+        "base": 52250,
+        "service": 5225,
+        "owed": 57475,
+        "paid": 0,
+        "net_receive_positive_send_negative": -57475
+      },
+      "p04": {
+        "shared_dishes": 20000,
+        "rice": 2250,
+        "solo": 40000,
+        "base": 62250,
+        "service": 6225,
+        "owed": 68475,
+        "paid": 0,
+        "net_receive_positive_send_negative": -68475
+      },
+      "p05": {
+        "shared_dishes": 20000,
+        "rice": 2250,
+        "solo": 20000,
+        "base": 42250,
+        "service": 4225,
+        "owed": 46475,
+        "paid": 0,
+        "net_receive_positive_send_negative": -46475
+      },
+      "p06": {
+        "shared_dishes": 20000,
+        "rice": 2250,
+        "solo": 30000,
+        "base": 52250,
+        "service": 5225,
+        "owed": 57475,
+        "paid": 0,
+        "net_receive_positive_send_negative": -57475
+      },
+      "p07": {
+        "shared_dishes": 20000,
+        "rice": 2250,
+        "solo": 25000,
+        "base": 47250,
+        "service": 4725,
+        "owed": 51975,
+        "paid": 0,
+        "net_receive_positive_send_negative": -51975
+      },
+      "p08": {
+        "shared_dishes": 20000,
+        "rice": 2250,
+        "solo": 35000,
+        "base": 57250,
+        "service": 5725,
+        "owed": 62975,
+        "paid": 0,
+        "net_receive_positive_send_negative": -62975
+      },
+      "p09": {
+        "shared_dishes": 20000,
+        "rice": 2250,
+        "solo": 40000,
+        "base": 62250,
+        "service": 6225,
+        "owed": 68475,
+        "paid": 0,
+        "net_receive_positive_send_negative": -68475
+      }
+    },
+    "settlement_transfers": [
+      {
+        "from": "p02",
+        "to": "p01",
+        "amount_centavos": 49500
+      },
+      {
+        "from": "p03",
+        "to": "p01",
+        "amount_centavos": 57475
+      },
+      {
+        "from": "p04",
+        "to": "p01",
+        "amount_centavos": 68475
+      },
+      {
+        "from": "p05",
+        "to": "p01",
+        "amount_centavos": 46475
+      },
+      {
+        "from": "p06",
+        "to": "p01",
+        "amount_centavos": 57475
+      },
+      {
+        "from": "p07",
+        "to": "p01",
+        "amount_centavos": 51975
+      },
+      {
+        "from": "p08",
+        "to": "p01",
+        "amount_centavos": 62975
+      },
+      {
+        "from": "p09",
+        "to": "p01",
+        "amount_centavos": 68475
+      }
+    ]
+  },
+  "synthetic_multiple_receipts": {
+    "kind": "synthetic_multiple_receipts_and_payers",
+    "participants": {
+      "p01": "Joy",
+      "p02": "Leanne",
+      "p03": "Marco"
+    },
+    "receipts": [
+      {
+        "id": "r1",
+        "total_centavos": 90000,
+        "paid_centavos": {
+          "p01": 90000,
+          "p02": 0,
+          "p03": 0
+        },
+        "owed_centavos": {
+          "p01": 30000,
+          "p02": 30000,
+          "p03": 30000
+        }
+      },
+      {
+        "id": "r2",
+        "total_centavos": 60000,
+        "paid_centavos": {
+          "p01": 0,
+          "p02": 60000,
+          "p03": 0
+        },
+        "owed_centavos": {
+          "p01": 0,
+          "p02": 10000,
+          "p03": 50000
+        }
+      },
+      {
+        "id": "r3",
+        "total_centavos": 40000,
+        "paid_centavos": {
+          "p01": 40000,
+          "p02": 0,
+          "p03": 0
+        },
+        "owed_centavos": {
+          "p01": 20000,
+          "p02": 0,
+          "p03": 20000
+        }
+      },
+      {
+        "id": "r4",
+        "total_centavos": 20000,
+        "paid_centavos": {
+          "p01": 0,
+          "p02": 20000,
+          "p03": 0
+        },
+        "owed_centavos": {
+          "p01": 0,
+          "p02": 20000,
+          "p03": 0
+        }
+      }
+    ],
+    "total_paid_centavos": {
+      "p01": 130000,
+      "p02": 80000,
+      "p03": 0
+    },
+    "total_owed_centavos": {
+      "p01": 50000,
+      "p02": 60000,
+      "p03": 100000
+    },
+    "net_receive_positive_send_negative_centavos": {
+      "p01": 80000,
+      "p02": 20000,
+      "p03": -100000
+    },
+    "settlement_transfers": [
+      {
+        "from": "p03",
+        "to": "p01",
+        "amount_centavos": 80000
+      },
+      {
+        "from": "p03",
+        "to": "p02",
+        "amount_centavos": 20000
+      }
+    ],
+    "attribution_note": "Transfers settle the frozen event-wide net ledger. Receipt statements retain who funded and consumed each receipt; a consolidated transfer is not falsely labelled as a direct payment for one original dish."
+  },
+  "synthetic_payment_workflow": {
+    "kind": "synthetic_manual_recipient_verification",
+    "timeline": [
+      {
+        "report": {
+          "id": "pay-1",
+          "from": "p03",
+          "to": "p01",
+          "amount_centavos": 30000,
+          "status": "reported"
+        },
+        "verified_remaining_balances_centavos": {
+          "p01": 80000,
+          "p02": 20000,
+          "p03": -100000
+        }
+      },
+      {
+        "report": {
+          "id": "pay-1",
+          "from": "p03",
+          "to": "p01",
+          "amount_centavos": 30000,
+          "status": "rejected"
+        },
+        "verified_remaining_balances_centavos": {
+          "p01": 80000,
+          "p02": 20000,
+          "p03": -100000
+        }
+      },
+      {
+        "report": {
+          "id": "pay-2",
+          "from": "p03",
+          "to": "p01",
+          "amount_centavos": 30000,
+          "status": "reported"
+        },
+        "verified_remaining_balances_centavos": {
+          "p01": 80000,
+          "p02": 20000,
+          "p03": -100000
+        }
+      },
+      {
+        "report": {
+          "id": "pay-2",
+          "from": "p03",
+          "to": "p01",
+          "amount_centavos": 30000,
+          "status": "verified"
+        },
+        "verified_remaining_balances_centavos": {
+          "p01": 50000,
+          "p02": 20000,
+          "p03": -70000
+        }
+      },
+      {
+        "report": {
+          "id": "reversal-1",
+          "original_payment_id": "pay-2",
+          "from": "p03",
+          "to": "p01",
+          "amount_centavos": 30000,
+          "status": "verification_reversal",
+          "authorized_by": "p01",
+          "event_was_done": false
+        },
+        "verified_remaining_balances_centavos": {
+          "p01": 80000,
+          "p02": 20000,
+          "p03": -100000
+        }
+      },
+      {
+        "report": {
+          "id": "pay-3",
+          "from": "p03",
+          "to": "p01",
+          "amount_centavos": 50000,
+          "status": "reported"
+        },
+        "verified_remaining_balances_centavos": {
+          "p01": 80000,
+          "p02": 20000,
+          "p03": -100000
+        }
+      },
+      {
+        "report": {
+          "id": "pay-3",
+          "from": "p03",
+          "to": "p01",
+          "amount_centavos": 50000,
+          "status": "verified"
+        },
+        "verified_remaining_balances_centavos": {
+          "p01": 30000,
+          "p02": 20000,
+          "p03": -50000
+        }
+      },
+      {
+        "report": {
+          "id": "pay-5",
+          "from": "p03",
+          "to": "p01",
+          "amount_centavos": 30000,
+          "status": "reported"
+        },
+        "verified_remaining_balances_centavos": {
+          "p01": 30000,
+          "p02": 20000,
+          "p03": -50000
+        }
+      },
+      {
+        "report": {
+          "id": "pay-5",
+          "from": "p03",
+          "to": "p01",
+          "amount_centavos": 30000,
+          "status": "verified"
+        },
+        "verified_remaining_balances_centavos": {
+          "p01": 0,
+          "p02": 20000,
+          "p03": -20000
+        }
+      },
+      {
+        "report": {
+          "id": "pay-4",
+          "from": "p03",
+          "to": "p02",
+          "amount_centavos": 20000,
+          "status": "reported"
+        },
+        "verified_remaining_balances_centavos": {
+          "p01": 0,
+          "p02": 20000,
+          "p03": -20000
+        }
+      },
+      {
+        "report": {
+          "id": "pay-4",
+          "from": "p03",
+          "to": "p02",
+          "amount_centavos": 20000,
+          "status": "verified"
+        },
+        "verified_remaining_balances_centavos": {
+          "p01": 0,
+          "p02": 0,
+          "p03": 0
+        }
+      }
+    ],
+    "event_done": true,
+    "rules": [
+      "Only the named recipient verifies receipt of cash/QR payment.",
+      "Reported/pending and rejected records do not change verified financial balances.",
+      "Pending reports reserve edge capacity to prevent duplicate over-reporting; rejection releases the reservation.",
+      "Verification is atomic and idempotent; only Reported can become Verified or Rejected.",
+      "Before Done, an incorrect Verified record is corrected through a separately audited, recipient-authorized full reversal; preserve the original record and reopen that edge.",
+      "Done events are immutable; no payment edits or verification reversals after Done.",
+      "Event Done requires every settlement edge fully verified, no pending reports, and no unresolved dispute."
+    ],
+    "dispute_resolution_assumptions": [
+      "The rejected pay-1 report remains immutable. Before pay-2, both counterparties acknowledge the same resolution and close the dispute.",
+      "A corrected report for the same already-sent money links the rejected original; it is not an instruction to transfer again.",
+      "This timeline illustrates financial effects; the production state machine additionally enforces every Reported transition, reservation, resolution acknowledgement, identity and DB transaction."
+    ]
+  },
+  "synthetic_scoped_discount": {
+    "kind": "synthetic_explicitly_scoped_discount",
+    "gross_item_allocations_centavos": {
+      "p01": 10000,
+      "p02": 20000,
+      "p03": 30000
+    },
+    "eligible_discount_basis_centavos": {
+      "p01": 10000,
+      "p02": 20000,
+      "p03": 0
+    },
+    "discount_total_centavos": 3000,
+    "discount_allocations_centavos": {
+      "p01": 1000,
+      "p02": 2000,
+      "p03": 0
+    },
+    "post_discount_item_shares_centavos": {
+      "p01": 9000,
+      "p02": 18000,
+      "p03": 30000
+    },
+    "service_total_centavos": 5700,
+    "service_allocations_centavos": {
+      "p01": 900,
+      "p02": 1800,
+      "p03": 3000
+    },
+    "final_owed_centavos": {
+      "p01": 9900,
+      "p02": 19800,
+      "p03": 33000
+    },
+    "total_centavos": 62700,
+    "note": "Eligibility is manually confirmed; do not infer legal entitlement or identity-based discounts."
+  },
+  "synthetic_centavo_rounding": {
+    "kind": "synthetic_rounding_fixtures",
+    "one_peso_by_three": {
+      "p01": 34,
+      "p02": 33,
+      "p03": 33
+    },
+    "one_centavo_by_three": {
+      "p01": 1,
+      "p02": 0,
+      "p03": 0
+    },
+    "rational_weights_101_centavos": {
+      "p01": 50,
+      "p02": 34,
+      "p03": 17
+    },
+    "zero_weight_excluded": {
+      "p01": 51,
+      "p02": 0,
+      "p03": 50
+    },
+    "large_exact_integer_reference_not_app_input_limit": {
+      "p01": 3002399751580331,
+      "p02": 3002399751580330,
+      "p03": 3002399751580330
+    }
+  },
+  "synthetic_rejections": [
+    {
+      "case": "positive_charge_zero_basis",
+      "error": "Cannot allocate a positive amount with a zero basis"
+    },
+    {
+      "case": "negative_money",
+      "error": "Allocate nonnegative magnitudes; discounts subtract later"
+    },
+    {
+      "case": "float_weight",
+      "error": "Floating point weights are not allowed"
+    },
+    {
+      "case": "reversal_after_done",
+      "error": "Done events are immutable"
+    },
+    {
+      "case": "reversal_wrong_actor",
+      "error": "Only the original recipient can authorize reversal"
+    },
+    {
+      "case": "duplicate_reversal",
+      "error": "A verification can be reversed only once"
+    }
+  ],
+  "scope_note": "UI P0 needs equal-consumer shares and explicit units; rational/custom weights are reference arithmetic only. Each receipt has one actual payer. Large-reference arithmetic does not define allowed production input limits."
+}
