@@ -119,14 +119,14 @@ describe("claims", () => {
 
 describe("recovery", () => {
   it("rebinds the same member, keeps their money, revokes the old browser", async () => {
-    const e = await eventWith(app, ["Joy", "Leanne"]);
-    const leanne = e.people.Leanne;
+    const e = await eventWith(app, ["Mark", "Juan"]);
+    const juan = e.people.Juan;
     const { memberId, recoveryKey } = await (async () => {
       const a = await newActor(app);
-      const r = await app.events.join(a, { code: (await app.events.rotateCode(e.people.Joy.actorId, e.eventId)).joinCode, displayName: "Marco" }, "ip");
+      const r = await app.events.join(a, { code: (await app.events.rotateCode(e.people.Mark.actorId, e.eventId)).joinCode, displayName: "Paolo" }, "ip");
       return { memberId: r.memberId, recoveryKey: r.recoveryKey!, oldActor: a };
     })();
-    const { receiptId } = await app.receipts.create(e.people.Joy.actorId, e.eventId, {
+    const { receiptId } = await app.receipts.create(e.people.Mark.actorId, e.eventId, {
       label: "Snacks",
       payerMemberId: memberId,
       payable: "5000",
@@ -142,7 +142,7 @@ describe("recovery", () => {
     // Old key is single-use (rotated).
     await expect(app.recovery.redeem(await newActor(app), { key: recoveryKey }, "ip")).rejects.toThrow(/not valid/);
     // A browser that already controls a different member is refused, not merged.
-    await expect(app.recovery.redeem(leanne.actorId, { key: redeemed.recoveryKey }, "ip")).rejects.toThrow(/never merged/);
+    await expect(app.recovery.redeem(juan.actorId, { key: redeemed.recoveryKey }, "ip")).rejects.toThrow(/never merged/);
   });
 });
 

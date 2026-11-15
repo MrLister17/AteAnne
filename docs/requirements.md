@@ -8,11 +8,11 @@ Source: *AteAnne — Full SDLC & Financial Specification v1.0* ([docs/spec/](spe
 | --- | --- | --- | --- | --- |
 | FR-01 | Event title 1–80, note ≤500, PHP; ≤20 people, ≤25 receipts, ≤50 lines | Done | `validation.ts`, `EventAggregate` limits, `EventService.join` | `integration/security.test.ts` (20-person limit), E2E create |
 | FR-02 | Join by random code + name; separate session and recovery credentials; code grants no authority | Done | `JoinCodeCodec`, `SessionManager`, `EventService.join` | security tests: rotated code, no owner authority, hash-only storage |
-| FR-03 | Intent guides UI only; anyone can fund and consume | Done | `IntentPicker`, domain has no roles | `unit/domain.test.ts` "payer can also owe", E2E (Joy pays and eats) |
+| FR-03 | Intent guides UI only; anyone can fund and consume | Done | `IntentPicker`, domain has no roles | `unit/domain.test.ts` "payer can also owe", E2E (Mark pays and eats) |
 | FR-04 | Manual receipt: label, one payer, lines (qty, exact total), adjustments, payable, optional private photo | Done | `ReceiptService`, `ReceiptEditor`, `AssetService` | workflow + E2E + image tests |
 | FR-05 | Named payer confirms funding for the exact receipt version | Done | `ReceiptService.acknowledgeFunding`, `FundingAck` unique per version | workflow: only payer; organizer edit makes ack stale |
 | FR-06 | Entry gate: all complete, reconciled, payer-confirmed; owner locks roster | Done | `EventAggregate.allocationGate`, `EventService.transition` | workflow "entry gate…locks the roster" |
-| FR-07 | Each member answers every receipt; None ≠ unanswered; progress saved | Done | `ReceiptService.saveClaims` (finish/none/draft), `ReceiptAck` | workflow (Marco unanswered blocks review), E2E |
+| FR-07 | Each member answers every receipt; None ≠ unanswered; progress saved | Done | `ReceiptService.saveClaims` (finish/none/draft), `ReceiptAck` | workflow (Paolo unanswered blocks review), E2E |
 | FR-08 | Shared-equal / units / solo | Done | `ReceiptCalculator` | fixtures (dinner, rice), E2E rice by piece |
 | FR-09 | Conflict gate; no silent edits to others' claims; visible corrections | Done | `reviewGate`, claims are always the caller's own; organizer receipt edits are audited as `receipt.organizer_correction` and make claims stale | security "claims are always the caller's own"; workflow organizer correction |
 | FR-10 | Scoped discounts; service on post-discount eligible spending; exact rounding | Done | `ReceiptCalculator` | fixtures (scoped discount), generated tests |
@@ -35,7 +35,7 @@ Source: *AteAnne — Full SDLC & Financial Specification v1.0* ([docs/spec/](spe
 | AT-04 | Pictured-receipt reconciliation (VAT not re-added, card line ignored); funding ack tracks version | Done |
 | AT-05 | Gate advances only on complete current records; join after lock rejected | Done |
 | AT-06 | None vs unanswered; progress persists | Done |
-| AT-07 | Dinner fixture incl. Leanne zero rice; stable centavo rounding | Done |
+| AT-07 | Dinner fixture incl. Juan zero rice; stable centavo rounding | Done |
 | AT-08 | 4 concurrent claims on 3 rice units → exactly one 409 | Done |
 | AT-09 | Scoped discount; zero service basis flagged, never split equally | Done |
 | AT-10 | Service follows adjusted spending; every allocation sums exactly | Done |

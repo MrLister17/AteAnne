@@ -33,9 +33,9 @@ The sum always equals *A*, and a zero weight always gets zero. A positive *A* wi
 4. **Service**, then **other charges**: proportional to each person's post-discount spending on the charge's eligible lines. Charges never compound on charges.
 5. **Invariant checks**: no negative share, and Σ shares = payable (otherwise the code throws an internal error).
 
-### Worked example (synthetic): Joy paid; Leanne skipped the rice
+### Worked example (synthetic): Mark paid; Juan skipped the rice
 
-Shared dishes PHP 1,800 ÷ 9; rice PHP 180 shared by 8 (not Leanne); solo meals; service PHP 478 on PHP 4,780 of items. Leanne's service = 478 × 450 / 4,780 = **PHP 45.00**. Her total is PHP 495.00 and Joy's net is +PHP 4,628.25. Every figure is asserted in `tests/unit/fixtures.test.ts`.
+Shared dishes PHP 1,800 ÷ 9; rice PHP 180 shared by 8 (not Juan); solo meals; service PHP 478 on PHP 4,780 of items. Juan's service = 478 × 450 / 4,780 = **PHP 45.00**. Their total is PHP 495.00 and Mark's net is +PHP 4,628.25. Every figure is asserted in `tests/unit/fixtures.test.ts`.
 
 ### Pictured receipt (totals only)
 

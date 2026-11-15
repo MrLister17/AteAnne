@@ -22,15 +22,15 @@
   "synthetic_nine_person_dinner": {
     "kind": "synthetic_illustrative_example_not_the_pictured_receipt",
     "participants": {
-      "p01": "Joy",
-      "p02": "Leanne",
+      "p01": "Mark",
+      "p02": "Juan",
       "p03": "Ana",
       "p04": "Ben",
-      "p05": "Cara",
-      "p06": "Dan",
-      "p07": "Eli",
-      "p08": "Faye",
-      "p09": "Gio"
+      "p05": "Carlo",
+      "p06": "Dani",
+      "p07": "Elle",
+      "p08": "Franco",
+      "p09": "Gina"
     },
     "receipt": {
       "id": "dinner-r1",
@@ -38,7 +38,7 @@
       "rice_quantity": 3,
       "rice_unit_centavos": 6000,
       "rice_line_centavos": 18000,
-      "rice_policy": "three bowls shared equally by eight participants; Leanne opted out",
+      "rice_policy": "three bowls shared equally by eight participants; Juan opted out",
       "solo_meals_centavos": {
         "p01": 35000,
         "p02": 25000,
@@ -204,9 +204,9 @@
   "synthetic_multiple_receipts": {
     "kind": "synthetic_multiple_receipts_and_payers",
     "participants": {
-      "p01": "Joy",
-      "p02": "Leanne",
-      "p03": "Marco"
+      "p01": "Mark",
+      "p02": "Juan",
+      "p03": "Paolo"
     },
     "receipts": [
       {

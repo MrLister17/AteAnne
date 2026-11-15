@@ -1,6 +1,10 @@
 /** 360px layout, keyboard focus, labels and reduced motion on entry screens. */
 import { expect, test } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("ateanne.tutorial.v1", "asked"));
+});
+
 for (const path of ["/", "/new", "/join", "/recover", "/offline"]) {
   test(`no horizontal scroll and labelled controls at 360px: ${path}`, async ({ page }) => {
     await page.goto(path);
@@ -29,7 +33,7 @@ for (const path of ["/", "/new", "/join", "/recover", "/offline"]) {
 test("keyboard users can reach and see focus on the primary action", async ({ page }) => {
   await page.goto("/");
   await page.keyboard.press("Tab");
-  const focused = await page.evaluate(() => document.activeElement?.textContent?.trim());
+  const focused = await page.evaluate(() => document.activeElement?.getAttribute("aria-label") || document.activeElement?.textContent?.trim());
   expect(focused).toBeTruthy();
   const outline = await page.evaluate(() => getComputedStyle(document.activeElement!).outlineStyle);
   expect(outline).not.toBe("none");
@@ -38,6 +42,7 @@ test("keyboard users can reach and see focus on the primary action", async ({ pa
 test("honours reduced motion", async ({ browser }) => {
   const ctx = await browser.newContext({ reducedMotion: "reduce", viewport: { width: 360, height: 740 } });
   const page = await ctx.newPage();
+  await page.addInitScript(() => localStorage.setItem("ateanne.tutorial.v1", "asked"));
   await page.goto("/new");
   const dur = await page.evaluate(() => {
     const el = document.createElement("div");

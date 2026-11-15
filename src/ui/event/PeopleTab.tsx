@@ -8,6 +8,7 @@ import { Icon } from "../components/Icon";
 import { Avatar, Badge, Button, Card, Field, Notice, SectionTitle, Sheet } from "../components/ui";
 import { timeAgo } from "../format";
 import { useAction, useEvent } from "./EventContext";
+import { TutorialButton } from "../tutorial/TutorialProvider";
 
 const AUDIT_TEXT: Record<string, string> = {
   "event.created": "created the event",
@@ -155,6 +156,9 @@ export function PeopleTab() {
           </Card>
         </>
       )}
+
+      <SectionTitle>Help</SectionTitle>
+      <TutorialButton />
 
       <SectionTitle>Trust & limits</SectionTitle>
       <details className="card p-4 text-[14px]">

@@ -169,22 +169,22 @@ describe("ReceiptCalculator issues", () => {
 });
 
 describe("PaymentLedger", () => {
-  const edges = [{ id: "e1", from: "marco", to: "joy", amount: 80000n }];
+  const edges = [{ id: "e1", from: "paolo", to: "mark", amount: 80000n }];
   it("pending reserves capacity but leaves verified balance unchanged", () => {
     const l = new PaymentLedger(edges, [{ id: "r1", edgeId: "e1", amount: 30000n, status: "REPORTED", reversed: false }]);
     const s = l.edgeState("e1");
     expect([s.verified, s.pending, s.outstanding, s.capacity]).toEqual([0n, 30000n, 80000n, 50000n]);
-    expect(() => l.assertCanReport("e1", "marco", 50001n)).toThrow(/At most/);
-    expect(() => l.assertCanReport("e1", "joy", 100n)).toThrow(/named sender/);
+    expect(() => l.assertCanReport("e1", "paolo", 50001n)).toThrow(/At most/);
+    expect(() => l.assertCanReport("e1", "mark", 100n)).toThrow(/named sender/);
   });
   it("disputed edge blocks new reports except an agreed replacement", () => {
     const l = new PaymentLedger(edges, [], [{ edgeId: "e1", open: true, awaitingReplacement: true }]);
-    expect(() => l.assertCanReport("e1", "marco", 100n)).toThrow(/Resolve this/);
-    expect(() => l.assertCanReport("e1", "marco", 100n, { isAgreedReplacement: true })).not.toThrow();
+    expect(() => l.assertCanReport("e1", "paolo", 100n)).toThrow(/Resolve this/);
+    expect(() => l.assertCanReport("e1", "paolo", 100n, { isAgreedReplacement: true })).not.toThrow();
   });
   it("only the recipient decides, only pending", () => {
-    expect(() => PaymentLedger.assertCanDecide({ recipientId: "joy", status: "REPORTED" }, "marco")).toThrow();
-    expect(() => PaymentLedger.assertCanDecide({ recipientId: "joy", status: "REJECTED" }, "joy")).toThrow();
+    expect(() => PaymentLedger.assertCanDecide({ recipientId: "mark", status: "REPORTED" }, "paolo")).toThrow();
+    expect(() => PaymentLedger.assertCanDecide({ recipientId: "mark", status: "REJECTED" }, "mark")).toThrow();
   });
 });
 

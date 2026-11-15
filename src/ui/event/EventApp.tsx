@@ -13,6 +13,7 @@ import { ReceiptsTab } from "./ReceiptsTab";
 import { ClaimTab } from "./ClaimTab";
 import { MoneyTab } from "./MoneyTab";
 import { PeopleTab } from "./PeopleTab";
+import { TutorialButton } from "../tutorial/TutorialProvider";
 
 const TABS: { id: TabId; label: string; icon: IconName }[] = [
   { id: "overview", label: "Home", icon: "home" },
@@ -141,6 +142,7 @@ function Header({ view, onRefresh }: { view: View; onRefresh: () => Promise<void
             <p className="text-[11px] text-muted">{net > 0n ? "to receive" : net < 0n ? "to pay" : "settled"}{frozen ? "" : " · est."}</p>
           </div>
         )}
+        <TutorialButton variant="icon" />
         <Button variant="ghost" className="!min-h-11 !px-2" aria-label="Refresh" onClick={() => void onRefresh()}>
           <Icon name="refresh" size={20} />
         </Button>

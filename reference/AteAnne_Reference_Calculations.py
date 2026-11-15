@@ -130,8 +130,8 @@ def build_fixtures():
     assert pictured["net_items_including_vat_centavos"] + pictured["service_charge_centavos"] == pictured["total_due_centavos"]
 
     # Synthetic nine-person dinner: shared dishes, three extra rice bowls shared
-    # equally by eight people, and separate meals. Leanne has no rice allocation.
-    names = ["Joy", "Leanne", "Ana", "Ben", "Cara", "Dan", "Eli", "Faye", "Gio"]
+    # equally by eight people, and separate meals. Juan has no rice allocation.
+    names = ["Mark", "Juan", "Ana", "Ben", "Carlo", "Dani", "Elle", "Franco", "Gina"]
     ids = [f"p{i:02}" for i in range(1, 10)]
     participants = dict(zip(ids, names))
     solo = dict(zip(ids, [35000, 25000, 30000, 40000, 20000, 30000, 25000, 35000, 40000]))
@@ -157,7 +157,7 @@ def build_fixtures():
             "rice_quantity": 3,
             "rice_unit_centavos": 6000,
             "rice_line_centavos": 18000,
-            "rice_policy": "three bowls shared equally by eight participants; Leanne opted out",
+            "rice_policy": "three bowls shared equally by eight participants; Juan opted out",
             "solo_meals_centavos": solo,
             "gross_items_centavos": 478000,
             "service_charge_centavos": 47800,
@@ -185,7 +185,7 @@ def build_fixtures():
     assert multi_balance == {"p01":80000,"p02":20000,"p03":-100000}
     multi_transfers=net_transfers(multi_balance)
     assert multi_transfers == [{"from":"p03","to":"p01","amount_centavos":80000},{"from":"p03","to":"p02","amount_centavos":20000}]
-    multi={"kind":"synthetic_multiple_receipts_and_payers", "participants":{"p01":"Joy","p02":"Leanne","p03":"Marco"}, "receipts":receipts,"total_paid_centavos":multi_paid,"total_owed_centavos":multi_owed,"net_receive_positive_send_negative_centavos":multi_balance,"settlement_transfers":multi_transfers,"attribution_note":"Transfers settle the frozen event-wide net ledger. Receipt statements retain who funded and consumed each receipt; a consolidated transfer is not falsely labelled as a direct payment for one original dish."}
+    multi={"kind":"synthetic_multiple_receipts_and_payers", "participants":{"p01":"Mark","p02":"Juan","p03":"Paolo"}, "receipts":receipts,"total_paid_centavos":multi_paid,"total_owed_centavos":multi_owed,"net_receive_positive_send_negative_centavos":multi_balance,"settlement_transfers":multi_transfers,"attribution_note":"Transfers settle the frozen event-wide net ledger. Receipt statements retain who funded and consumed each receipt; a consolidated transfer is not falsely labelled as a direct payment for one original dish."}
 
     # Rejected reports have no financial effect. Never transition Rejected to
     # Verified; a corrected/new report gets a new ID. Pending reserves capacity

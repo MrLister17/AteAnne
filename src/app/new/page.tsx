@@ -50,7 +50,7 @@ export default function NewEvent() {
           {(p) => <textarea {...p} className="field min-h-20" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything the group should know" />}
         </Field>
         <Field label="Your name in this group" hint="Friends see this. Nicknames are fine.">
-          {(p) => <input {...p} className="field" required maxLength={40} autoComplete="nickname" value={name} onChange={(e) => setName(e.target.value)} placeholder="Joy" />}
+          {(p) => <input {...p} className="field" required maxLength={40} autoComplete="nickname" value={name} onChange={(e) => setName(e.target.value)} placeholder="Mark" />}
         </Field>
         <IntentPicker value={intent} onChange={setIntent} />
         {error && <Notice tone="pay">{error}</Notice>}

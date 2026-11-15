@@ -4,7 +4,8 @@ _Last updated: 2026-11-15_
 
 ## Status
 
-- **Engineering:** the P0 workflow is complete and persistent (create → join → receipts → claims → review → freeze → cash/QR → reports → recipient confirmation → Done), with exact-centavo calculations matching every supplied fixture. Lint, types, 32 unit, 23 integration and 18 E2E tests pass; the production build passes ([test-report.md](test-report.md)).
+- **Engineering:** the P0 workflow is complete and persistent (create → join → receipts → claims → review → freeze → cash/QR → reports → recipient confirmation → Done), with exact-centavo calculations matching every supplied fixture. Lint, types, 32 unit, 23 integration and 22 E2E tests pass; the production build passes ([test-report.md](test-report.md)).
+- **Onboarding:** first-visit ask plus a 12-step tutorial ("?" button on Home, the event header and People).
 - **Mobile/PWA:** iPhone-first UI with safe areas, bottom tab bar, 16px inputs and 44px targets; dark mode; installable via manifest + apple-touch-icon + service worker; an install helper (iOS Share → Add to Home Screen, Android install prompt).
 - **Deployment:** **not deployed.** No hosting target or credentials were provided.
 - **Pilot / research:** **not started** (human task; see [pilot-guide.md](pilot-guide.md)).

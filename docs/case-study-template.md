@@ -8,7 +8,7 @@ Splitting a restaurant bill ÷ 9 overcharges the person who skipped the rice and
 ## What I built
 A mobile-first, installable web app (iPhone-first PWA) where people claim what they actually had, approve one exact split, and settle with payments only the receiver can confirm.
 
-- Demo (synthetic): *Joy paid PHP 5,258; Leanne skipped the rice → owes PHP 495.00, not PHP 584.22.*
+- Demo (synthetic): *Mark paid PHP 5,258; Juan skipped the rice → owes PHP 495.00, not PHP 584.22.*
 - Screenshots: home, receipt editor with reconciliation, claim wizard, review breakdown, settle/confirm, Done.
 
 ## Engineering highlights

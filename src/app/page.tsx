@@ -7,6 +7,7 @@ import { Brand, PageShell } from "@/ui/components/Shell";
 import { Badge, SectionTitle } from "@/ui/components/ui";
 import { Icon } from "@/ui/components/Icon";
 import { InstallPrompt } from "@/ui/pwa/InstallPrompt";
+import { TutorialButton } from "@/ui/tutorial/TutorialProvider";
 import { timeAgo } from "@/ui/format";
 import { PHASE_LABEL, type Phase } from "@/domain/event/PhaseMachine";
 
@@ -20,12 +21,12 @@ export default function Home() {
 
   return (
     <PageShell>
-      <div className="pt-8 pb-2">
+      <div className="flex items-start justify-between pt-8 pb-2">
         <Brand />
+        <TutorialButton variant="icon" />
       </div>
       <p className="mt-4 text-[17px] leading-relaxed">
-        Split the bill by <b>what each person actually had</b>. Joy paid the whole dinner, Leanne skipped the rice — AteAnne explains every centavo and tracks who has really been paid back.
-      </p>
+        Split the bill by <b>what each person actually had</b>, not just total ÷ people. AteAnne explains every centavo and tracks who has really been paid back.</p>
 
       <div className="mt-6 grid gap-3">
         <Link href="/new" className="flex min-h-14 items-center gap-3 rounded-2xl bg-violet px-5 text-[17px] font-semibold text-violet-ink shadow-sm active:opacity-90">
@@ -34,6 +35,10 @@ export default function Home() {
         <Link href="/join" className="card flex min-h-14 items-center gap-3 px-5 text-[17px] font-semibold active:bg-surface-2">
           <Icon name="users" className="text-violet" /> Join with a code
         </Link>
+      </div>
+
+      <div className="mt-3">
+        <TutorialButton />
       </div>
 
       <div className="mt-5">

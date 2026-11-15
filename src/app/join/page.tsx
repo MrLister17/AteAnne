@@ -72,7 +72,7 @@ export default function Join() {
           )}
         </Field>
         <Field label="Your name in this group" hint="Use a name your friends will recognise.">
-          {(p) => <input {...p} className="field" required maxLength={40} autoComplete="nickname" value={name} onChange={(e) => setName(e.target.value)} placeholder="Leanne" />}
+          {(p) => <input {...p} className="field" required maxLength={40} autoComplete="nickname" value={name} onChange={(e) => setName(e.target.value)} placeholder="Juan" />}
         </Field>
         <IntentPicker value={intent} onChange={setIntent} />
         {error && <Notice tone="pay">{error}</Notice>}

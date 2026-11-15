@@ -123,7 +123,7 @@ function dinnerReceipt(): { receipt: ReceiptInput; ids: string[] } {
   };
 }
 
-describe("synthetic_nine_person_dinner (Joy paid; Leanne skipped rice)", () => {
+describe("synthetic_nine_person_dinner (Mark paid; Juan skipped rice)", () => {
   const d = fixtures.synthetic_nine_person_dinner;
   it("matches every per-person figure", () => {
     const { receipt, ids } = dinnerReceipt();
@@ -151,13 +151,13 @@ describe("synthetic_nine_person_dinner (Joy paid; Leanne skipped rice)", () => {
     expect(result.edges.map((e) => ({ from: e.from, to: e.to, amount_centavos: Number(e.amount) }))).toEqual(d.settlement_transfers);
     expect(result.positions.reduce((a, p) => a + p.net, 0n)).toBe(0n);
   });
-  it("Leanne has zero rice and no rice-linked service", () => {
+  it("Juan has zero rice and no rice-linked service", () => {
     const { receipt, ids } = dinnerReceipt();
     const calc = new ReceiptCalculator().calculate(receipt, ids);
     if (!calc.ok) throw new Error("calc failed");
-    const leanne = calc.shares.get("p02")!;
-    expect(leanne.lineShares.has("rice")).toBe(false);
-    expect(leanne.chargeTotal).toBe(4500n); // 478 × 450 / 4780
+    const juan = calc.shares.get("p02")!;
+    expect(juan.lineShares.has("rice")).toBe(false);
+    expect(juan.chargeTotal).toBe(4500n); // 478 × 450 / 4780
   });
 });
 
