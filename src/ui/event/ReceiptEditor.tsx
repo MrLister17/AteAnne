@@ -248,7 +248,7 @@ export function ReceiptEditor({
               alt="The receipt photo you scanned"
               className={`${bigPhoto ? "max-h-[70vh] w-full" : "max-h-40 w-28"} rounded-xl border border-line bg-surface object-contain`}
             />
-            <button type="button" className="min-h-11 shrink-0 text-[15px] font-semibold text-violet" onClick={() => setBigPhoto((v) => !v)}>
+            <button type="button" className="btn btn-tonal !min-h-11 shrink-0 !px-4 !text-[15px]" onClick={() => setBigPhoto((v) => !v)}>
               {bigPhoto ? "Smaller photo" : "Bigger photo"}
             </button>
           </div>
@@ -281,7 +281,7 @@ export function ReceiptEditor({
                   <span className="text-[13px] font-bold text-muted">#{i + 1}</span>
                   <input aria-label={`Item ${i + 1} name`} className="field flex-1" maxLength={80} value={l.label} onChange={(e) => setLine(i, { label: e.target.value })} placeholder="Sisig / Rice / Coke 1.5L" aria-invalid={tried && !l.label.trim() ? true : undefined} />
                   {d.lines.length > 1 && (
-                    <button type="button" className="inline-flex size-11 items-center justify-center rounded-full text-pay" aria-label={`Remove item ${i + 1}`} onClick={() => setD({ ...d, lines: d.lines.filter((_, j) => j !== i), adjustments: d.adjustments.map((a) => ({ ...a, scope: a.scope === "ALL" ? "ALL" : a.scope.filter((x) => x !== i).map((x) => (x > i ? x - 1 : x)) })) })}>
+                    <button type="button" className="icon-btn icon-btn-danger" aria-label={`Remove item ${i + 1}`} onClick={() => setD({ ...d, lines: d.lines.filter((_, j) => j !== i), adjustments: d.adjustments.map((a) => ({ ...a, scope: a.scope === "ALL" ? "ALL" : a.scope.filter((x) => x !== i).map((x) => (x > i ? x - 1 : x)) })) })}>
                       <Icon name="trash" size={20} />
                     </button>
                   )}
@@ -309,9 +309,9 @@ export function ReceiptEditor({
                 )}
                 <fieldset>
                   <legend className="text-[13px] text-muted">How will people claim it?</legend>
-                  <div className="mt-1 grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
+                  <div className="segmented mt-1">
                     {(["SHARED", "UNITS"] as const).map((m) => (
-                      <button key={m} type="button" aria-pressed={l.mode === m} onClick={() => setLine(i, { mode: m })} className={`min-h-11 rounded-lg text-[14px] font-semibold ${l.mode === m ? "bg-surface text-violet shadow-sm" : "text-muted"}`}>
+                      <button key={m} type="button" aria-pressed={l.mode === m} onClick={() => setLine(i, { mode: m })} >
                         {m === "SHARED" ? "Shared equally" : "By piece"}
                       </button>
                     ))}
@@ -321,7 +321,7 @@ export function ReceiptEditor({
               </li>
             ))}
           </ol>
-          <Button variant="ghost" icon="plus" className="mt-2" disabled={d.lines.length >= 50} onClick={() => setD({ ...d, lines: [...d.lines, { label: "", quantity: "1", amount: "", unitPrice: "", mode: "SHARED" }] })}>
+          <Button variant="add" icon="plus" className="mt-3" disabled={d.lines.length >= 50} onClick={() => setD({ ...d, lines: [...d.lines, { label: "", quantity: "1", amount: "", unitPrice: "", mode: "SHARED" }] })}>
             Add item
           </Button>
         </div>
@@ -338,7 +338,7 @@ export function ReceiptEditor({
                     <option value="SERVICE">Service charge</option>
                     <option value="CHARGE">Other charge</option>
                   </select>
-                  <button type="button" className="ml-auto inline-flex size-11 items-center justify-center rounded-full text-pay" aria-label="Remove" onClick={() => setD({ ...d, adjustments: d.adjustments.filter((_, j) => j !== i) })}>
+                  <button type="button" className="icon-btn icon-btn-danger ml-auto" aria-label="Remove" onClick={() => setD({ ...d, adjustments: d.adjustments.filter((_, j) => j !== i) })}>
                     <Icon name="trash" size={20} />
                   </button>
                 </div>
@@ -366,11 +366,11 @@ export function ReceiptEditor({
               </li>
             ))}
           </ol>
-          <div className="mt-2 flex flex-wrap gap-1">
-            <Button variant="ghost" icon="plus" onClick={() => setD({ ...d, adjustments: [...d.adjustments, { kind: "SERVICE", label: "Service charge", amount: "", scope: "ALL" }] })}>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button variant="tonal" icon="plus" className="!px-2 !text-[15px] whitespace-nowrap" onClick={() => setD({ ...d, adjustments: [...d.adjustments, { kind: "SERVICE", label: "Service charge", amount: "", scope: "ALL" }] })}>
               Service charge
             </Button>
-            <Button variant="ghost" icon="plus" onClick={() => setD({ ...d, adjustments: [...d.adjustments, { kind: "DISCOUNT", label: "Discount", amount: "", scope: "ALL" }] })}>
+            <Button variant="tonal" icon="plus" className="!px-2 !text-[15px] whitespace-nowrap" onClick={() => setD({ ...d, adjustments: [...d.adjustments, { kind: "DISCOUNT", label: "Discount", amount: "", scope: "ALL" }] })}>
               Discount
             </Button>
           </div>
@@ -398,7 +398,7 @@ function Reconciliation({ calc, onUse }: { calc: { gross: bigint; disc: bigint; 
         {calc.diff === null ? "" : ok ? " ✓ matches" : ` · off by ${php(calc.diff < 0n ? -calc.diff : calc.diff)}`}
       </span>
       {!ok && (
-        <button type="button" className="min-h-9 shrink-0 rounded-lg bg-surface px-2 text-[13px] font-semibold text-ink" onClick={onUse}>
+        <button type="button" className="btn btn-secondary !min-h-11 shrink-0 !rounded-xl !px-3 !text-[14px]" onClick={onUse}>
           Use this
         </button>
       )}

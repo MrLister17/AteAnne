@@ -7,13 +7,16 @@ import { Icon, IconName } from "./Icon";
 
 /* ---------------------------------------------------------------- Button */
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "receive";
+type Variant = "primary" | "secondary" | "tonal" | "ghost" | "danger" | "receive" | "add";
+/** Styles live in globals.css (.btn-*), so plain <button>s can share them. */
 const VARIANT: Record<Variant, string> = {
-  primary: "bg-violet text-violet-ink shadow-sm active:opacity-90",
-  secondary: "bg-surface text-ink border border-line active:bg-surface-2",
-  ghost: "bg-transparent text-violet active:bg-violet-soft",
-  danger: "bg-pay-soft text-pay border border-pay/30 active:opacity-90",
-  receive: "bg-receive text-white active:opacity-90 dark:text-[#0f2219]",
+  primary: "btn-primary",
+  secondary: "btn-secondary",
+  tonal: "btn-tonal",
+  ghost: "btn-ghost",
+  danger: "btn-danger",
+  receive: "btn-receive",
+  add: "btn-add",
 };
 
 /** Short vibration where the phone supports it (Android; iPhones ignore it). Never throws. */
@@ -76,7 +79,7 @@ export function Button({
       onClick={handle}
       disabled={rest.disabled || working}
       aria-busy={working || undefined}
-      className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-[16px] font-semibold transition disabled:opacity-50 ${VARIANT[variant]} ${full ? "w-full" : ""} ${className}`}
+      className={`btn ${VARIANT[variant]} ${full ? "w-full" : ""} ${className}`}
     >
       {working ? <Spinner /> : done ? <Icon name="check" size={20} className="animate-pop" /> : icon ? <Icon name={icon} size={20} /> : null}
       {children}
@@ -253,7 +256,7 @@ export function Sheet({ open, onClose, title, children, footer }: { open: boolea
         <div className="animate-sheet flex h-full flex-col bg-bg sm:rounded-3xl">
           <header className="safe-top sticky top-0 z-10 border-b border-line bg-bg/95 backdrop-blur">
             <div className="flex min-h-14 items-center gap-2 px-2">
-              <button type="button" onClick={onClose} className="inline-flex size-11 items-center justify-center rounded-full text-violet active:bg-violet-soft" aria-label="Close">
+              <button type="button" onClick={onClose} className="icon-btn" aria-label="Close">
                 <Icon name="x" />
               </button>
               <h2 className="truncate text-[17px] font-bold">{title}</h2>

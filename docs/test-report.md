@@ -21,8 +21,10 @@ Checked by browser tests on both phone sizes, with the fake reader:
 - A file that is not a photo leaves a message on screen ("That didn’t work", the reason, and Retake / Upload photo) instead of a toast that vanishes.
 - Tapping **Save receipt** on an unfinished form shows "Not saved yet. Fill in …" above the open sheet and moves to the first missing field. Before this session that message was drawn underneath the sheet.
 - The press effect for buttons is present in the stylesheet.
+- After the button restyle (D33) the full chain was run again: lint and typecheck exit 0, 54 unit, 30 integration, build, **30 browser tests passed**. Dark and light screenshots of Home, Overview, Receipts and the receipt form were looked over by hand in iPhone 15 emulation; no automated visual comparison exists.
+- **Production check from the owner's phone (2026-11-16):** `/api/health` on the live site returned version `a0e494b` (the latest at that time) and `receiptScan: off` with the hint that `GROQ_API_KEY` is not set in the production environment, and no similarly named setting was found. So the cause is the Vercel setting, not the code.
 
-**Not verified:** the production site. This session could not reach the Vercel site or the Vercel API (blocked by the session's network settings), so **why scanning is off in production is still undiagnosed**; the new `/api/health` → `receiptScanHint` is there to answer it. No live Groq call and no real phone photo was scanned in this session. The Cancel button, the 55-second time-out and the camera/HEIC behaviour on a real iPhone have no automated test.
+**Not verified:** the production site. This session could not reach the Vercel site or the Vercel API (blocked by the session's network settings), so the diagnosis came from the owner opening `/api/health` on their phone (see above). No live Groq call and no real phone photo was scanned in this session. The Cancel button, the 55-second time-out and the camera/HEIC behaviour on a real iPhone have no automated test.
 
 ## Vercel deployment simulation
 

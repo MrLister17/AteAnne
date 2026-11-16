@@ -229,13 +229,13 @@ function ReportList({ edge, role }: { edge: EdgeView; role: "sender" | "recipien
             </div>
           )}
           {role === "sender" && r.status === "REPORTED" && (
-            <Button variant="ghost" className="mt-2" onClick={() => act(() => api.post(`/api/payments/${r.id}/cancel`), "Report cancelled")}>
+            <Button variant="tonal" className="mt-2" onClick={() => act(() => api.post(`/api/payments/${r.id}/cancel`), "Report cancelled")}>
               Cancel this report
             </Button>
           )}
           {role === "recipient" && r.status === "VERIFIED" && !r.reversal && event.phase === "SETTLING" && (
             <Button
-              variant="ghost"
+              variant="tonal"
               className="mt-2"
               onClick={() => {
                 const reason = prompt("You can undo your confirmation once, before the event is Done. This is a record correction, not a refund. Reason:");

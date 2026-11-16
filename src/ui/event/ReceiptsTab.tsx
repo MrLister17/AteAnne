@@ -211,7 +211,7 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
                   e.target.value = "";
                 }}
               />
-              <Button variant="ghost" icon="camera" busy={uploading} onClick={() => fileRef.current?.click()}>
+              <Button variant="tonal" icon="camera" busy={uploading} onClick={() => fileRef.current?.click()}>
                 {r.imageAssetId ? "Replace photo" : "Attach photo"}
               </Button>
             </>

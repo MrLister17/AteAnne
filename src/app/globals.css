@@ -11,6 +11,8 @@
   --ink: #1e1a24;
   --muted: #6b6475;
   --line: #e7dfd5;
+  --line-strong: #d3c8ba;
+  --receive-ink: #ffffff;
   --violet: #5b3fd0;
   --violet-ink: #ffffff;
   --violet-soft: #eee9ff;
@@ -38,6 +40,10 @@
     --ink: #f3eef7;
     --muted: #aaa2b5;
     --line: #362f41;
+  --line-strong: #4a4159;
+  --receive-ink: #0f2219;
+    --line-strong: #4a4159;
+    --receive-ink: #0f2219;
     --violet: #a594ff;
     --violet-ink: #15121b;
     --violet-soft: #2c2547;
@@ -61,6 +67,8 @@
   --ink: #f3eef7;
   --muted: #aaa2b5;
   --line: #362f41;
+  --line-strong: #4a4159;
+  --receive-ink: #0f2219;
   --violet: #a594ff;
   --violet-ink: #15121b;
   --violet-soft: #2c2547;
@@ -161,6 +169,165 @@ button {
   color: var(--ink);
   padding: 10px 14px;
 }
+/* ---- Buttons: one system for the whole app --------------------------------
+   .btn + one of: -primary (the main action on a screen, one per view),
+   -secondary (alternative action), -tonal (helpful extra such as "Add item"),
+   -ghost (quiet text action), -danger (destructive), -receive (money confirmed).
+   Every style looks pressable at rest and visibly changes when pressed.      */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+}
+.btn-primary {
+  background: var(--violet);
+  color: var(--violet-ink);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 1px 2px rgb(0 0 0 / 0.18),
+    0 8px 18px -8px var(--violet);
+}
+.btn-primary:not(:disabled):active {
+  background: color-mix(in oklab, var(--violet) 84%, black);
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.25);
+}
+.btn-secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line-strong);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+}
+.btn-secondary:not(:disabled):active {
+  background: var(--surface-2);
+  box-shadow: none;
+}
+.btn-tonal {
+  background: var(--violet-soft);
+  color: var(--violet);
+}
+.btn-tonal:not(:disabled):active {
+  background: color-mix(in oklab, var(--violet-soft) 82%, var(--violet));
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--violet);
+}
+.btn-ghost:not(:disabled):active {
+  background: var(--violet-soft);
+}
+.btn-danger {
+  background: var(--pay-soft);
+  color: var(--pay);
+  border-color: color-mix(in oklab, var(--pay) 35%, transparent);
+}
+.btn-danger:not(:disabled):active {
+  background: color-mix(in oklab, var(--pay-soft) 80%, var(--pay));
+}
+.btn-receive {
+  background: var(--receive);
+  color: var(--receive-ink);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 1px 2px rgb(0 0 0 / 0.18),
+    0 8px 18px -8px var(--receive);
+}
+.btn-receive:not(:disabled):active {
+  background: color-mix(in oklab, var(--receive) 84%, black);
+  box-shadow: inset 0 2px 4px rgb(0 0 0 / 0.25);
+}
+.btn:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+/* While working the button keeps its full colour so the spinner reads as progress, not as "switched off". */
+.btn[aria-busy="true"]:disabled {
+  opacity: 0.8;
+  cursor: progress;
+}
+/* Dashed "add another" row: obviously tappable, clearly secondary to Save. */
+.btn-add {
+  width: 100%;
+  background: transparent;
+  color: var(--violet);
+  border: 1.5px dashed color-mix(in oklab, var(--violet) 55%, transparent);
+}
+.btn-add:not(:disabled):active {
+  background: var(--violet-soft);
+}
+/* Round 44px icon button (close, remove, refresh, help). */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  color: var(--violet);
+  background: transparent;
+}
+.icon-btn:not(:disabled):active {
+  background: var(--violet-soft);
+}
+.icon-btn-danger {
+  color: var(--pay);
+  background: var(--pay-soft);
+}
+.icon-btn-danger:not(:disabled):active {
+  background: color-mix(in oklab, var(--pay-soft) 75%, var(--pay));
+}
+/* Two-or-more choice switch (Shared equally / By piece). */
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.segmented > button {
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.segmented > button[aria-pressed="true"] {
+  background: var(--violet);
+  color: var(--violet-ink);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.2);
+}
+/* Round − / + stepper buttons. */
+.stepper-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: var(--violet-soft);
+  color: var(--violet);
+}
+.stepper-btn:not(:disabled):active {
+  background: var(--violet);
+  color: var(--violet-ink);
+}
+.stepper-btn:disabled {
+  opacity: 0.35;
+}
+
 .field:focus {
   border-color: var(--violet);
   outline: none;
@@ -198,16 +365,32 @@ button {
     transform 90ms ease-out,
     filter 120ms ease-out,
     opacity 120ms ease-out,
+    box-shadow 120ms ease-out,
     background-color 120ms ease-out;
   -webkit-user-select: none;
   user-select: none;
 }
 button:not(:disabled):active {
   transform: scale(0.97);
-  filter: brightness(0.93);
+}
+/* Buttons without their own pressed colour (cards, list rows, tabs) still darken a touch. */
+button:not(:disabled):not(.btn):not(.icon-btn):not(.stepper-btn):active {
+  filter: brightness(0.94);
 }
 button:disabled {
   cursor: not-allowed;
+}
+/* Big link tiles (home screen, event list) answer a press the same way. */
+a {
+  transition:
+    transform 90ms ease-out,
+    opacity 120ms ease-out;
+}
+a[class*="min-h-"]:active,
+a.btn:active,
+a.card:active {
+  transform: scale(0.98);
+  opacity: 0.9;
 }
 
 /* Top layer for toasts + activity bar (see ToastProvider). Overrides the browser's popover box. */

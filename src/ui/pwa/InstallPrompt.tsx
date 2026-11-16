@@ -63,7 +63,7 @@ export function InstallPrompt() {
         ) : (
           <button
             type="button"
-            className="mt-2 min-h-11 rounded-xl bg-violet px-4 font-semibold text-violet-ink"
+            className="btn btn-primary mt-2 !min-h-11 !px-4"
             onClick={async () => {
               await deferred?.prompt();
               setMode(null);

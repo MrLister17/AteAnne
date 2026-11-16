@@ -93,7 +93,7 @@ export function ScanPanel({
             </Button>
           </div>
           {onType && (
-            <Button variant="ghost" icon="edit" full className="mt-1" onClick={onType}>
+            <Button variant="add" icon="edit" full className="mt-2" onClick={onType}>
               Add receipt by typing
             </Button>
           )}

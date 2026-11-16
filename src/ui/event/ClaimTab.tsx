@@ -150,14 +150,14 @@ function ReceiptClaimer({ receipt: r, readOnly, onNext }: { receipt: ReceiptView
                   </button>
                 ) : (
                   <div className="flex items-center gap-1" role="group" aria-label={`Pieces of ${l.label} you had`}>
-                    <button type="button" disabled={readOnly || mine === 0} onClick={() => setDraft((d) => ({ ...d, [l.id]: Math.max(0, mine - 1) }))} className="inline-flex size-11 items-center justify-center rounded-full border border-line bg-surface disabled:opacity-40" aria-label="One less">
-                      <Icon name="minus" size={18} />
+                    <button type="button" disabled={readOnly || mine === 0} onClick={() => setDraft((d) => ({ ...d, [l.id]: Math.max(0, mine - 1) }))} className="stepper-btn" aria-label="One less">
+                      <Icon name="minus" size={22} />
                     </button>
                     <span className="tnum w-8 text-center text-[18px] font-bold" aria-live="polite">
                       {mine}
                     </span>
-                    <button type="button" disabled={readOnly || left <= 0} onClick={() => setDraft((d) => ({ ...d, [l.id]: mine + 1 }))} className="inline-flex size-11 items-center justify-center rounded-full border border-line bg-surface disabled:opacity-40" aria-label="One more">
-                      <Icon name="plus" size={18} />
+                    <button type="button" disabled={readOnly || left <= 0} onClick={() => setDraft((d) => ({ ...d, [l.id]: mine + 1 }))} className="stepper-btn" aria-label="One more">
+                      <Icon name="plus" size={22} />
                     </button>
                   </div>
                 )}
@@ -200,7 +200,7 @@ function ReceiptClaimer({ receipt: r, readOnly, onNext }: { receipt: ReceiptView
             I got nothing from this receipt
           </Button>
           {dirty && (
-            <Button full variant="ghost" busy={busy === "draft"} onClick={() => void save("draft")}>
+            <Button full variant="tonal" busy={busy === "draft"} onClick={() => void save("draft")}>
               Save as draft (not finished)
             </Button>
           )}

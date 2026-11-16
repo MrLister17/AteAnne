@@ -173,10 +173,10 @@ function OrganizerPanel() {
               </p>
               <ShareJoin code={event.joinCode} />
               <div className="flex gap-2">
-                <Button variant="ghost" className="flex-1" onClick={() => act(() => api.post(`/api/events/${event.id}/code`), "New code created; the old one stopped working")}>
+                <Button variant="tonal" className="flex-1" onClick={() => act(() => api.post(`/api/events/${event.id}/code`), "New code created; the old one stopped working")}>
                   New code
                 </Button>
-                <Button variant="ghost" className="flex-1" onClick={() => act(() => api.del(`/api/events/${event.id}/code`), "Joining closed")}>
+                <Button variant="tonal" className="flex-1" onClick={() => act(() => api.del(`/api/events/${event.id}/code`), "Joining closed")}>
                   Close joining
                 </Button>
               </div>
@@ -213,7 +213,7 @@ function OrganizerPanel() {
           <Button full busy={busy} disabled={!g.reviewing.ready || event.cancelled} onClick={() => void move("REVIEWING", "Everyone can now review the split")}>
             Start review
           </Button>
-          <Button full variant="ghost" busy={busy} onClick={() => void move("COLLECTING", "Back to collecting receipts")}>
+          <Button full variant="tonal" busy={busy} onClick={() => void move("COLLECTING", "Back to collecting receipts")}>
             Back to receipts (fix a receipt)
           </Button>
         </Card>
@@ -228,10 +228,10 @@ function OrganizerPanel() {
             <Icon name="lock" size={18} /> Freeze & start settling
           </Button>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="ghost" busy={busy} onClick={() => void move("ALLOCATING", "Back to claiming")}>
+            <Button variant="tonal" busy={busy} onClick={() => void move("ALLOCATING", "Back to claiming")}>
               Back to claims
             </Button>
-            <Button variant="ghost" busy={busy} onClick={() => void move("COLLECTING", "Back to receipts")}>
+            <Button variant="tonal" busy={busy} onClick={() => void move("COLLECTING", "Back to receipts")}>
               Back to receipts
             </Button>
           </div>
@@ -246,7 +246,7 @@ function OrganizerPanel() {
             <Icon name="check" size={18} /> Mark as Done
           </Button>
           {reopenAllowed && (
-            <Button full variant="ghost" busy={busy} onClick={() => void move("REVIEWING", "Reopened for review; the old statement is kept as superseded")}>
+            <Button full variant="tonal" busy={busy} onClick={() => void move("REVIEWING", "Reopened for review; the old statement is kept as superseded")}>
               Reopen review (no payments reported yet)
             </Button>
           )}

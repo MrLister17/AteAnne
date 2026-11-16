@@ -112,10 +112,10 @@ function WelcomeAsk({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
         </div>
         <p className="mt-4 text-[16px]">See how a hatian works from start to finish — adding receipts, claiming what you had, and getting paid back. About a minute.</p>
         <div className="mt-5 grid gap-2">
-          <button type="button" autoFocus onClick={onYes} className="min-h-12 rounded-2xl bg-violet px-5 text-[16px] font-semibold text-violet-ink">
+          <button type="button" autoFocus onClick={onYes} className="btn btn-primary">
             Show me how
           </button>
-          <button type="button" onClick={onNo} className="min-h-12 rounded-2xl border border-line bg-surface px-5 text-[16px] font-semibold">
+          <button type="button" onClick={onNo} className="btn btn-secondary">
             Maybe later
           </button>
         </div>
@@ -147,14 +147,14 @@ function Walkthrough({ onClose }: { onClose: (finished: boolean) => void }) {
       <div className="flex h-full flex-col bg-bg sm:rounded-3xl">
         <header className="safe-top px-4">
           <div className="flex min-h-14 items-center gap-2">
-            <button type="button" onClick={() => onClose(false)} className="-ml-2 inline-flex size-11 items-center justify-center rounded-full text-violet" aria-label="Close tutorial">
+            <button type="button" onClick={() => onClose(false)} className="icon-btn -ml-2" aria-label="Close tutorial">
               <Icon name="x" />
             </button>
             <p className="flex-1 text-[14px] font-semibold text-muted" aria-live="polite">
               Step {i + 1} of {TUTORIAL_STEPS.length}
             </p>
             {!last && (
-              <button type="button" onClick={() => onClose(false)} className="min-h-11 rounded-xl px-3 text-[15px] font-semibold text-violet">
+              <button type="button" onClick={() => onClose(false)} className="btn btn-ghost !min-h-11 !px-3 !text-[15px]">
                 Skip
               </button>
             )}
@@ -198,19 +198,19 @@ function Walkthrough({ onClose }: { onClose: (finished: boolean) => void }) {
         <footer className="safe-bottom border-t border-line px-4 pt-3 pb-3">
           {last ? (
             <div className="grid gap-2">
-              <Link href="/new" onClick={() => onClose(true)} className="flex min-h-12 items-center justify-center rounded-2xl bg-violet px-5 text-[16px] font-semibold text-violet-ink">
+              <Link href="/new" onClick={() => onClose(true)} className="btn btn-primary">
                 Start a hatian
               </Link>
-              <button type="button" onClick={() => onClose(true)} className="min-h-12 rounded-2xl border border-line bg-surface px-5 text-[16px] font-semibold">
+              <button type="button" onClick={() => onClose(true)} className="btn btn-secondary">
                 Got it
               </button>
             </div>
           ) : (
             <div className="grid grid-cols-[1fr_2fr] gap-2">
-              <button type="button" onClick={() => go(-1)} disabled={i === 0} className="min-h-12 rounded-2xl border border-line bg-surface px-4 text-[16px] font-semibold disabled:opacity-40">
+              <button type="button" onClick={() => go(-1)} disabled={i === 0} className="btn btn-secondary">
                 Back
               </button>
-              <button type="button" onClick={() => go(1)} className="min-h-12 rounded-2xl bg-violet px-5 text-[16px] font-semibold text-violet-ink">
+              <button type="button" onClick={() => go(1)} className="btn btn-primary">
                 Next
               </button>
             </div>
@@ -226,7 +226,7 @@ export function TutorialButton({ variant = "card" }: { variant?: "card" | "icon"
   const { open } = useTutorial();
   if (variant === "icon") {
     return (
-      <button type="button" onClick={open} className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-violet active:bg-violet-soft" aria-label="Tutorial: how to use AteAnne">
+      <button type="button" onClick={open} className="icon-btn" aria-label="Tutorial: how to use AteAnne">
         <Icon name="help" size={22} />
       </button>
     );

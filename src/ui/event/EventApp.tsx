@@ -143,7 +143,7 @@ function Header({ view, onRefresh }: { view: View; onRefresh: () => Promise<void
           </div>
         )}
         <TutorialButton variant="icon" />
-        <Button variant="ghost" className="!min-h-11 !px-2" aria-label="Refresh" onClick={() => onRefresh().then(() => true)}>
+        <Button variant="ghost" className="!min-h-11 !min-w-11 !rounded-full !px-2" aria-label="Refresh" onClick={() => onRefresh().then(() => true)}>
           <Icon name="refresh" size={20} />
         </Button>
       </div>

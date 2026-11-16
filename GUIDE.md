@@ -173,6 +173,7 @@ Always run the checks in [section 10](#10-tests-and-checks) before pushing.
 | **Any wording on a screen** | Search the text in `src/ui/` or `src/app/` (e.g. "Scan a receipt" lives in `src/ui/event/ReceiptsTab.tsx`) |
 | **Tutorial steps** (text, order, pictures) | `src/ui/tutorial/steps.tsx`: each step is one object `{ who, title, points, art }` |
 | **First-visit prompt** wording | `WelcomeAsk` in `src/ui/tutorial/TutorialProvider.tsx` |
+| **Button look** (shape, colours, pressed state) | The `.btn…` classes in `src/app/globals.css`; pick a style with `<Button variant="primary|secondary|tonal|ghost|danger|receive|add">` |
 | **Colors / dark mode** | CSS variables at the top of `src/app/globals.css` (`--violet`, `--coral`, `--bg`, …) |
 | **App name / icon / home-screen title** | `src/app/manifest.ts`, `src/app/layout.tsx`, icons via `scripts/make-icons.mjs` then `npm run icons` |
 | **Auto-delete period (30 days)** | Vercel env var `EVENT_RETENTION_DAYS` (no code change) |
@@ -270,7 +271,7 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 
 | File | Contents |
 | --- | --- |
-| `docs/decisions.md` | Every decision and why (D1–D32), including your changes to the original spec |
+| `docs/decisions.md` | Every decision and why (D1–D33), including your changes to the original spec |
 | `docs/requirements.md` | Each requirement from the spec → where it's implemented → which test proves it |
 | `docs/architecture.md` | Class diagram, database diagram, phase and payment state machines |
 | `docs/financial-rules.md` | The money rules with worked examples |

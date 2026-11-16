@@ -72,7 +72,7 @@ export function scanSetupHint(env: Record<string, string | undefined> = process.
   if (e.GROQ_API_KEY || e.ANTHROPIC_API_KEY) return "A key is set but the scanner did not start. Redeploy the newest deployment.";
   const lookalikes = Object.keys(env).filter((k) => /GROQ|GROK/i.test(k) && !["GROQ_VISION_MODEL"].includes(k));
   if (lookalikes.length) return `No usable GROQ_API_KEY in ${where}. Found similar setting name(s): ${lookalikes.join(", ")}. Rename it to exactly GROQ_API_KEY, make sure it has a value, then redeploy.`;
-  return `GROQ_API_KEY is not set in ${where}. In Vercel: Settings → Environment Variables → add GROQ_API_KEY with "Production" ticked → Deployments → Redeploy the newest one.`;
+  return `GROQ_API_KEY is not set in ${where}. In Vercel: open Settings, then Environment Variables, add GROQ_API_KEY with "Production" ticked, then open Deployments and Redeploy the newest one.`;
 }
 
 let cached: AppConfig | null = null;
