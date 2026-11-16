@@ -20,7 +20,7 @@ const schema = z.object({
   RECEIPT_SCAN_MODEL: z.string().min(1).default("claude-opus-5-5"),
   /** Free-tier option: photo → receipt draft via a Groq-hosted vision model. */
   GROQ_API_KEY: z.string().min(1).optional(),
-  GROQ_VISION_MODEL: z.string().min(1).default("qwen/qwen3.6-27b"),
+  GROQ_VISION_MODEL: z.string().min(1).default("qwen/qwen3.8-27b"),
   /** Which reader to use when several keys are set. "auto": Groq if its key is set, else Claude. */
   RECEIPT_SCAN_PROVIDER: z.enum(["auto", "groq", "claude"]).default("auto"),
   /** Test/demo only: deterministic fake reader. Ignored on Vercel production. */

@@ -37,22 +37,26 @@ const img = Buffer.from([0xff, 0xd8, 0xff]);
 const badRequest = () => new Groq.BadRequestError(400, { error: { message: "json_schema not supported" } }, "json_schema not supported", new Headers());
 
 describe("GroqReceiptReader", () => {
-  it("sends the image as a data URL with a json_schema response format and maps the reading", async () => {
+  it("sends the image as a data URL in JSON mode and maps the reading", async () => {
     const { client, calls } = fakeClient(() => JSON.stringify(reading));
-    const out = await new GroqReceiptReader("k", "qwen/qwen3.6-27b", client).read(img, "image/jpeg");
+    const out = await new GroqReceiptReader("k", "qwen/qwen3.8-27b", client).read(img, "image/jpeg");
     expect(out.lines[0]).toEqual({ label: "Sisig", quantity: 1, unitPrice: null, lineTotal: "320.00" });
     expect(out.serviceCharge).toBe("32.00");
-    expect(calls[0].model).toBe("qwen/qwen3.6-27b");
-    expect(calls[0].response_format?.type).toBe("json_schema");
+    expect(calls[0].model).toBe("qwen/qwen3.8-27b");
+    expect(calls[0].response_format?.type).toBe("json_object");
+    expect(calls).toHaveLength(1);
     const user = calls[0].messages[1].content as { type: string; image_url?: { url: string } }[];
     expect(user.find((p) => p.type === "image_url")!.image_url!.url).toMatch(/^data:image\/jpeg;base64,/);
   });
 
-  it("falls back to JSON mode once if json_schema is rejected, and strips <think> reasoning", async () => {
-    const { client, calls } = fakeClient((p) => (p.response_format?.type === "json_schema" ? badRequest() : `<think>reading the total…</think>\n\`\`\`json\n${JSON.stringify(reading)}\n\`\`\``));
+  it("strips <think> reasoning and code fences before validating", async () => {
+    const { client } = fakeClient(() => `<think>reading the total…</think>\n\`\`\`json\n${JSON.stringify(reading)}\n\`\`\``);
     const out = await new GroqReceiptReader("k", "m", client).read(img, "image/jpeg");
     expect(out.totalDue).toBe("352.00");
-    expect(calls.map((c) => c.response_format?.type)).toEqual(["json_schema", "json_object"]);
+  });
+
+  it("an unknown or retired model becomes a clear 'update GROQ_VISION_MODEL' message", async () => {
+    await expect(new GroqReceiptReader("k", "old/model", fakeClient(() => badRequest()).client).read(img, "image/jpeg")).rejects.toMatchObject({ reason: "unavailable", message: expect.stringMatching(/GROQ_VISION_MODEL/) });
   });
 
   it("invalid or non-receipt output becomes a friendly error, never a guessed draft", async () => {
@@ -76,7 +80,7 @@ describe("GroqReceiptReader", () => {
 });
 
 describe("chooseReceiptReader", () => {
-  const base = { RECEIPT_SCAN_FAKE: "0", RECEIPT_SCAN_PROVIDER: "auto", GROQ_API_KEY: undefined, GROQ_VISION_MODEL: "qwen/qwen3.6-27b", ANTHROPIC_API_KEY: undefined, RECEIPT_SCAN_MODEL: "claude-opus-5-5" } as const;
+  const base = { RECEIPT_SCAN_FAKE: "0", RECEIPT_SCAN_PROVIDER: "auto", GROQ_API_KEY: undefined, GROQ_VISION_MODEL: "qwen/qwen3.8-27b", ANTHROPIC_API_KEY: undefined, RECEIPT_SCAN_MODEL: "claude-opus-5-5" } as const;
   it("no keys → scanning off; Groq key → Groq; both → Groq unless provider=claude; fake for tests", () => {
     expect(chooseReceiptReader({ ...base })).toBeNull();
     expect(chooseReceiptReader({ ...base, GROQ_API_KEY: "g" })).toBeInstanceOf(GroqReceiptReader);

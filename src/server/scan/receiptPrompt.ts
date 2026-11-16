@@ -37,6 +37,8 @@ other_charges: other amounts added to the bill (delivery, corkage, packaging, ti
 
 Do NOT include as lines, discounts or charges: subtotal, VATable sales, VAT amount, VAT-exempt or zero-rated sales, cash tendered, change, card/GCash/Maya payment lines, points, rounding notes, guest counts, or anything after the amount due.
 
+Exception for VAT exemption: when VAT is SUBTRACTED from the bill (typical for senior citizen/PWD sales, printed like "Less: VAT", "VAT Exemption" or "VAT Exempt Disc"), include that subtracted amount in discounts with label "VAT exemption" and base "gross". The senior/PWD discount itself is a separate discount entry.
+
 total_due: the final amount due or paid for the purchase.
 merchant: the store or restaurant name only. Do not copy names of people, card numbers, phone numbers, addresses or loyalty IDs anywhere.
 

@@ -1,18 +1,29 @@
 import Groq from "groq-sdk";
 import type { RawReceiptReading } from "@/domain/receipt/ReceiptDraftNormalizer";
 import { ReceiptReadError, type ReceiptReader } from "./ReceiptReader";
-import { RECEIPT_READING_JSON_SCHEMA, RECEIPT_READING_SCHEMA, RECEIPT_SYSTEM_PROMPT, toRawReading } from "./receiptPrompt";
+import { RECEIPT_READING_SCHEMA, RECEIPT_SYSTEM_PROMPT, toRawReading } from "./receiptPrompt";
 
-export const DEFAULT_GROQ_VISION_MODEL = "qwen/qwen3.6-27b";
+/** Verified live on 2026-11-16 (vision + JSON mode). Groq changes models often: override with GROQ_VISION_MODEL. */
+export const DEFAULT_GROQ_VISION_MODEL = "qwen/qwen3.8-27b";
+
+const GROQ_JSON_SHAPE = JSON.stringify({
+  is_receipt: true,
+  merchant: "store name or null",
+  lines: [{ label: "item", quantity: 1, unit_price: "0.00 or null", line_total: "0.00" }],
+  discounts: [{ label: "Senior/PWD/Promo", amount: "0.00", base: "gross | vat_exclusive | unknown" }],
+  service_charge: "0.00 or null",
+  other_charges: [{ label: "charge", amount: "0.00" }],
+  total_due: "0.00 or null",
+  unreadable_notes: ["describe any unclear digits"],
+});
 
 type ChatClient = Pick<Groq, "chat">;
 
 /**
  * Reads receipts with a Groq-hosted vision model (free tier available).
- * Asks for schema-constrained JSON; if the model doesn't support
- * `json_schema`, retries once in plain JSON mode. Reasoning text such as
- * <think>…</think> is stripped and the result is validated with the same
- * Zod schema as every other reader before it reaches the normalizer.
+ * Uses JSON mode; reasoning text such as <think>…</think> and code fences are
+ * stripped, and the result is validated with the same Zod schema as every
+ * other reader before it reaches the normalizer.
  */
 export class GroqReceiptReader implements ReceiptReader {
   private readonly client: ChatClient;
@@ -22,12 +33,17 @@ export class GroqReceiptReader implements ReceiptReader {
     private readonly model = DEFAULT_GROQ_VISION_MODEL,
     client?: ChatClient,
   ) {
-    this.client = client ?? new Groq({ apiKey, timeout: 50_000, maxRetries: 1 });
+    // No silent retries: on the free tier a 429 retry can wait out the whole request; tell the person "busy" instead.
+    this.client = client ?? new Groq({ apiKey, timeout: 30_000, maxRetries: 0 });
   }
 
   async read(image: Buffer, mediaType: "image/jpeg"): Promise<RawReceiptReading> {
+    // JSON mode, not json_schema: live testing (2026-11-16) showed Groq's
+    // schema-constrained decoding returning garbage values with images on
+    // qwen/qwen3.8-27b, while JSON mode produced correct readings. A compact
+    // shape example keeps input tokens low (free tier: 7,000 input tokens/min).
     const messages = [
-      { role: "system" as const, content: `${RECEIPT_SYSTEM_PROMPT}\n\nRespond with a single JSON object only, matching this JSON Schema:\n${JSON.stringify(RECEIPT_READING_JSON_SCHEMA)}` },
+      { role: "system" as const, content: `${RECEIPT_SYSTEM_PROMPT}\n\nRespond with ONE JSON object only, no prose, exactly this shape:\n${GROQ_JSON_SHAPE}` },
       {
         role: "user" as const,
         content: [
@@ -36,22 +52,11 @@ export class GroqReceiptReader implements ReceiptReader {
         ],
       },
     ];
-    const base = { model: this.model, messages, temperature: 0, max_completion_tokens: 4096 };
 
     let content: string | null | undefined;
     try {
-      try {
-        const res = await this.client.chat.completions.create({
-          ...base,
-          response_format: { type: "json_schema", json_schema: { name: "receipt_reading", schema: RECEIPT_READING_JSON_SCHEMA } },
-        });
-        content = res.choices[0]?.message?.content;
-      } catch (error) {
-        // Some models don't support json_schema with images: fall back to JSON mode once.
-        if (!(error instanceof Groq.BadRequestError)) throw error;
-        const res = await this.client.chat.completions.create({ ...base, response_format: { type: "json_object" } });
-        content = res.choices[0]?.message?.content;
-      }
+      const res = await this.client.chat.completions.create({ model: this.model, messages, temperature: 0, max_completion_tokens: 4096, response_format: { type: "json_object" } });
+      content = res.choices[0]?.message?.content;
     } catch (error) {
       if (error instanceof Groq.RateLimitError) throw new ReceiptReadError("unavailable", "The free receipt reader is busy right now. Try again in a minute, or enter it by hand.");
       if (error instanceof Groq.AuthenticationError || error instanceof Groq.PermissionDeniedError) {
