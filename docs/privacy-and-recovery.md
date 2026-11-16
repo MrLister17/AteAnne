@@ -8,7 +8,7 @@ Display names (aliases are fine), event data, manually entered receipts and allo
 
 - PostgreSQL: all records. Money is stored as integer centavos. Credentials are stored only as SHA-256 hashes.
 - Private images: in the database table `AssetBlob` by default (or `PRIVATE_UPLOAD_DIR` outside `public/` with `STORAGE_DRIVER=disk`), random keys, re-encoded with metadata stripped. They are served only through `/api/assets/:id` after a membership check. QR images go only to their owner and to people who owe them.
-- **Receipt scanning (optional):** when someone taps "Scan a receipt", that photo (re-encoded, with metadata removed) is sent to Anthropic's Claude API to draft the receipt. It is not stored by the scan step; if the receipt is saved, the photo is attached privately like any other receipt photo. Don't scan receipts that show information you don't want processed by a third party.
+- **Receipt scanning (optional):** when someone taps "Scan a receipt", that photo (re-encoded, with metadata removed) is sent to the configured reader to draft the receipt: **Groq** (default when `GROQ_API_KEY` is set; turn on Zero Data Retention in Groq's console) or Anthropic's Claude API. It is not stored by the scan step; if the receipt is saved, the photo is attached privately like any other receipt photo. Don't scan receipts that show information you don't want processed by a third party.
 - Logs never contain request bodies, cookies, recovery keys, join codes or image bytes. Unexpected errors log a request ID, error name and message only.
 - The service worker caches only public shell files (icons, offline page, hashed JS/CSS). It never caches API responses or images.
 

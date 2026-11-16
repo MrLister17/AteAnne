@@ -55,7 +55,7 @@ Source: *AteAnne — Full SDLC & Financial Specification v1.0* ([docs/spec/](spe
 
 | Change | Status | Evidence |
 | --- | --- | --- |
-| Receipt scanning: photo to draft receipt (decision D27) | Done with a fake reader. **A live Claude call has not been verified yet** (no API key available in the build session) | `unit/receipt-draft.test.ts`, `integration/scan.test.ts`, `e2e/scan.spec.ts` |
+| Receipt scanning: photo to draft receipt via Groq (default) or Claude (D27, D28) | Done with a fake reader. **A live Claude call has not been verified yet** (no API key available in the build session) | `unit/receipt-draft.test.ts`, `integration/scan.test.ts`, `e2e/scan.spec.ts` |
 | 30-day retention for all events (D24) | Done | `integration/retention.test.ts` |
 | First-visit tutorial (D22) | Done | `e2e/tutorial.spec.ts` |
 

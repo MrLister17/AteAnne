@@ -14,6 +14,7 @@ import { ReceiptService } from "./services/ReceiptService";
 import { RecoveryService } from "./services/RecoveryService";
 import { ReceiptScanService } from "./services/ReceiptScanService";
 import { ClaudeReceiptReader, FakeReceiptReader, type ReceiptReader } from "./scan/ReceiptReader";
+import { GroqReceiptReader } from "./scan/GroqReceiptReader";
 import { DatabaseStorage, LocalDiskStorage, PrivateStorage } from "./storage/PrivateStorage";
 
 /**
@@ -60,13 +61,17 @@ export function container(): AppContainer {
     const cfg = config();
     const db = prisma();
     const storage = cfg.STORAGE_DRIVER === "disk" ? new LocalDiskStorage(cfg.PRIVATE_UPLOAD_DIR) : new DatabaseStorage(db);
-    const reader =
-      cfg.RECEIPT_SCAN_FAKE === "1" && process.env.VERCEL_ENV !== "production"
-        ? new FakeReceiptReader()
-        : cfg.ANTHROPIC_API_KEY
-          ? new ClaudeReceiptReader(cfg.ANTHROPIC_API_KEY, cfg.RECEIPT_SCAN_MODEL)
-          : null;
-    g.__ateanneContainer = new AppContainer(db, storage, cfg.JOIN_CODE_HASH_KEY, new RetentionPolicy(cfg.EVENT_RETENTION_DAYS), reader);
+    g.__ateanneContainer = new AppContainer(db, storage, cfg.JOIN_CODE_HASH_KEY, new RetentionPolicy(cfg.EVENT_RETENTION_DAYS), chooseReceiptReader(cfg));
   }
   return g.__ateanneContainer;
+}
+
+/** Fake (tests, never Vercel production) → explicit provider → Groq (free tier) → Claude → none (Scan hidden). */
+export function chooseReceiptReader(cfg: Pick<ReturnType<typeof config>, "RECEIPT_SCAN_FAKE" | "RECEIPT_SCAN_PROVIDER" | "GROQ_API_KEY" | "GROQ_VISION_MODEL" | "ANTHROPIC_API_KEY" | "RECEIPT_SCAN_MODEL">): ReceiptReader | null {
+  if (cfg.RECEIPT_SCAN_FAKE === "1" && process.env.VERCEL_ENV !== "production") return new FakeReceiptReader();
+  const groq = cfg.GROQ_API_KEY ? () => new GroqReceiptReader(cfg.GROQ_API_KEY!, cfg.GROQ_VISION_MODEL) : null;
+  const claude = cfg.ANTHROPIC_API_KEY ? () => new ClaudeReceiptReader(cfg.ANTHROPIC_API_KEY!, cfg.RECEIPT_SCAN_MODEL) : null;
+  if (cfg.RECEIPT_SCAN_PROVIDER === "groq") return groq?.() ?? null;
+  if (cfg.RECEIPT_SCAN_PROVIDER === "claude") return claude?.() ?? null;
+  return groq?.() ?? claude?.() ?? null;
 }
