@@ -86,5 +86,6 @@ Preview deployments skip migrations so they never touch production data. To migr
 | Build fails: "Missing environment variables" | Add `DATABASE_URL` / `JOIN_CODE_HASH_KEY` (step 3) and redeploy |
 | Build fails at `prisma migrate deploy` | The database isn't reachable. Check the URL, and that `DATABASE_URL_UNPOOLED` or `DIRECT_URL` is a direct connection |
 | "Cross-site request blocked" | Set `APP_ORIGIN` to the exact URL you open (including `https://`) and redeploy |
+| Scan a receipt button doesn't appear | Open `/api/health`. `version` must be the latest commit on GitHub `main`, and `receiptScan` must be `groq`. If `version` is old, use **Redeploy** on the newest deployment, or push again. If `receiptScan` is `off`, check that the variable is named exactly `GROQ_API_KEY` and is enabled for **Production**, then redeploy. |
 | Photo upload says "too large" | Use a smaller photo or a screenshot (the limit after shrinking is about 4 MB) |
 | Health check fails with a self-signed certificate chain | Set `DATABASE_SSL_CA` to Supabase's root CA PEM and redeploy. Do not use `NODE_TLS_REJECT_UNAUTHORIZED=0` or disable certificate validation. |

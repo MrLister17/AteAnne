@@ -11,7 +11,7 @@ All commands were run from a clean working tree. The output below is copied from
 | `npm run test:unit` | **5 files, 49 tests passed** |
 | `npm run test:integration` | **4 files, 30 tests passed** (real PostgreSQL) |
 | `npm run build` | Compiled successfully; 35 routes |
-| `npx playwright test --trace off` | **24 passed** (iPhone 15 emulation + 360px Android width) |
+| `npx playwright test --trace off` | **28 passed** (iPhone 15 emulation + 360px Android width) |
 
 ## Vercel deployment simulation
 

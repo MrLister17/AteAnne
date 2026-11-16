@@ -1,39 +1,32 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { api, ApiError } from "../api";
+import { api } from "../api";
 import { Icon } from "../components/Icon";
 import { Avatar, Badge, Button, Card, Notice, Sheet } from "../components/ui";
 import { php } from "../format";
 import { MAX_CLIENT_UPLOAD_BYTES, prepareImage, uploadName } from "../image";
 import { ReceiptEditor } from "./ReceiptEditor";
 import { ReceiptView, useAction, useEvent } from "./EventContext";
-import { Spinner, useToast } from "../components/ui";
+import { useReceiptScanner } from "./useReceiptScanner";
+import { Spinner } from "../components/ui";
 import type { ScannedDraft } from "@/server/services/ReceiptScanService";
 
 export function ReceiptsTab() {
   const { view, event, name, seq } = useEvent();
   const [editing, setEditing] = useState<ReceiptView | "new" | null>(null);
   const [scan, setScan] = useState<{ draft: ScannedDraft; photo: Blob } | null>(null);
-  const [scanning, setScanning] = useState(false);
   const scanInput = useRef<HTMLInputElement>(null);
-  const toast = useToast();
+  const scanner = useReceiptScanner(event.id);
+  const scanning = scanner.scanning;
   const startScan = async (file: File) => {
-    setScanning(true);
-    try {
-      const photo = await prepareImage(file, "RECEIPT");
-      if (photo.size > MAX_CLIENT_UPLOAD_BYTES) throw new ApiError(413, "too_large", "That photo is too large. Try again with a smaller photo.");
-      const fd = new FormData();
-      fd.set("file", photo, uploadName(photo));
-      const draft = await api.post<ScannedDraft>(`/api/events/${event.id}/receipts/scan`, fd);
-      setScan({ draft, photo });
+    const result = await scanner.scan(file);
+    if (result) {
+      setScan(result);
       setEditing("new");
-    } catch (e) {
-      toast(e instanceof ApiError ? e.message : "Couldn’t scan that photo. Enter the receipt by hand.", "error");
-    } finally {
-      setScanning(false);
     }
   };
+
   const [openId, setOpenId] = useState<string | null>(null);
   const open = view.receipts.find((r) => r.id === openId) ?? null;
   const canAdd = event.phase === "COLLECTING" && !event.cancelled && view.receipts.length < 25;

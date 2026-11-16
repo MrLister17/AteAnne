@@ -1,16 +1,23 @@
 import { NextResponse } from "next/server";
 import { configProblems } from "@/server/config";
+import { container } from "@/server/container";
 import { prisma } from "@/server/db";
 
-/** Liveness + setup check. Never reveals secret values, only which settings are missing. */
+/**
+ * Liveness + setup check. Shows which build is running and whether receipt
+ * scanning is on, so a deployment can be checked from a phone. Never reveals
+ * secret values — only setting names and on/off states.
+ */
 export async function GET() {
   const headers = { "cache-control": "no-store" };
+  const version = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local";
   const missing = configProblems();
-  if (missing.length) return NextResponse.json({ ok: false, reason: "not_configured", missing }, { status: 503, headers });
+  if (missing.length) return NextResponse.json({ ok: false, reason: "not_configured", missing, version }, { status: 503, headers });
+  const receiptScan = container().scans.provider;
   try {
     await prisma().$queryRaw`SELECT 1`;
-    return NextResponse.json({ ok: true }, { headers });
+    return NextResponse.json({ ok: true, version, receiptScan }, { headers });
   } catch {
-    return NextResponse.json({ ok: false, reason: "database_unreachable" }, { status: 503, headers });
+    return NextResponse.json({ ok: false, reason: "database_unreachable", version, receiptScan }, { status: 503, headers });
   }
 }

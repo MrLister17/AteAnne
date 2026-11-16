@@ -24,6 +24,11 @@ export class ReceiptScanService {
     private readonly normalizer = new ReceiptDraftNormalizer(),
   ) {}
 
+  /** "groq" | "claude" | "fake" | "off" — safe to show; never includes a key. */
+  get provider(): string {
+    return this.reader ? (this.reader.name ?? "custom") : "off";
+  }
+
   get enabled(): boolean {
     return this.reader !== null;
   }

@@ -26,6 +26,7 @@ type ChatClient = Pick<Groq, "chat">;
  * other reader before it reaches the normalizer.
  */
 export class GroqReceiptReader implements ReceiptReader {
+  readonly name = "groq" as const;
   private readonly client: ChatClient;
 
   constructor(

@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
-import { Button, Field, MoneyInput, Notice, Sheet } from "../components/ui";
+import { Button, Field, MoneyInput, Notice, Sheet, Spinner } from "../components/ui";
 import { php, toCentavos, toInput } from "../format";
 import { ReceiptView, useAction, useEvent } from "./EventContext";
 import type { ScannedDraft } from "@/server/services/ReceiptScanService";
 import { uploadName } from "../image";
+import { useReceiptScanner } from "./useReceiptScanner";
 
 type LineDraft = { id?: string; label: string; quantity: string; amount: string; unitPrice: string; mode: "SHARED" | "UNITS" };
 type AdjDraft = { kind: "DISCOUNT" | "SERVICE" | "CHARGE"; label: string; amount: string; scope: "ALL" | number[] };
@@ -74,8 +75,14 @@ export function ReceiptEditor({
   const { view, me, event } = useEvent();
   const act = useAction();
   const [d, setD] = useState<Draft>(() => (scanned && !receipt ? fromScan(scanned, me.memberId) : fromReceipt(receipt, me.memberId)));
-  const [photoUrl] = useState(() => (photo ? URL.createObjectURL(photo) : null));
+  // A scan can come from the Receipts tab (props) or from the button inside this form.
+  const [scanState, setScanState] = useState<ScannedDraft | null>(scanned && !receipt ? scanned : null);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(photo ?? null);
+  const photoUrl = useMemo(() => (photoBlob ? URL.createObjectURL(photoBlob) : null), [photoBlob]);
   const [bigPhoto, setBigPhoto] = useState(false);
+  const scanner = useReceiptScanner(event.id);
+  const scanInput = useRef<HTMLInputElement>(null);
+  const canScanHere = !receipt && view.features.receiptScan && event.phase === "COLLECTING";
   useEffect(() => () => {
     if (photoUrl) URL.revokeObjectURL(photoUrl);
   }, [photoUrl]);
@@ -87,21 +94,23 @@ export function ReceiptEditor({
     let gross = 0n;
     let disc = 0n;
     let chg = 0n;
-    let bad = false;
+    // Blank fields are "not finished yet"; only typed non-amounts are errors.
+    const fields = [...d.lines.map((l) => l.amount), ...d.adjustments.map((a) => a.amount), d.payable];
+    const empty = fields.some((f) => f.trim() === "");
+    const bad = fields.some((f) => f.trim() !== "" && toCentavos(f) === null);
     for (const l of d.lines) {
       const v = c(l.amount);
-      if (v === null) bad = true;
-      else gross += BigInt(v);
+      if (v !== null) gross += BigInt(v);
     }
     for (const a of d.adjustments) {
       const v = c(a.amount);
-      if (v === null) bad = true;
-      else if (a.kind === "DISCOUNT") disc += BigInt(v);
+      if (v === null) continue;
+      if (a.kind === "DISCOUNT") disc += BigInt(v);
       else chg += BigInt(v);
     }
     const computed = gross - disc + chg;
     const payable = c(d.payable);
-    return { gross, disc, chg, computed, payable, bad, diff: payable === null ? null : BigInt(payable) - computed };
+    return { gross, disc, chg, computed, payable, bad: bad || empty, invalid: bad, empty, diff: payable === null ? null : BigInt(payable) - computed };
   }, [d]);
 
   const setLine = (i: number, patch: Partial<LineDraft>) =>
@@ -144,10 +153,10 @@ export function ReceiptEditor({
       () => (receipt ? api.put(`/api/receipts/${receipt.id}`, { ...body, expectedVersion: receipt.version }) : api.post<{ receiptId: string }>(`/api/events/${event.id}/receipts`, body)),
       receipt ? "Receipt updated — claims and approvals reset" : "Receipt added",
     );
-    if (ok && !receipt && photo && "receiptId" in (ok as object)) {
+    if (ok && !receipt && photoBlob && "receiptId" in (ok as object)) {
       // Keep the scanned photo as private supporting evidence on the new receipt.
       const fd = new FormData();
-      fd.set("file", photo, uploadName(photo));
+      fd.set("file", photoBlob, uploadName(photoBlob));
       fd.set("kind", "RECEIPT");
       fd.set("receiptId", (ok as { receiptId: string }).receiptId);
       await act(() => api.post(`/api/events/${event.id}/assets`, fd), "Photo attached");
@@ -173,12 +182,46 @@ export function ReceiptEditor({
       }
     >
       <div className="space-y-5 pb-4">
-        {scanned && !receipt && (
+        {canScanHere && (
+          <>
+            <input
+              ref={scanInput}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              aria-label="Receipt photo to fill in this form"
+              onChange={async (e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (!f) return;
+                const result = await scanner.scan(f);
+                if (result) {
+                  setScanState(result.draft);
+                  setPhotoBlob(result.photo);
+                  setD(fromScan(result.draft, d.payerMemberId));
+                }
+              }}
+            />
+            <button
+              type="button"
+              disabled={scanner.scanning}
+              onClick={() => scanInput.current?.click()}
+              className="flex min-h-14 w-full items-center gap-3 rounded-2xl border-2 border-dashed border-violet/50 bg-violet-soft px-4 text-left text-violet disabled:opacity-70"
+            >
+              {scanner.scanning ? <Spinner /> : <Icon name="camera" size={24} />}
+              <span className="flex-1">
+                <span className="block text-[16px] font-semibold">{scanner.scanning ? "Reading your receipt…" : scanState ? "Scan a different photo" : "Fill in from a photo"}</span>
+                <span className="block text-[13px] text-muted">{scanner.scanning ? "This can take up to 30 seconds." : "Take a photo or choose one — you’ll check everything before saving."}</span>
+              </span>
+            </button>
+          </>
+        )}
+        {scanState && !receipt && (
           <Notice tone="warn" title="Drafted from your photo — please check it">
             <p>Compare every item, quantity and the total with the receipt before saving. Photos can be misread, and you decide what’s right.</p>
-            {scanned.warnings.length > 0 && (
+            {scanState.warnings.length > 0 && (
               <ul className="mt-1 list-disc space-y-0.5 pl-4">
-                {scanned.warnings.map((w) => (
+                {scanState.warnings.map((w) => (
                   <li key={w}>{w}</li>
                 ))}
               </ul>
@@ -328,8 +371,9 @@ export function ReceiptEditor({
   );
 }
 
-function Reconciliation({ calc, onUse }: { calc: { gross: bigint; disc: bigint; chg: bigint; computed: bigint; diff: bigint | null; bad: boolean }; onUse: () => void }) {
-  if (calc.bad) return <p className="text-[14px] text-warn">Some amounts aren’t valid peso values yet.</p>;
+function Reconciliation({ calc, onUse }: { calc: { gross: bigint; disc: bigint; chg: bigint; computed: bigint; diff: bigint | null; bad: boolean; invalid: boolean; empty: boolean }; onUse: () => void }) {
+  if (calc.invalid) return <p className="text-[14px] text-warn">Some amounts aren’t valid peso values. Use numbers like 120 or 120.50.</p>;
+  if (calc.empty) return <p className="text-[14px] text-muted">Enter each item’s total and the receipt total. We’ll check they add up.</p>;
   const ok = calc.diff === 0n;
   return (
     <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-[14px] ${ok ? "bg-receive-soft text-receive" : "bg-warn-soft text-warn"}`} role="status" aria-live="polite">

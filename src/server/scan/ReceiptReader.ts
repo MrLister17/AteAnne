@@ -5,6 +5,8 @@ import type { RawReceiptReading } from "@/domain/receipt/ReceiptDraftNormalizer"
 
 /** Port: anything that can turn a receipt photo into a raw reading. */
 export interface ReceiptReader {
+  /** Shown in /api/health (never the key). */
+  readonly name?: "groq" | "claude" | "fake";
   read(image: Buffer, mediaType: "image/jpeg"): Promise<RawReceiptReading>;
 }
 
@@ -19,6 +21,7 @@ export class ReceiptReadError extends Error {
 
 /** Reads receipts with Claude vision + structured outputs. */
 export class ClaudeReceiptReader implements ReceiptReader {
+  readonly name = "claude" as const;
   private readonly client: Anthropic;
 
   constructor(
@@ -70,6 +73,7 @@ export class ClaudeReceiptReader implements ReceiptReader {
  * enabled on a Vercel production deployment. Returns a synthetic receipt.
  */
 export class FakeReceiptReader implements ReceiptReader {
+  readonly name = "fake" as const;
   async read(): Promise<RawReceiptReading> {
     return {
       isReceipt: true,
