@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
 import { Button, Field, MoneyInput, Notice, Sheet } from "../components/ui";
 import { php, toCentavos, toInput } from "../format";
 import { ReceiptView, useAction, useEvent } from "./EventContext";
+import type { ScannedDraft } from "@/server/services/ReceiptScanService";
+import { uploadName } from "../image";
 
 type LineDraft = { id?: string; label: string; quantity: string; amount: string; unitPrice: string; mode: "SHARED" | "UNITS" };
 type AdjDraft = { kind: "DISCOUNT" | "SERVICE" | "CHARGE"; label: string; amount: string; scope: "ALL" | number[] };
@@ -13,6 +15,19 @@ type AdjDraft = { kind: "DISCOUNT" | "SERVICE" | "CHARGE"; label: string; amount
 const KIND_LABEL = { DISCOUNT: "Discount", SERVICE: "Service charge", CHARGE: "Other charge" } as const;
 
 type Draft = { label: string; payerMemberId: string; payable: string; lines: LineDraft[]; adjustments: AdjDraft[] };
+
+/** A scan result becomes an ordinary editable draft; nothing about it is trusted until saved. */
+function fromScan(s: ScannedDraft, myId: string): Draft {
+  return {
+    label: s.label,
+    payerMemberId: myId,
+    payable: toInput(s.payable),
+    lines: s.lines.length
+      ? s.lines.map((l) => ({ label: l.label, quantity: String(l.quantity), amount: toInput(l.amount), unitPrice: l.unitPrice ? toInput(l.unitPrice) : "", mode: "SHARED" as const }))
+      : [{ label: "", quantity: "1", amount: "", unitPrice: "", mode: "SHARED" as const }],
+    adjustments: s.adjustments.map((a) => ({ kind: a.kind, label: a.label, amount: toInput(a.amount), scope: "ALL" as const })),
+  };
+}
 
 function fromReceipt(r: ReceiptView | null, myId: string): Draft {
   if (!r) {
@@ -43,10 +58,27 @@ function fromReceipt(r: ReceiptView | null, myId: string): Draft {
  * is a convenience. A live reconciliation bar shows whether
  * items − discounts + charges equals the exact payable total.
  */
-export function ReceiptEditor({ receipt, open, onClose }: { receipt: ReceiptView | null; open: boolean; onClose: () => void }) {
+export function ReceiptEditor({
+  receipt,
+  open,
+  onClose,
+  scanned,
+  photo,
+}: {
+  receipt: ReceiptView | null;
+  open: boolean;
+  onClose: () => void;
+  scanned?: ScannedDraft | null;
+  photo?: Blob | null;
+}) {
   const { view, me, event } = useEvent();
   const act = useAction();
-  const [d, setD] = useState<Draft>(() => fromReceipt(receipt, me.memberId));
+  const [d, setD] = useState<Draft>(() => (scanned && !receipt ? fromScan(scanned, me.memberId) : fromReceipt(receipt, me.memberId)));
+  const [photoUrl] = useState(() => (photo ? URL.createObjectURL(photo) : null));
+  const [bigPhoto, setBigPhoto] = useState(false);
+  useEffect(() => () => {
+    if (photoUrl) URL.revokeObjectURL(photoUrl);
+  }, [photoUrl]);
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
 
@@ -109,9 +141,17 @@ export function ReceiptEditor({ receipt, open, onClose }: { receipt: ReceiptView
     };
     setBusy(true);
     const ok = await act(
-      () => (receipt ? api.put(`/api/receipts/${receipt.id}`, { ...body, expectedVersion: receipt.version }) : api.post(`/api/events/${event.id}/receipts`, body)),
+      () => (receipt ? api.put(`/api/receipts/${receipt.id}`, { ...body, expectedVersion: receipt.version }) : api.post<{ receiptId: string }>(`/api/events/${event.id}/receipts`, body)),
       receipt ? "Receipt updated — claims and approvals reset" : "Receipt added",
     );
+    if (ok && !receipt && photo && "receiptId" in (ok as object)) {
+      // Keep the scanned photo as private supporting evidence on the new receipt.
+      const fd = new FormData();
+      fd.set("file", photo, uploadName(photo));
+      fd.set("kind", "RECEIPT");
+      fd.set("receiptId", (ok as { receiptId: string }).receiptId);
+      await act(() => api.post(`/api/events/${event.id}/assets`, fd), "Photo attached");
+    }
     setBusy(false);
     if (ok) onClose();
   };
@@ -133,6 +173,30 @@ export function ReceiptEditor({ receipt, open, onClose }: { receipt: ReceiptView
       }
     >
       <div className="space-y-5 pb-4">
+        {scanned && !receipt && (
+          <Notice tone="warn" title="Drafted from your photo — please check it">
+            <p>Compare every item, quantity and the total with the receipt before saving. Photos can be misread, and you decide what’s right.</p>
+            {scanned.warnings.length > 0 && (
+              <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                {scanned.warnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            )}
+          </Notice>
+        )}
+        {photoUrl && (
+          <div className="flex items-start gap-3">
+            <img
+              src={photoUrl}
+              alt="The receipt photo you scanned"
+              className={`${bigPhoto ? "max-h-[70vh] w-full" : "max-h-40 w-28"} rounded-xl border border-line bg-surface object-contain`}
+            />
+            <button type="button" className="min-h-11 shrink-0 text-[15px] font-semibold text-violet" onClick={() => setBigPhoto((v) => !v)}>
+              {bigPhoto ? "Smaller photo" : "Bigger photo"}
+            </button>
+          </div>
+        )}
         {receipt && <Notice tone="warn">Saving a change resets everyone’s claims on this receipt to drafts and clears all approvals. The payer must confirm the amount again.</Notice>}
         <Field label="Store or label" error={tried && !d.label.trim() ? "Required" : null}>
           {(p) => <input {...p} className="field" maxLength={80} value={d.label} onChange={(e) => setD({ ...d, label: e.target.value })} placeholder="Kusina ni Ate / 7-Eleven snacks" />}

@@ -135,9 +135,9 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Whoever paid",
     title: "Add the receipts",
     points: [
-      "Whoever paid the store adds the receipt in Receipts → Add receipt: each item, its quantity and the line total as printed.",
+      "Whoever paid the store opens Receipts and taps “Scan a receipt” to take a photo — the items, service charge and total are filled in for you to check. (Or tap “Add receipt” to type it.)",
       "Choose “Shared equally” (split among whoever had it) or “By piece” (e.g. 3 rice — each person claims pieces).",
-      "Add the service charge or discount, then the exact total. The bar turns green when everything adds up.",
+      "Check every line against the paper receipt and fix anything misread. The bar turns green when items, discounts and charges add up to the exact total.",
     ],
     art: (
       <Phone>

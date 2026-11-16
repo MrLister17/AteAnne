@@ -4,11 +4,12 @@ AteAnne (a pun on *hatian*, splitting a bill) is a **mobile-first, installable w
 
 - Whoever paid enters the receipt: items, quantities, discounts, service charge, exact total.
 - First-time visitors are asked if they want a quick walkthrough; a **Tutorial** (?) button opens it any time.
+- Optional **Scan a receipt**: take a photo and Claude drafts the items, service charge and total for you to check (needs `ANTHROPIC_API_KEY`).
 - Everyone claims their own items — shared equally or by piece — or says “I got nothing from this receipt”.
 - Everyone approves the same server-calculated split, to the centavo.
 - People pay outside the app (cash or their own QR); the **recipient** confirms money arrived. Only then does a debt go down.
 
-Built for small groups of friends in Lucena City. It is designed for **iPhone first** (Safari → Share → *Add to Home Screen*) and also installs on Android (Chrome → *Install app*). No accounts, no bank logins, no payment processing, no AI/OCR.
+Built for small groups of friends in Lucena City. It is designed for **iPhone first** (Safari → Share → *Add to Home Screen*) and also installs on Android (Chrome → *Install app*). No accounts, no bank logins, no payment processing. Receipt scanning with Claude is optional; typed entry always works.
 
 > **Deploy:** ready for Vercel + PostgreSQL. Follow [docs/deploy-vercel.md](docs/deploy-vercel.md).
 

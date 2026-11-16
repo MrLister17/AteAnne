@@ -41,6 +41,8 @@ Project → **Settings → Environment Variables** (Production; add to Preview t
 | --- | --- |
 | `JOIN_CODE_HASH_KEY` | a long random secret: run `openssl rand -base64 32` and paste it. **Keep it stable**; changing it invalidates open join codes. |
 | `CRON_SECRET` | another random secret, `openssl rand -hex 32`. Vercel Cron sends it to the cleanup job. |
+| `ANTHROPIC_API_KEY` | optional. Turns on **Scan a receipt** (photo → draft receipt via Claude). Get a key at console.anthropic.com and set a monthly spend limit there. Without it, the Scan button is hidden and receipts are typed in. |
+| `RECEIPT_SCAN_MODEL` | optional, default `claude-opus-5-5`. |
 | `EVENT_RETENTION_DAYS` | optional, default `30`. Every event, finished or not, is deleted this many days after it was created. |
 | `APP_ORIGIN` | optional. Your public URL, e.g. `https://ateanne.vercel.app` or your custom domain. Defaults to the project's production URL. |
 | `DATABASE_URL` | Supabase **transaction pooler** URL (or set automatically by the Neon integration) |

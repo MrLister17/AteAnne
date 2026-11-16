@@ -16,6 +16,7 @@ export class EventViewBuilder {
     private readonly db: Db,
     private readonly events: EventService,
     private readonly retention = new RetentionPolicy(),
+    private readonly features: { receiptScan: boolean } = { receiptScan: false },
   ) {}
 
   async build(agg: EventAggregate, me: MemberRecord) {
@@ -33,6 +34,7 @@ export class EventViewBuilder {
     const joinCode = isOwner ? this.events.revealCode(e) : null;
 
     return {
+      features: this.features,
       me: { memberId: me.id, isOwner, displayName: me.displayName, intent: me.intent, entryComplete: me.entryComplete, claimVersion: me.claimVersion },
       event: {
         id: e.id,

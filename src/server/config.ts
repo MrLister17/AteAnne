@@ -15,6 +15,11 @@ const schema = z.object({
   CLEANUP_TOKEN: z.string().optional(),
   /** Every event (finished or not) is deleted this many days after creation. */
   EVENT_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(30),
+  /** Enables photo → receipt draft scanning (Claude API). Optional. */
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  RECEIPT_SCAN_MODEL: z.string().min(1).default("claude-opus-5-5"),
+  /** Test/demo only: deterministic fake reader. Ignored on Vercel production. */
+  RECEIPT_SCAN_FAKE: z.enum(["0", "1"]).default("0"),
   /** Set by Vercel Cron; accepted as the cleanup bearer token. */
   CRON_SECRET: z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),

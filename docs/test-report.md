@@ -8,10 +8,10 @@ All commands were run from a clean working tree. The output below is copied from
 | `npm run test:reference` | `PASS: reconciliation, allocations, conservation, net transfers, partial/rejected/verified reports, and centavo rounding.` The regenerated JSON was byte-identical to the supplied fixture |
 | `npm run lint` | exit 0, no warnings |
 | `npm run typecheck` | exit 0 |
-| `npm run test:unit` | **3 files, 36 tests passed** |
-| `npm run test:integration` | **3 files, 26 tests passed** (real PostgreSQL) |
+| `npm run test:unit` | **4 files, 42 tests passed** |
+| `npm run test:integration` | **4 files, 30 tests passed** (real PostgreSQL) |
 | `npm run build` | Compiled successfully; 35 routes |
-| `npx playwright test --trace off` | **22 passed** (iPhone 15 emulation + 360px Android width) |
+| `npx playwright test --trace off` | **24 passed** (iPhone 15 emulation + 360px Android width) |
 
 ## Vercel deployment simulation
 
@@ -31,6 +31,8 @@ A fresh `git clone` with no `.env`: `npm ci` (no env vars) passed. `npm run verc
 - `layout.spec.ts` (both projects): no horizontal scroll, every input labelled, every visible button/link ≥44px tall at 360px on all entry pages; visible keyboard focus; reduced motion honoured; manifest (standalone, maskable icon), apple-touch-icon, viewport-fit=cover, service worker served.
 
 ## Not verified here (honest gaps)
+
+- **Receipt scanning with a real Claude call.** Tests use a deterministic fake reader (`RECEIPT_SCAN_FAKE=1`). The Claude request code is typechecked against `@anthropic-ai/sdk` 1.8.0, but no live scan has run because the build session had no API key. The first real scans after adding `ANTHROPIC_API_KEY` in Vercel are the verification; check accuracy on a few real receipts.
 
 - Real iPhone Safari and Android Chrome devices (only Chromium emulation of iPhone viewport/UA/touch). WebKit-specific rendering and actual *Add to Home Screen* behaviour still need a manual check on a phone.
 - Production HTTPS deployment, `Secure` cookies over TLS, and a deployed smoke test (**not deployed**).

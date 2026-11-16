@@ -1,17 +1,39 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { api } from "../api";
+import { api, ApiError } from "../api";
 import { Icon } from "../components/Icon";
 import { Avatar, Badge, Button, Card, Notice, Sheet } from "../components/ui";
 import { php } from "../format";
 import { MAX_CLIENT_UPLOAD_BYTES, prepareImage, uploadName } from "../image";
 import { ReceiptEditor } from "./ReceiptEditor";
 import { ReceiptView, useAction, useEvent } from "./EventContext";
+import { Spinner, useToast } from "../components/ui";
+import type { ScannedDraft } from "@/server/services/ReceiptScanService";
 
 export function ReceiptsTab() {
   const { view, event, name, seq } = useEvent();
   const [editing, setEditing] = useState<ReceiptView | "new" | null>(null);
+  const [scan, setScan] = useState<{ draft: ScannedDraft; photo: Blob } | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const scanInput = useRef<HTMLInputElement>(null);
+  const toast = useToast();
+  const startScan = async (file: File) => {
+    setScanning(true);
+    try {
+      const photo = await prepareImage(file, "RECEIPT");
+      if (photo.size > MAX_CLIENT_UPLOAD_BYTES) throw new ApiError(413, "too_large", "That photo is too large. Try again with a smaller photo.");
+      const fd = new FormData();
+      fd.set("file", photo, uploadName(photo));
+      const draft = await api.post<ScannedDraft>(`/api/events/${event.id}/receipts/scan`, fd);
+      setScan({ draft, photo });
+      setEditing("new");
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "Couldn’t scan that photo. Enter the receipt by hand.", "error");
+    } finally {
+      setScanning(false);
+    }
+  };
   const [openId, setOpenId] = useState<string | null>(null);
   const open = view.receipts.find((r) => r.id === openId) ?? null;
   const canAdd = event.phase === "COLLECTING" && !event.cancelled && view.receipts.length < 25;
@@ -26,12 +48,44 @@ export function ReceiptsTab() {
             {view.receipts.length} receipt{view.receipts.length === 1 ? "" : "s"} · {php(total)} paid to merchants
           </p>
         </div>
-        {canAdd && (
+        {canAdd && !view.features.receiptScan && (
           <Button icon="plus" onClick={() => setEditing("new")}>
             Add receipt
           </Button>
         )}
       </div>
+
+      {canAdd && view.features.receiptScan && (
+        <>
+          <input
+            ref={scanInput}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            aria-label="Receipt photo to scan"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) void startScan(f);
+            }}
+          />
+          <button
+            type="button"
+            disabled={scanning}
+            onClick={() => scanInput.current?.click()}
+            className="flex min-h-16 w-full items-center gap-3 rounded-2xl bg-violet px-5 text-left text-violet-ink shadow-sm active:opacity-90 disabled:opacity-70"
+          >
+            {scanning ? <Spinner /> : <Icon name="camera" size={26} />}
+            <span className="flex-1">
+              <span className="block text-[17px] font-semibold">{scanning ? "Reading your receipt…" : "Scan a receipt"}</span>
+              <span className="block text-[13px] opacity-85">{scanning ? "This can take up to 30 seconds." : "Take a photo — we’ll fill in the items for you to check."}</span>
+            </span>
+          </button>
+          <button type="button" disabled={scanning} onClick={() => setEditing("new")} className="flex min-h-11 w-full items-center justify-center gap-1.5 text-[15px] font-semibold text-violet">
+            <Icon name="edit" size={18} /> Add receipt by typing
+          </button>
+        </>
+      )}
 
       {event.phase !== "COLLECTING" && <Notice tone="info">Receipts are locked while the group claims and reviews. The organizer can step back to fix one; that resets claims on it.</Notice>}
 
@@ -66,7 +120,19 @@ export function ReceiptsTab() {
       </ul>
 
       {open && <ReceiptDetail receipt={open} onClose={() => setOpenId(null)} onEdit={() => setEditing(open)} />}
-      {editing && <ReceiptEditor key={editing === "new" ? "new" : `${editing.id}-${editing.version}`} receipt={editing === "new" ? null : editing} open onClose={() => setEditing(null)} />}
+      {editing && (
+        <ReceiptEditor
+          key={editing === "new" ? (scan ? "scan" : "new") : `${editing.id}-${editing.version}`}
+          receipt={editing === "new" ? null : editing}
+          scanned={editing === "new" ? scan?.draft : null}
+          photo={editing === "new" ? scan?.photo : null}
+          open
+          onClose={() => {
+            setEditing(null);
+            setScan(null);
+          }}
+        />
+      )}
     </div>
   );
 }

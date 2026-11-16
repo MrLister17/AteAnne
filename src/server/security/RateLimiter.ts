@@ -16,6 +16,9 @@ export const RATE_RULES = {
   recoveryPerIp: { name: "recover-ip", limit: 20, windowMs: 10 * 60 * 1000 },
   createPerIp: { name: "create-ip", limit: 30, windowMs: 60 * 60 * 1000 },
   uploadsPerMember: { name: "upload-member", limit: 20, windowMs: 10 * 60 * 1000 },
+  /** Each scan is a paid API call: cap per person and per event. */
+  scansPerMember: { name: "scan-member", limit: 10, windowMs: 60 * 60 * 1000 },
+  scansPerEvent: { name: "scan-event", limit: 40, windowMs: 24 * 60 * 60 * 1000 },
 } satisfies Record<string, RateRule>;
 
 /**

@@ -51,6 +51,14 @@ Source: *AteAnne — Full SDLC & Financial Specification v1.0* ([docs/spec/](spe
 | AT-20 | Format/size/metadata/scope checks; receipt vs transfer statements kept separate; retention job | Done |
 | AT-21 | 360px + iPhone layout, labels, 44px targets, focus, reduced motion, persistence after reload, build, restore rehearsal | Done; restore rehearsed on dev data without snapshots |
 
+## Owner additions after the spec
+
+| Change | Status | Evidence |
+| --- | --- | --- |
+| Receipt scanning: photo to draft receipt (decision D27) | Done with a fake reader. **A live Claude call has not been verified yet** (no API key available in the build session) | `unit/receipt-draft.test.ts`, `integration/scan.test.ts`, `e2e/scan.spec.ts` |
+| 30-day retention for all events (D24) | Done | `integration/retention.test.ts` |
+| First-visit tutorial (D22) | Done | `e2e/tutorial.spec.ts` |
+
 ## Non-goals (v1, per spec)
 
-OCR/AI, bank or payment APIs, QR decoding, multiple funders per receipt, pooled advances, custom fractional weights in the UI, post-payment bill corrections, in-app chat, public event directory.
+Bank or payment APIs (OCR/AI scanning was later added by the owner; see above), QR decoding, multiple funders per receipt, pooled advances, custom fractional weights in the UI, post-payment bill corrections, in-app chat, public event directory.
