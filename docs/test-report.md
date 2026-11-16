@@ -32,7 +32,7 @@ A fresh `git clone` with no `.env`: `npm ci` (no env vars) passed. `npm run verc
 
 ## Not verified here (honest gaps)
 
-- **Receipt scanning with a real Claude call.** Tests use a deterministic fake reader (`RECEIPT_SCAN_FAKE=1`) and a mocked Groq client. The Groq and Claude request code is typechecked against `groq-sdk` 1.6.0 and `@anthropic-ai/sdk` 1.8.0, but no live scan has run yet (no key in the build session). The first real scans after adding `ANTHROPIC_API_KEY` in Vercel are the verification; check accuracy on a few real receipts.
+- **Receipt scanning with a real Groq or Claude call.** Tests use a deterministic fake reader (`RECEIPT_SCAN_FAKE=1`) and a mocked Groq client. The Groq and Claude request code is typechecked against `groq-sdk` 1.6.0 and `@anthropic-ai/sdk` 1.8.0, but no live scan has run yet (no key in the build session). The first real scans after adding `GROQ_API_KEY` (or `ANTHROPIC_API_KEY`) in Vercel are the verification; check accuracy on a few real receipts.
 
 - Real iPhone Safari and Android Chrome devices (only Chromium emulation of iPhone viewport/UA/touch). WebKit-specific rendering and actual *Add to Home Screen* behaviour still need a manual check on a phone.
 - Production HTTPS deployment, `Secure` cookies over TLS, and a deployed smoke test (**not deployed**).
