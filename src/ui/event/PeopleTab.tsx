@@ -144,7 +144,7 @@ export function PeopleTab() {
         <>
           <SectionTitle>Organizer</SectionTitle>
           <Card className="space-y-3">
-            <Button full variant="secondary" onClick={() => void act(() => api.post(`/api/events/${event.id}/cancel`, { cancelled: !event.cancelled }), event.cancelled ? "Event reopened" : "Event cancelled")}>
+            <Button full variant="secondary" onClick={() => act(() => api.post(`/api/events/${event.id}/cancel`, { cancelled: !event.cancelled }), event.cancelled ? "Event reopened" : "Event cancelled")}>
               {event.cancelled ? "Un-cancel event" : "Cancel event"}
             </Button>
             <p className="text-[13px] text-muted">Cancelling never forgives money. Costs or debts stay visible and payments can still be confirmed.</p>

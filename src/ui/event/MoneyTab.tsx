@@ -88,7 +88,7 @@ function ApprovalCard() {
       {view.review.approvedByMe ? (
         <Notice tone="receive">You approved this version.</Notice>
       ) : (
-        <Button full icon="check" disabled={blockers.length > 0 || event.cancelled} onClick={() => void act(() => api.post(`/api/events/${event.id}/review`, { financialVersion: event.financialVersion }), "Approved")}>
+        <Button full icon="check" disabled={blockers.length > 0 || event.cancelled} onClick={() => act(() => api.post(`/api/events/${event.id}/review`, { financialVersion: event.financialVersion }), "Approved")}>
           I agree with this split
         </Button>
       )}

@@ -1,17 +1,28 @@
 # Test report
 
-**Run:** 2026-11-15 · Linux container · Node 22.23.4 · PostgreSQL 16.15 (local, isolated `ateanne_test` database) · Chromium for Playwright 1.63.0.
-All commands were run from a clean working tree. The output below is copied from the actual run log.
+**Run:** 2026-11-16 · Linux container · Node 22 · PostgreSQL (local, isolated `ateanne_test` database) · Chromium for Playwright.
+The results below are copied from the actual run log of this session.
 
 | Command | Result |
 | --- | --- |
-| `npm run test:reference` | `PASS: reconciliation, allocations, conservation, net transfers, partial/rejected/verified reports, and centavo rounding.` The regenerated JSON was byte-identical to the supplied fixture |
 | `npm run lint` | exit 0, no warnings |
 | `npm run typecheck` | exit 0 |
-| `npm run test:unit` | **5 files, 49 tests passed** |
+| `npm run test:unit` | **5 files, 54 tests passed** (5 new: forgiving settings and the "why is scanning off" hint) |
 | `npm run test:integration` | **4 files, 30 tests passed** (real PostgreSQL) |
-| `npm run build` | Compiled successfully; 35 routes |
-| `npx playwright test --trace off` | **28 passed** (iPhone 15 emulation + 360px Android width) |
+| `npm run build` | Compiled successfully |
+| `npx playwright test --trace off` | **30 passed** (iPhone 15 emulation + 360px Android width) |
+
+`npm run test:reference` was not re-run in this session (no change to money rules).
+
+## Scan and feedback changes (2026-11-16, second session)
+
+Checked by browser tests on both phone sizes, with the fake reader:
+- The Receipts tab and the Add-receipt form show **Take photo** (opens the back camera) and **Upload photo**; both are at least 44px tall.
+- A file that is not a photo leaves a message on screen ("That didn’t work", the reason, and Retake / Upload photo) instead of a toast that vanishes.
+- Tapping **Save receipt** on an unfinished form shows "Not saved yet. Fill in …" above the open sheet and moves to the first missing field. Before this session that message was drawn underneath the sheet.
+- The press effect for buttons is present in the stylesheet.
+
+**Not verified:** the production site. This session could not reach the Vercel site or the Vercel API (blocked by the session's network settings), so **why scanning is off in production is still undiagnosed**; the new `/api/health` → `receiptScanHint` is there to answer it. No live Groq call and no real phone photo was scanned in this session. The Cancel button, the 55-second time-out and the camera/HEIC behaviour on a real iPhone have no automated test.
 
 ## Vercel deployment simulation
 

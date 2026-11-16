@@ -105,7 +105,8 @@ src/
     event/MoneyTab.tsx        review & breakdown
     event/SettlementSection.tsx  paying, confirming, disputes, QR/cash setup
     event/PeopleTab.tsx       roster, rename, recovery key, export, delete
-    event/useReceiptScanner.ts   shared scan logic
+    event/ScanPanel.tsx       the "Take photo / Upload photo" block, progress, errors
+    event/useReceiptScanner.ts   shared scan logic (shrink, send, cancel, time-out)
     tutorial/steps.tsx        THE 12 TUTORIAL STEPS (text + pictures)
     tutorial/TutorialProvider.tsx first-visit prompt + tutorial pop-up
     pwa/                      install prompt, service worker, preview banner
@@ -201,7 +202,7 @@ Set these in **Vercel → Settings → Environment Variables** (Production), the
 | `DIRECT_URL` | Yes (Supabase) | Supabase **Session pooler** URL (port 5432), used for migrations |
 | `JOIN_CODE_HASH_KEY` | **Yes** | Long random secret (`openssl rand -base64 32`). Keep it stable. |
 | `CRON_SECRET` | Recommended | Random secret for the daily cleanup job (`openssl rand -hex 32`) |
-| `GROQ_API_KEY` | For scanning | Turns on **Scan a receipt** (free tier). Turn on Zero Data Retention in Groq's console. |
+| `GROQ_API_KEY` | For scanning | Turns on **Scan a receipt** (free tier). Turn on Zero Data Retention in Groq's console. Pasted quotes/spaces and near-miss names (`groq_api_key`, `GROQ_KEY`) are tolerated, but use the exact name. |
 | `GROQ_VISION_MODEL` | Optional | Default `qwen/qwen3.8-27b`. Change it if Groq retires that model. |
 | `ANTHROPIC_API_KEY` / `RECEIPT_SCAN_MODEL` / `RECEIPT_SCAN_PROVIDER` | Optional | Use Claude for scanning instead of Groq |
 | `EVENT_RETENTION_DAYS` | Optional | Default 30 |
@@ -246,7 +247,8 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 
 | Problem | Fix |
 | --- | --- |
-| No **Scan a receipt** button | Open `/api/health`. If `version` is old, redeploy the **newest** deployment. If `receiptScan` is `off`, check `GROQ_API_KEY` is spelled exactly right and enabled for **Production**, then redeploy. |
+| No **Scan a receipt** block (the organizer sees "Photo scanning is off on this site") | Open `/api/health`. If `version` is not the latest commit on GitHub, redeploy the **newest** deployment. If `receiptScan` is `off`, read `receiptScanHint` in the same reply: it says what is missing (setting names only). Usually: `GROQ_API_KEY` not ticked for **Production**, or the site was not redeployed after adding it. |
+| A button seems to do nothing | Every button dips when pressed and shows a spinner while working; messages appear at the top of the screen. If you see none of that, the phone is running an old copy: close the app fully and reopen it. |
 | Scan says "model isn't available" | Groq retired the model. Set `GROQ_VISION_MODEL` to Groq's current vision model and redeploy. |
 | Scan says "busy" | Groq's free tier allows about 2–3 scans per minute app-wide. Wait a minute. |
 | Yellow "Preview mode" banner | `DATABASE_URL` or `JOIN_CODE_HASH_KEY` is missing in Vercel |
@@ -268,7 +270,7 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 
 | File | Contents |
 | --- | --- |
-| `docs/decisions.md` | Every decision and why (D1–D29), including your changes to the original spec |
+| `docs/decisions.md` | Every decision and why (D1–D32), including your changes to the original spec |
 | `docs/requirements.md` | Each requirement from the spec → where it's implemented → which test proves it |
 | `docs/architecture.md` | Class diagram, database diagram, phase and payment state machines |
 | `docs/financial-rules.md` | The money rules with worked examples |

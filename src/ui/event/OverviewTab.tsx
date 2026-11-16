@@ -173,10 +173,10 @@ function OrganizerPanel() {
               </p>
               <ShareJoin code={event.joinCode} />
               <div className="flex gap-2">
-                <Button variant="ghost" className="flex-1" onClick={() => void act(() => api.post(`/api/events/${event.id}/code`), "New code created; the old one stopped working")}>
+                <Button variant="ghost" className="flex-1" onClick={() => act(() => api.post(`/api/events/${event.id}/code`), "New code created; the old one stopped working")}>
                   New code
                 </Button>
-                <Button variant="ghost" className="flex-1" onClick={() => void act(() => api.del(`/api/events/${event.id}/code`), "Joining closed")}>
+                <Button variant="ghost" className="flex-1" onClick={() => act(() => api.del(`/api/events/${event.id}/code`), "Joining closed")}>
                   Close joining
                 </Button>
               </div>
@@ -185,7 +185,7 @@ function OrganizerPanel() {
             <div className="flex items-center justify-between gap-3">
               <p className="text-[15px] text-muted">Joining is closed.</p>
               {!event.cancelled && (
-                <Button variant="secondary" onClick={() => void act(() => api.post(`/api/events/${event.id}/code`), "Joining reopened with a new code")}>
+                <Button variant="secondary" onClick={() => act(() => api.post(`/api/events/${event.id}/code`), "Joining reopened with a new code")}>
                   Reopen with new code
                 </Button>
               )}

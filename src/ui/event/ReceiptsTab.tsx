@@ -3,22 +3,20 @@
 import { useRef, useState } from "react";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
-import { Avatar, Badge, Button, Card, Notice, Sheet } from "../components/ui";
+import { Avatar, Badge, Button, Card, Notice, Sheet, useToast } from "../components/ui";
 import { php } from "../format";
 import { MAX_CLIENT_UPLOAD_BYTES, prepareImage, uploadName } from "../image";
 import { ReceiptEditor } from "./ReceiptEditor";
 import { ReceiptView, useAction, useEvent } from "./EventContext";
 import { useReceiptScanner } from "./useReceiptScanner";
-import { Spinner } from "../components/ui";
+import { ScanOffNote, ScanPanel } from "./ScanPanel";
 import type { ScannedDraft } from "@/server/services/ReceiptScanService";
 
 export function ReceiptsTab() {
-  const { view, event, name, seq } = useEvent();
+  const { view, event, me, name, seq } = useEvent();
   const [editing, setEditing] = useState<ReceiptView | "new" | null>(null);
   const [scan, setScan] = useState<{ draft: ScannedDraft; photo: Blob } | null>(null);
-  const scanInput = useRef<HTMLInputElement>(null);
   const scanner = useReceiptScanner(event.id);
-  const scanning = scanner.scanning;
   const startScan = async (file: File) => {
     const result = await scanner.scan(file);
     if (result) {
@@ -48,37 +46,8 @@ export function ReceiptsTab() {
         )}
       </div>
 
-      {canAdd && view.features.receiptScan && (
-        <>
-          <input
-            ref={scanInput}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="sr-only"
-            aria-label="Receipt photo to scan"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) void startScan(f);
-            }}
-          />
-          <button
-            type="button"
-            disabled={scanning}
-            onClick={() => scanInput.current?.click()}
-            className="flex min-h-16 w-full items-center gap-3 rounded-2xl bg-violet px-5 text-left text-violet-ink shadow-sm active:opacity-90 disabled:opacity-70"
-          >
-            {scanning ? <Spinner /> : <Icon name="camera" size={26} />}
-            <span className="flex-1">
-              <span className="block text-[17px] font-semibold">{scanning ? "Reading your receipt…" : "Scan a receipt"}</span>
-              <span className="block text-[13px] opacity-85">{scanning ? "This can take up to 30 seconds." : "Take a photo — we’ll fill in the items for you to check."}</span>
-            </span>
-          </button>
-          <button type="button" disabled={scanning} onClick={() => setEditing("new")} className="flex min-h-11 w-full items-center justify-center gap-1.5 text-[15px] font-semibold text-violet">
-            <Icon name="edit" size={18} /> Add receipt by typing
-          </button>
-        </>
-      )}
+      {canAdd && view.features.receiptScan && <ScanPanel scanner={scanner} variant="hero" onFile={(f) => void startScan(f)} onType={() => setEditing("new")} />}
+      {canAdd && !view.features.receiptScan && me.isOwner && <ScanOffNote />}
 
       {event.phase !== "COLLECTING" && <Notice tone="info">Receipts are locked while the group claims and reviews. The organizer can step back to fix one; that resets claims on it.</Notice>}
 
@@ -133,6 +102,7 @@ export function ReceiptsTab() {
 function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; onClose: () => void; onEdit: () => void }) {
   const { view, me, event, name } = useEvent();
   const act = useAction();
+  const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [showPhoto, setShowPhoto] = useState(false);
@@ -146,7 +116,7 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
       title={r.label}
       footer={
         event.phase === "COLLECTING" && isPayer && !r.fundingAcknowledged ? (
-          <Button full variant="receive" icon="check" disabled={!r.reconciliation.reconciled} onClick={() => void act(() => api.post(`/api/receipts/${r.id}/funding`, { receiptVersion: r.version, amount: r.payable }), "Thanks — funding confirmed")}>
+          <Button full variant="receive" icon="check" disabled={!r.reconciliation.reconciled} onClick={() => act(() => api.post(`/api/receipts/${r.id}/funding`, { receiptVersion: r.version, amount: r.payable }), "Thanks — funding confirmed")}>
             I paid {php(r.payable)} for this
           </Button>
         ) : undefined
@@ -228,7 +198,8 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
                   const img = await prepareImage(f, "RECEIPT");
                   if (img.size > MAX_CLIENT_UPLOAD_BYTES) {
                     setUploading(false);
-                    alert("That photo is too large to upload. Try a smaller photo or a screenshot of it.");
+                    e.target.value = "";
+                    toast("That photo is too large to upload. Try a smaller photo or a screenshot of it.", "error");
                     return;
                   }
                   const fd = new FormData();

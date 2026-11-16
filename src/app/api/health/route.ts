@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { configProblems } from "@/server/config";
+import { configProblems, scanSetupHint } from "@/server/config";
 import { container } from "@/server/container";
 import { prisma } from "@/server/db";
 
@@ -16,7 +16,8 @@ export async function GET() {
   const receiptScan = container().scans.provider;
   try {
     await prisma().$queryRaw`SELECT 1`;
-    return NextResponse.json({ ok: true, version, receiptScan }, { headers });
+    // When scanning is off, say why in plain words (setting names only, never values).
+    return NextResponse.json({ ok: true, version, receiptScan, ...(receiptScan === "off" ? { receiptScanHint: scanSetupHint() } : {}) }, { headers });
   } catch {
     return NextResponse.json({ ok: false, reason: "database_unreachable", version, receiptScan }, { status: 503, headers });
   }

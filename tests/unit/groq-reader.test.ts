@@ -3,6 +3,7 @@ import Groq from "groq-sdk";
 import { extractJson, GroqReceiptReader } from "@/server/scan/GroqReceiptReader";
 import { ReceiptReadError } from "@/server/scan/ReceiptReader";
 import { chooseReceiptReader } from "@/server/container";
+import { readEnv, scanSetupHint } from "@/server/config";
 import { ClaudeReceiptReader, FakeReceiptReader } from "@/server/scan/ReceiptReader";
 
 const reading = {
@@ -88,5 +89,34 @@ describe("chooseReceiptReader", () => {
     expect(chooseReceiptReader({ ...base, GROQ_API_KEY: "g", ANTHROPIC_API_KEY: "a" })).toBeInstanceOf(GroqReceiptReader);
     expect(chooseReceiptReader({ ...base, GROQ_API_KEY: "g", ANTHROPIC_API_KEY: "a", RECEIPT_SCAN_PROVIDER: "claude" })).toBeInstanceOf(ClaudeReceiptReader);
     expect(chooseReceiptReader({ ...base, RECEIPT_SCAN_FAKE: "1" })).toBeInstanceOf(FakeReceiptReader);
+  });
+});
+
+describe("forgiving setup: the Groq key is found despite common dashboard mistakes", () => {
+  it("removes pasted quotes, spaces and new lines", () => {
+    expect(readEnv({ GROQ_API_KEY: '  "gsk_abc"\n' }).GROQ_API_KEY).toBe("gsk_abc");
+  });
+  it("treats blank optional settings as not set instead of breaking the app", () => {
+    const env = readEnv({ GROQ_API_KEY: "", ANTHROPIC_API_KEY: "  ", RECEIPT_SCAN_PROVIDER: "", GROQ_VISION_MODEL: "" });
+    expect(env.GROQ_API_KEY).toBeUndefined();
+    expect(env.ANTHROPIC_API_KEY).toBeUndefined();
+    expect(env.RECEIPT_SCAN_PROVIDER).toBeUndefined();
+    expect(env.GROQ_VISION_MODEL).toBeUndefined();
+  });
+  it("accepts mistyped names for the key", () => {
+    for (const name of ["groq_api_key", "GROQ_KEY", "GROQ-API-KEY", "Groq_Api_Key", "GROQ_APIKEY", "GROQ_API_KEY "]) {
+      expect(readEnv({ [name]: "gsk_x" }).GROQ_API_KEY, name).toBe("gsk_x");
+    }
+    expect(readEnv({ GROQ_VISION_MODEL: "m" }).GROQ_API_KEY).toBeUndefined();
+  });
+  it("lower-cases the provider choice", () => {
+    expect(readEnv({ RECEIPT_SCAN_PROVIDER: "Groq" }).RECEIPT_SCAN_PROVIDER).toBe("groq");
+  });
+  it("explains why scanning is off using setting names only, never values", () => {
+    expect(scanSetupHint({ VERCEL_ENV: "production" })).toMatch(/GROQ_API_KEY is not set in the "production" environment/);
+    const lookalike = scanSetupHint({ GROK_API_KEY: "super-secret-value" });
+    expect(lookalike).toMatch(/GROK_API_KEY/);
+    expect(lookalike).not.toMatch(/super-secret-value/);
+    expect(scanSetupHint({ RECEIPT_SCAN_PROVIDER: "claude", GROQ_API_KEY: "gsk_x" })).toMatch(/RECEIPT_SCAN_PROVIDER is "claude"/);
   });
 });

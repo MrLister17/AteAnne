@@ -32,12 +32,55 @@ const schema = z.object({
 
 export type AppConfig = z.infer<typeof schema> & { secureCookies: boolean };
 
+/** Optional settings where a blank value means "not set" (a blank box in a hosting dashboard must not break the app). */
+const OPTIONAL_KEYS = ["APP_ORIGIN", "STORAGE_DRIVER", "PRIVATE_UPLOAD_DIR", "CLEANUP_TOKEN", "EVENT_RETENTION_DAYS", "ANTHROPIC_API_KEY", "RECEIPT_SCAN_MODEL", "GROQ_API_KEY", "GROQ_VISION_MODEL", "RECEIPT_SCAN_PROVIDER", "RECEIPT_SCAN_FAKE", "CRON_SECRET"] as const;
+/** Common ways the Groq key gets named by mistake; compared ignoring case and punctuation. */
+const GROQ_KEY_ALIASES = new Set(["GROQAPIKEY", "GROQKEY", "GROQAPI", "GROQTOKEN", "GROQAPITOKEN", "GROQSECRETKEY", "GROQSECRET", "GROQCLOUDAPIKEY"]);
+const squash = (name: string) => name.toUpperCase().replace(/[^A-Z0-9]/g, "");
+/** Trim spaces/new lines and one pair of surrounding quotes, as often pasted into dashboards. */
+const tidy = (v: string | undefined) => (v ?? "").trim().replace(/^(["'])(.*)\1$/s, "$2").trim();
+
+/**
+ * Forgiving read of the environment for OPTIONAL settings only: blank means
+ * unset, pasted quotes/spaces are removed, and a mistyped name for the Groq
+ * key (groq_api_key, GROQ_KEY, "GROQ_API_KEY " …) is still found.
+ */
+export function readEnv(env: Record<string, string | undefined> = process.env): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = { ...env };
+  for (const k of OPTIONAL_KEYS) {
+    const v = tidy(out[k]);
+    if (v) out[k] = v;
+    else delete out[k];
+  }
+  if (!out.GROQ_API_KEY) {
+    const alias = Object.keys(env).find((k) => k !== "GROQ_API_KEY" && GROQ_KEY_ALIASES.has(squash(k)) && tidy(env[k]));
+    if (alias) out.GROQ_API_KEY = tidy(env[alias]);
+  }
+  if (out.RECEIPT_SCAN_PROVIDER) out.RECEIPT_SCAN_PROVIDER = out.RECEIPT_SCAN_PROVIDER.toLowerCase();
+  return out;
+}
+
+/**
+ * Plain-language reason why photo scanning is off, for /api/health. Mentions
+ * setting NAMES only, never values.
+ */
+export function scanSetupHint(env: Record<string, string | undefined> = process.env): string {
+  const where = env.VERCEL_ENV ? `the "${env.VERCEL_ENV}" environment` : "this server";
+  const e = readEnv(env);
+  const provider = e.RECEIPT_SCAN_PROVIDER ?? "auto";
+  if (provider === "claude" && !e.ANTHROPIC_API_KEY) return `RECEIPT_SCAN_PROVIDER is "claude" but ANTHROPIC_API_KEY is not set in ${where}. Remove RECEIPT_SCAN_PROVIDER to use Groq, then redeploy.`;
+  if (e.GROQ_API_KEY || e.ANTHROPIC_API_KEY) return "A key is set but the scanner did not start. Redeploy the newest deployment.";
+  const lookalikes = Object.keys(env).filter((k) => /GROQ|GROK/i.test(k) && !["GROQ_VISION_MODEL"].includes(k));
+  if (lookalikes.length) return `No usable GROQ_API_KEY in ${where}. Found similar setting name(s): ${lookalikes.join(", ")}. Rename it to exactly GROQ_API_KEY, make sure it has a value, then redeploy.`;
+  return `GROQ_API_KEY is not set in ${where}. In Vercel: Settings → Environment Variables → add GROQ_API_KEY with "Production" ticked → Deployments → Redeploy the newest one.`;
+}
+
 let cached: AppConfig | null = null;
 
 /** Validated environment configuration (read once, lazily). */
 export function config(): AppConfig {
   if (!cached) {
-    const parsed = schema.parse(process.env);
+    const parsed = schema.parse(readEnv());
     cached = { ...parsed, secureCookies: parsed.NODE_ENV === "production" || parsed.APP_ORIGIN.startsWith("https://") };
   }
   return cached;
@@ -49,7 +92,7 @@ export function config(): AppConfig {
  * database is connected; every API call then answers 503 not_configured.
  */
 export function configProblems(): string[] {
-  const parsed = schema.safeParse(process.env);
+  const parsed = schema.safeParse(readEnv());
   return parsed.success ? [] : [...new Set(parsed.error.issues.map((i) => String(i.path[0])))];
 }
 

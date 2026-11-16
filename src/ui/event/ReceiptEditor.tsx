@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
-import { Button, Field, MoneyInput, Notice, Sheet, Spinner } from "../components/ui";
+import { Button, Field, MoneyInput, Notice, Sheet, useToast } from "../components/ui";
 import { php, toCentavos, toInput } from "../format";
 import { ReceiptView, useAction, useEvent } from "./EventContext";
 import type { ScannedDraft } from "@/server/services/ReceiptScanService";
 import { uploadName } from "../image";
+import { ScanPanel } from "./ScanPanel";
 import { useReceiptScanner } from "./useReceiptScanner";
 
 type LineDraft = { id?: string; label: string; quantity: string; amount: string; unitPrice: string; mode: "SHARED" | "UNITS" };
@@ -81,13 +82,24 @@ export function ReceiptEditor({
   const photoUrl = useMemo(() => (photoBlob ? URL.createObjectURL(photoBlob) : null), [photoBlob]);
   const [bigPhoto, setBigPhoto] = useState(false);
   const scanner = useReceiptScanner(event.id);
-  const scanInput = useRef<HTMLInputElement>(null);
+  const scroller = useRef<HTMLDivElement>(null);
+  const toast = useToast();
   const canScanHere = !receipt && view.features.receiptScan && event.phase === "COLLECTING";
   useEffect(() => () => {
     if (photoUrl) URL.revokeObjectURL(photoUrl);
   }, [photoUrl]);
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
+  const [initial] = useState(() => JSON.stringify(d));
+  /** Something was typed by hand (used before a photo overwrites it). */
+  const typed = !!d.label.trim() || !!d.payable.trim() || d.adjustments.length > 0 || d.lines.some((l) => l.label.trim() || l.amount.trim());
+  const dirty = !!scanState || JSON.stringify(d) !== initial;
+  const close = () => {
+    if (busy) return;
+    if (dirty && !confirm(receipt ? "Discard your changes to this receipt?" : "Discard this receipt? Nothing has been saved yet.")) return;
+    scanner.cancel();
+    onClose();
+  };
 
   const calc = useMemo(() => {
     const c = (s: string) => (s.trim() === "" ? null : toCentavos(s));
@@ -133,7 +145,22 @@ export function ReceiptEditor({
 
   const submit = async () => {
     setTried(true);
-    if (calc.bad || calc.payable === null || !d.label.trim() || d.lines.some((l) => !l.label.trim())) return;
+    // A Save tap must never look dead: say what is missing and bring it into view.
+    const missing = [
+      !d.label.trim() && "the store name",
+      d.lines.some((l) => !l.label.trim()) && "every item’s name",
+      (calc.bad || calc.payable === null) && "every amount",
+    ].filter(Boolean) as string[];
+    if (missing.length) {
+      toast(`Not saved yet. Fill in ${missing.join(", ").replace(/, ([^,]*)$/, " and $1")}.`, "error");
+      requestAnimationFrame(() => {
+        const first = scroller.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+        first?.scrollIntoView({ block: "center", behavior: "smooth" });
+        first?.focus({ preventScroll: true });
+      });
+      return;
+    }
+    if (calc.payable === null) return;
     const body = {
       label: d.label,
       payerMemberId: d.payerMemberId,
@@ -170,55 +197,41 @@ export function ReceiptEditor({
   return (
     <Sheet
       open={open}
-      onClose={onClose}
+      onClose={close}
       title={receipt ? `Edit “${receipt.label}”` : "Add a receipt"}
       footer={
         <div className="space-y-2">
           <Reconciliation calc={calc} onUse={() => setD((x) => ({ ...x, payable: toInput(calc.computed.toString()) }))} />
-          <Button full busy={busy} onClick={() => void submit()}>
-            {receipt ? "Save changes" : "Save receipt"}
+          <Button full busy={busy} disabled={scanner.scanning} onClick={() => void submit()}>
+            {busy ? "Saving…" : receipt ? "Save changes" : "Save receipt"}
           </Button>
         </div>
       }
     >
-      <div className="space-y-5 pb-4">
+      <div ref={scroller} className="space-y-5 pb-4">
         {canScanHere && (
-          <>
-            <input
-              ref={scanInput}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="sr-only"
-              aria-label="Receipt photo to fill in this form"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                e.target.value = "";
-                if (!f) return;
-                const result = await scanner.scan(f);
-                if (result) {
-                  setScanState(result.draft);
-                  setPhotoBlob(result.photo);
-                  setD(fromScan(result.draft, d.payerMemberId));
-                }
-              }}
-            />
-            <button
-              type="button"
-              disabled={scanner.scanning}
-              onClick={() => scanInput.current?.click()}
-              className="flex min-h-14 w-full items-center gap-3 rounded-2xl border-2 border-dashed border-violet/50 bg-violet-soft px-4 text-left text-violet disabled:opacity-70"
-            >
-              {scanner.scanning ? <Spinner /> : <Icon name="camera" size={24} />}
-              <span className="flex-1">
-                <span className="block text-[16px] font-semibold">{scanner.scanning ? "Reading your receipt…" : scanState ? "Scan a different photo" : "Fill in from a photo"}</span>
-                <span className="block text-[13px] text-muted">{scanner.scanning ? "This can take up to 30 seconds." : "Take a photo or choose one — you’ll check everything before saving."}</span>
-              </span>
-            </button>
-          </>
+          <ScanPanel
+            scanner={scanner}
+            variant="form"
+            rescan={!!scanState}
+            onFile={async (f) => {
+              // Never silently throw away what the person already typed.
+              if (!scanState && typed && !confirm("Replace what you typed with the details from the photo?")) return;
+              const result = await scanner.scan(f);
+              if (result) {
+                setScanState(result.draft);
+                setPhotoBlob(result.photo);
+                setD(fromScan(result.draft, d.payerMemberId));
+                setTried(false);
+                scroller.current?.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
+          />
         )}
         {scanState && !receipt && (
           <Notice tone="warn" title="Drafted from your photo — please check it">
             <p>Compare every item, quantity and the total with the receipt before saving. Photos can be misread, and you decide what’s right.</p>
+            {!scanState.reconciled && <p className="font-semibold">The items don’t add up to the total yet. Look for a missed or misread line; the bar above Save shows the gap.</p>}
             {scanState.warnings.length > 0 && (
               <ul className="mt-1 list-disc space-y-0.5 pl-4">
                 {scanState.warnings.map((w) => (

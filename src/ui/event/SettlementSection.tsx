@@ -214,7 +214,7 @@ function ReportList({ edge, role }: { edge: EdgeView; role: "sender" | "recipien
 
           {role === "recipient" && r.status === "REPORTED" && event.phase === "SETTLING" && (
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button variant="receive" icon="check" onClick={() => void act(() => api.post(`/api/payments/${r.id}/verify`, { expectedVersion: r.version }), "Confirmed received")}>
+              <Button variant="receive" icon="check" onClick={() => act(() => api.post(`/api/payments/${r.id}/verify`, { expectedVersion: r.version }), "Confirmed received")}>
                 Received
               </Button>
               <Button
@@ -229,7 +229,7 @@ function ReportList({ edge, role }: { edge: EdgeView; role: "sender" | "recipien
             </div>
           )}
           {role === "sender" && r.status === "REPORTED" && (
-            <Button variant="ghost" className="mt-2" onClick={() => void act(() => api.post(`/api/payments/${r.id}/cancel`), "Report cancelled")}>
+            <Button variant="ghost" className="mt-2" onClick={() => act(() => api.post(`/api/payments/${r.id}/cancel`), "Report cancelled")}>
               Cancel this report
             </Button>
           )}
@@ -268,7 +268,7 @@ function DisputeCard({ edge }: { edge: EdgeView }) {
       <p className="font-semibold">Resolve this before paying again</p>
       <p className="text-[14px]">A report was marked not received. You both need to pick the same answer. Nobody — including the organizer — can decide for you.</p>
       {(["NO_TRANSFER", "REPLACEMENT"] as const).map((c) => (
-        <Button key={c} full variant={myChoice === c ? "primary" : "secondary"} icon={myChoice === c ? "check" : undefined} onClick={() => void act(() => api.post(`/api/disputes/${d.id}`, { choice: c, expectedVersion: d.version }), "Answer saved")}>
+        <Button key={c} full variant={myChoice === c ? "primary" : "secondary"} icon={myChoice === c ? "check" : undefined} onClick={() => act(() => api.post(`/api/disputes/${d.id}`, { choice: c, expectedVersion: d.version }), "Answer saved")}>
           {label[c]}
         </Button>
       ))}

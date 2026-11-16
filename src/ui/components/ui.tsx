@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
 import { initials, phpAbs } from "../format";
+import { onActivity } from "../api";
 import { Icon, IconName } from "./Icon";
 
 /* ---------------------------------------------------------------- Button */
@@ -15,6 +16,22 @@ const VARIANT: Record<Variant, string> = {
   receive: "bg-receive text-white active:opacity-90 dark:text-[#0f2219]",
 };
 
+/** Short vibration where the phone supports it (Android; iPhones ignore it). Never throws. */
+export function haptic(kind: "tap" | "ok" | "error" = "tap") {
+  try {
+    navigator.vibrate?.(kind === "error" ? [30, 50, 30] : kind === "ok" ? 18 : 8);
+  } catch {
+    /* not supported */
+  }
+}
+
+type Click = (e: React.MouseEvent<HTMLButtonElement>) => unknown;
+
+/**
+ * Every tap answers back: the button dips when pressed (globals.css), shows a
+ * spinner and blocks double taps while its action runs (automatically when
+ * onClick returns a promise), then flashes a tick when the action succeeded.
+ */
 export function Button({
   variant = "primary",
   icon,
@@ -22,16 +39,46 @@ export function Button({
   full,
   className = "",
   children,
+  onClick,
   ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; icon?: IconName; busy?: boolean; full?: boolean }) {
+}: Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick"> & { variant?: Variant; icon?: IconName; busy?: boolean; full?: boolean; onClick?: Click }) {
+  const [pending, setPending] = useState(false);
+  const [done, setDone] = useState(false);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  const working = busy || pending;
+  const handle: Click | undefined =
+    onClick &&
+    ((e) => {
+      haptic();
+      const out = onClick(e);
+      if (!(out instanceof Promise)) return;
+      setPending(true);
+      out
+        .then((v) => {
+          // useAction resolves to undefined when the action failed (it already showed the reason).
+          if (!alive.current || v === undefined || v === false) return;
+          setDone(true);
+          setTimeout(() => alive.current && setDone(false), 1400);
+        })
+        .catch(() => undefined)
+        .finally(() => alive.current && setPending(false));
+    });
   return (
     <button
+      type="button"
       {...rest}
-      disabled={rest.disabled || busy}
-      aria-busy={busy || undefined}
+      onClick={handle}
+      disabled={rest.disabled || working}
+      aria-busy={working || undefined}
       className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl px-5 text-[16px] font-semibold transition disabled:opacity-50 ${VARIANT[variant]} ${full ? "w-full" : ""} ${className}`}
     >
-      {busy ? <Spinner /> : icon ? <Icon name={icon} size={20} /> : null}
+      {working ? <Spinner /> : done ? <Icon name="check" size={20} className="animate-pop" /> : icon ? <Icon name={icon} size={20} /> : null}
       {children}
     </button>
   );
@@ -225,22 +272,73 @@ export function Sheet({ open, onClose, title, children, footer }: { open: boolea
 type Toast = { id: number; text: string; tone: "ok" | "error" };
 const ToastCtx = createContext<(text: string, tone?: Toast["tone"]) => void>(() => undefined);
 
+/**
+ * Toasts and the "working…" bar live in a popover so they sit in the browser's
+ * top layer. Pop-up sheets are modal <dialog>s, which cover everything that is
+ * not in the top layer, so without this a message shown while a sheet is open
+ * (e.g. "Couldn’t save") would be hidden behind it.
+ */
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const push = useCallback((text: string, tone: Toast["tone"] = "ok") => {
-    const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, text, tone }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tone === "error" ? 6000 : 3000);
+  const [busy, setBusy] = useState(false);
+  const layer = useRef<HTMLDivElement>(null);
+  const raise = useCallback(() => {
+    const el = layer.current as (HTMLDivElement & { showPopover?: () => void; hidePopover?: () => void }) | null;
+    if (!el?.showPopover) return;
+    try {
+      if (el.matches(":popover-open")) el.hidePopover?.();
+      el.showPopover();
+    } catch {
+      /* popover not supported: the layer still renders as a normal fixed element */
+    }
   }, []);
+  const push = useCallback(
+    (text: string, tone: Toast["tone"] = "ok") => {
+      const id = Date.now() + Math.random();
+      haptic(tone === "error" ? "error" : "ok");
+      setToasts((t) => [...t.slice(-2), { id, text, tone }]);
+      setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tone === "error" ? 7000 : 3000);
+    },
+    [],
+  );
+  useEffect(() => {
+    // iOS Safari only applies :active (the press effect) when a touch listener exists.
+    const noop = () => undefined;
+    document.addEventListener("touchstart", noop, { passive: true });
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const off = onActivity((b) => {
+      clearTimeout(timer);
+      // Only show the bar when something takes longer than a blink.
+      if (b) timer = setTimeout(() => setBusy(true), 180);
+      else setBusy(false);
+    });
+    return () => {
+      document.removeEventListener("touchstart", noop);
+      clearTimeout(timer);
+      off();
+    };
+  }, []);
+  useEffect(() => {
+    if (toasts.length || busy) raise();
+  }, [toasts, busy, raise]);
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 z-50 flex flex-col items-center gap-2 px-4" style={{ bottom: "calc(var(--tabbar-h) + var(--safe-bottom) + 12px)" }} aria-live="assertive">
-        {toasts.map((t) => (
-          <div key={t.id} role={t.tone === "error" ? "alert" : "status"} className={`animate-sheet pointer-events-auto max-w-[480px] rounded-2xl px-4 py-3 text-[15px] font-medium shadow-lg ${t.tone === "error" ? "bg-pay text-white dark:text-black" : "bg-ink text-bg"}`}>
-            {t.text}
-          </div>
-        ))}
+      <div ref={layer} popover="manual" className="top-layer">
+        {busy && <div className="activity-bar" role="progressbar" aria-label="Working" />}
+        <div className="fixed inset-x-0 flex flex-col items-center gap-2 px-4" style={{ top: "calc(var(--safe-top) + 64px)" }} aria-live="assertive">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              role={t.tone === "error" ? "alert" : "status"}
+              onClick={() => setToasts((all) => all.filter((x) => x.id !== t.id))}
+              className={`pointer-events-auto flex max-w-[480px] items-start gap-2.5 rounded-2xl px-4 py-3 text-[15px] font-medium shadow-lg ${t.tone === "error" ? "animate-shake bg-pay text-white dark:text-black" : "animate-sheet bg-ink text-bg"}`}
+            >
+              <Icon name={t.tone === "error" ? "alert" : "check"} size={20} className="mt-px shrink-0" />
+              <span>{t.text}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </ToastCtx.Provider>
   );
