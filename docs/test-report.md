@@ -7,7 +7,7 @@ The results below are copied from the actual run log of this session.
 | --- | --- |
 | `npm run lint` | exit 0, no warnings |
 | `npm run typecheck` | exit 0 |
-| `npm run test:unit` | **5 files, 54 tests passed** (5 new: forgiving settings and the "why is scanning off" hint) |
+| `npm run test:unit` | **5 files, 63 tests passed** |
 | `npm run test:integration` | **4 files, 30 tests passed** (real PostgreSQL) |
 | `npm run build` | Compiled successfully |
 | `npx playwright test --trace off` | **30 passed** (iPhone 15 emulation + 360px Android width) |
@@ -25,6 +25,19 @@ Checked by browser tests on both phone sizes, with the fake reader:
 - **Production check from the owner's phone (2026-11-16):** `/api/health` on the live site returned version `a0e494b` (the latest at that time) and `receiptScan: off` with the hint that `GROQ_API_KEY` is not set in the production environment, and no similarly named setting was found. So the cause is the Vercel setting, not the code.
 
 **Not verified:** the production site. This session could not reach the Vercel site or the Vercel API (blocked by the session's network settings), so the diagnosis came from the owner opening `/api/health` on their phone (see above). No live Groq call and no real phone photo was scanned in this session. The Cancel button, the 55-second time-out and the camera/HEIC behaviour on a real iPhone have no automated test.
+
+## First real receipt (2026-11-16, third session)
+
+The owner scanned a real restaurant receipt on the live site (7 items, 15% loyalty discount on the VAT-exclusive price, service charge, card payment; long receipt on a dark folder). Printed total PHP 4,046.70.
+
+| Version | Result on that photo |
+| --- | --- |
+| Live site before this change | Items came to PHP 3,305.00 instead of 4,425.00; **off by PHP 1,048.88**, discount not converted |
+| Same pipeline re-run here (`try-scan`, before changes) | Two item amounts wrong (680 → 580, 460 → 450), quantity 3 read as 1, no unit prices, store name wrong |
+| After cropping to the paper + new instructions (raw reading) | All items, quantities and unit prices right except 460 read as 450; in two of three runs the service charge 285.45 was read as 265.45 |
+| After the checking layer (2 consecutive live runs, ~2.0 s each) | **Every amount matches the printed receipt**: 7 items = 4,425.00, service 285.45, discount 592.63 → 663.75, **reconciled at PHP 4,046.70**. The banner lists the three corrections it made. Store name read as "GOHA" (printed "GOMA"). |
+
+Caveats: this is **one** receipt, and the test image was the owner's screenshot of the photo (lower resolution than the camera original). The corrections rely on the receipt printing unit prices and a subtotal; receipts without them fall back to a plain "items don't add up" warning. More real receipts are still needed. The full chain was run after these changes: lint and typecheck exit 0, **63 unit** (9 new), **30 integration**, build, **30 browser tests** passed.
 
 ## Vercel deployment simulation
 

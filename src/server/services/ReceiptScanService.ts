@@ -1,4 +1,3 @@
-import sharp from "sharp";
 import { PermissionError } from "@/domain/errors";
 import { PhaseMachine } from "@/domain/event/PhaseMachine";
 import { ReceiptDraftNormalizer } from "@/domain/receipt/ReceiptDraftNormalizer";
@@ -6,6 +5,7 @@ import type { Db } from "../db";
 import { HttpError, NotFoundError } from "../http/HttpError";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import { ReceiptReadError, type ReceiptReader } from "../scan/ReceiptReader";
+import { prepareForReader } from "../scan/receiptImage";
 import type { AssetService } from "./AssetService";
 
 /**
@@ -44,7 +44,8 @@ export class ReceiptScanService {
 
     // Validate + strip metadata via the same pipeline as private photos, then size for vision.
     const safe = await this.assets.process(file, "RECEIPT");
-    const forReader = await sharp(safe.bytes).resize({ width: 1568, height: 1568, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
+    // Crop to the paper when that is clearly possible: detail spent on the table is detail lost on the digits.
+    const forReader = await prepareForReader(safe.bytes);
 
     let reading;
     try {

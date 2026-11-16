@@ -8,12 +8,14 @@ import "dotenv/config";
 import { readFileSync } from "node:fs";
 import sharp from "sharp";
 import { GroqReceiptReader, DEFAULT_GROQ_VISION_MODEL } from "../src/server/scan/GroqReceiptReader";
+import { prepareForReader } from "../src/server/scan/receiptImage";
 import { ReceiptDraftNormalizer } from "../src/domain/receipt/ReceiptDraftNormalizer";
 
 async function main() {
   const [file, model = process.env.GROQ_VISION_MODEL ?? DEFAULT_GROQ_VISION_MODEL] = process.argv.slice(2);
   if (!file) throw new Error("Usage: npx tsx scripts/try-scan.ts <photo.jpg> [groq-model]");
-  const img = await sharp(readFileSync(file)).rotate().resize({ width: 1568, height: 1568, fit: "inside", withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer();
+  // Same preparation as the app: upright, then cropped to the paper and sized for the reader.
+  const img = await prepareForReader(await sharp(readFileSync(file)).rotate().toBuffer());
   const started = Date.now();
   try {
     const raw = await new GroqReceiptReader(process.env.GROQ_API_KEY ?? "proxy-injected", model).read(img, "image/jpeg");

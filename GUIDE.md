@@ -81,6 +81,7 @@ src/
       BaseService.ts          shared "lock event → check → change → audit" pattern
     scan/                     receipt readers
       receiptPrompt.ts        THE INSTRUCTIONS given to the AI + expected JSON shape
+      receiptImage.ts         crops the reader's copy of the photo to the paper
       GroqReceiptReader.ts    Groq (default model qwen/qwen3.8-27b)
       ReceiptReader.ts        Claude reader + fake reader for tests
     readmodels/EventViewBuilder.ts  builds the JSON the phone receives
@@ -135,7 +136,7 @@ Example: someone taps **Save my items** on the Claim tab.
 4. **Domain rules** (`src/domain/...`) decide whether it's allowed and what the numbers are. These are pure classes, easy to test.
 5. The change is saved, an **audit entry** is written, and the phone reloads the event view (`QueryService` → `EventViewBuilder`). **The server always recalculates; it never trusts totals sent by the phone.**
 
-Receipt scan flow: phone shrinks the photo (`src/ui/image.ts`) → `POST /api/events/<id>/receipts/scan` → `ReceiptScanService` (checks + strips metadata) → `GroqReceiptReader` (AI reads it) → `ReceiptDraftNormalizer` (exact parsing, VAT-discount fix, warnings) → draft shown in `ReceiptEditor` → the person checks it and saves.
+Receipt scan flow: phone shrinks the photo (`src/ui/image.ts`) → `POST /api/events/<id>/receipts/scan` → `ReceiptScanService` (checks + strips metadata) → `receiptImage.ts` (crop to the paper) → `GroqReceiptReader` (AI only copies what is printed) → `ReceiptDraftNormalizer` (the checking layer: exact parsing, quantity × unit price, printed subtotal, look-alike digit repair, VAT-discount conversion, warnings) → draft shown in `ReceiptEditor` → the person checks it and saves.
 
 ---
 
@@ -182,7 +183,7 @@ Always run the checks in [section 10](#10-tests-and-checks) before pushing.
 | **How the AI reads receipts** (what to skip, VAT rules) | `RECEIPT_SYSTEM_PROMPT` in `src/server/scan/receiptPrompt.ts`, then test with `scripts/try-scan.ts` |
 | **Groq model** | Vercel env var `GROQ_VISION_MODEL` (default `qwen/qwen3.8-27b`) |
 | **Use Claude instead of Groq** | Set `ANTHROPIC_API_KEY` and `RECEIPT_SCAN_PROVIDER=claude` |
-| **VAT-discount auto-fix behaviour** | `ReceiptDraftNormalizer.ts` (`VAT_GROSS_UP_MAX`), then update `tests/unit/receipt-draft.test.ts` |
+| **VAT-discount auto-fix behaviour** | `ReceiptDraftNormalizer.ts` (`isVatGrossUp`, exactly 12%), then update `tests/unit/receipt-draft.test.ts` |
 | **Add a field to the database** | ① edit `prisma/schema.prisma` ② `npx prisma migrate dev --name what_you_changed` ③ use it in the service ④ expose it in `EventViewBuilder.ts` ⑤ show it in the UI. Production applies the migration automatically on the next deploy. |
 | **Add an API endpoint** | Create `src/app/api/.../route.ts` using `route(async (ctx) => …)` and call a service method. Put rules in a service or domain class, not the route. |
 | **Add a new receipt scanner** (another AI) | Write a class implementing `ReceiptReader` (see `GroqReceiptReader.ts`), then add it to `chooseReceiptReader()` in `src/server/container.ts` |
@@ -271,7 +272,7 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 
 | File | Contents |
 | --- | --- |
-| `docs/decisions.md` | Every decision and why (D1–D33), including your changes to the original spec |
+| `docs/decisions.md` | Every decision and why (D1–D36), including your changes to the original spec |
 | `docs/requirements.md` | Each requirement from the spec → where it's implemented → which test proves it |
 | `docs/architecture.md` | Class diagram, database diagram, phase and payment state machines |
 | `docs/financial-rules.md` | The money rules with worked examples |

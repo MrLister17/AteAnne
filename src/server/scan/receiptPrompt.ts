@@ -17,6 +17,8 @@ export const RECEIPT_READING_SCHEMA = z.object({
       line_total: z.string(),
     }),
   ),
+  /** Printed sum of the item lines before discounts/service ("Gross Sales", "Subtotal"), used only to cross-check the lines. */
+  items_subtotal: z.string().nullable(),
   discounts: z.array(z.object({ label: z.string(), amount: z.string(), base: z.enum(["gross", "vat_exclusive", "unknown"]) })),
   service_charge: z.string().nullable(),
   other_charges: z.array(z.object({ label: z.string(), amount: z.string() })),
@@ -28,7 +30,11 @@ export const RECEIPT_SYSTEM_PROMPT = `You transcribe photos of shop and restaura
 
 Write every amount as a plain decimal string with two decimals and no currency sign or thousands separator, e.g. "1234.50".
 
-lines: one entry per purchased item line, in printed order. label = item name as printed (expand obvious abbreviations only if certain). quantity = printed quantity (1 if none). line_total = the line's printed total (prices on Philippine receipts are VAT-inclusive; copy them as printed). unit_price only if printed.
+Your job is to COPY what is printed, not to calculate. Another program checks the arithmetic afterwards, so never adjust a number to make things add up.
+
+lines: one entry per purchased item line, in printed order. Read each row left to right, one row at a time. label = item name as printed (expand obvious abbreviations only if certain). Receipts often print columns such as "Description  U.Cost  Qty  Amount": unit_price = the unit cost column, quantity = the quantity column (1 if none), line_total = the last amount on the row (prices on Philippine receipts are VAT-inclusive; copy them as printed). Always give unit_price when a unit cost is printed; null only when it is not. When quantity and amount are printed close together (e.g. "3 1,185.00"), the single digit before the space is the quantity and the rest is the amount. Ignore tax-code letters after an amount (such as "V").
+
+items_subtotal: the printed total of the item lines before any discount, VAT breakdown or service charge (labelled e.g. "Gross Sales", "Subtotal", "Sub Total", "Total Sales"). null if not printed. Copy it; do not add the lines up yourself.
 
 discounts: senior citizen, PWD, promo, loyalty or other discounts as positive amounts. base = "vat_exclusive" when the receipt shows the discount computed on the VAT-exclusive/net-of-VAT amount (typical for senior/PWD), "gross" when it is taken off the VAT-inclusive price, else "unknown".
 
@@ -58,6 +64,7 @@ export function toRawReading(out: ReceiptReadingJson): RawReceiptReading {
     isReceipt: out.is_receipt,
     merchant: out.merchant,
     lines: out.lines.map((l) => ({ label: l.label, quantity: l.quantity, unitPrice: l.unit_price, lineTotal: l.line_total })),
+    itemsSubtotal: out.items_subtotal ?? null,
     discounts: out.discounts,
     serviceCharge: out.service_charge,
     otherCharges: out.other_charges,

@@ -10,7 +10,8 @@ export const MAX_CLIENT_UPLOAD_BYTES = 4 * 1024 * 1024;
  * this only keeps uploads small and fast on mobile data.
  */
 export async function prepareImage(file: File, kind: "RECEIPT" | "QR"): Promise<Blob> {
-  const maxSide = kind === "QR" ? 1400 : 2000;
+  // Receipts are long and thin: keep enough pixels that small print survives the server-side crop to the paper.
+  const maxSide = kind === "QR" ? 1400 : 2600;
   try {
     const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
     const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));

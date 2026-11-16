@@ -9,7 +9,8 @@ export const DEFAULT_GROQ_VISION_MODEL = "qwen/qwen3.8-27b";
 const GROQ_JSON_SHAPE = JSON.stringify({
   is_receipt: true,
   merchant: "store name or null",
-  lines: [{ label: "item", quantity: 1, unit_price: "0.00 or null", line_total: "0.00" }],
+  lines: [{ label: "item", unit_price: "0.00 or null", quantity: 1, line_total: "0.00" }],
+  items_subtotal: "0.00 or null",
   discounts: [{ label: "Senior/PWD/Promo", amount: "0.00", base: "gross | vat_exclusive | unknown" }],
   service_charge: "0.00 or null",
   other_charges: [{ label: "charge", amount: "0.00" }],
@@ -56,7 +57,16 @@ export class GroqReceiptReader implements ReceiptReader {
 
     let content: string | null | undefined;
     try {
-      const res = await this.client.chat.completions.create({ model: this.model, messages, temperature: 0, max_completion_tokens: 4096, response_format: { type: "json_object" } });
+      const ask = () => this.client.chat.completions.create({ model: this.model, messages, temperature: 0, max_completion_tokens: 4096, response_format: { type: "json_object" } });
+      let res;
+      try {
+        res = await ask();
+      } catch (first) {
+        // One quick second try when Groq is momentarily over capacity (5xx). Never for 429: on the free tier that would just wait.
+        if (!(first instanceof Groq.InternalServerError)) throw first;
+        await new Promise((r) => setTimeout(r, 800));
+        res = await ask();
+      }
       content = res.choices[0]?.message?.content;
     } catch (error) {
       if (error instanceof Groq.RateLimitError) throw new ReceiptReadError("unavailable", "The free receipt reader is busy right now. Try again in a minute, or enter it by hand.");
@@ -70,7 +80,9 @@ export class GroqReceiptReader implements ReceiptReader {
       throw error;
     }
 
-    const parsed = RECEIPT_READING_SCHEMA.safeParse(extractJson(content ?? ""));
+    const json = extractJson(content ?? "");
+    // Older or terse replies may leave the optional cross-check field out.
+    const parsed = RECEIPT_READING_SCHEMA.safeParse(json && typeof json === "object" ? { items_subtotal: null, ...json } : json);
     if (!parsed.success) throw new ReceiptReadError("unreadable", "Couldn’t read that photo. Try a sharper, well-lit photo, or enter it by hand.");
     if (!parsed.data.is_receipt) throw new ReceiptReadError("not_a_receipt", "That doesn’t look like a readable receipt. Try a clearer photo of the whole receipt.");
     return toRawReading(parsed.data);
