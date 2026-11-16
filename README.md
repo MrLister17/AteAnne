@@ -1,5 +1,7 @@
 # AteAnne — hatian na malinaw, bayaran na tama
 
+> **New here? Read [GUIDE.md](GUIDE.md)**: a complete map of the app, how it works, and how to change things.
+
 AteAnne (a pun on *hatian*, splitting a bill) is a **mobile-first, installable web app** for splitting shared expenses by **what each person actually had**, then settling with **payments that only the receiver can confirm**.
 
 - Whoever paid enters the receipt: items, quantities, discounts, service charge, exact total.
