@@ -279,3 +279,4 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 | `docs/handoff.md` | Current status in short |
 | `docs/pilot-guide.md`, `docs/case-study-template.md` | Running a real group test; writing it up for your portfolio |
 | `docs/spec/` | The original SDLC PDF, editable spec and starter prompt |
+| `docs/prompts/receipt-scan-next.md` | Ready-to-paste prompt for the next session on receipt scanning |
