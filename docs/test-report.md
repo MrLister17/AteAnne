@@ -1,5 +1,23 @@
 # Test report
 
+## Sprint S8 — People progressive disclosure (v0.7.1, 2026-11-19 Manila)
+
+Branch: `feature/people-screen`, integrating latest `main` commit `42da456` (v0.7.0). User requested less information overload with visible, familiar destinations. The People change itself affects only UI/shared sheet behavior, tests, version and documentation; upstream v0.7.0 workflow changes are preserved; no schema or financial service changes.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run lint` | Rechecking combined version |
+| `npm run typecheck` | Rechecking combined version |
+| `npm run test:unit` | Rechecking combined version |
+| `npm run test:integration` | Rechecking combined version |
+| `npm run build` | Rechecking combined version |
+| `npm run test:e2e` | Running; results to be recorded before release |
+
+New browser checks exercise the compact default roster, person/profile/settings/download/help/activity paths, role gates, Back/Close/Escape and focus restoration, 44px targets, long names, late recovery responses, and light/dark screenshots on iPhone emulation and360px. Existing guest/recovery/equal-split tests now open the relevant People layers. No real phone or human usability study is claimed. Before integration, the branch passed87 unit,47 integration and57 browser tests; those results are not claimed as verification of the merged v0.7.0 workflow.
+
+---
+
+
 ## v0.7.0 "Fewer waits" (2026-11-18, commit `50cec76`, merged into `main` on owner instruction)
 
 Rules and UI changed (D49–D51): Add & claim in one step, payer's own receipt auto-confirms funding, "Everyone's here", automatic freeze with no approval round, corrections back to Add & claim with a manual re-freeze, paid events closed by the daily job a day after their last payment activity, tabs per step. No migration. Local Linux run: Node 22.23.5, PostgreSQL 16.15 (isolated `ateanne_test`), pre-installed Playwright Chromium. Synthetic data only.

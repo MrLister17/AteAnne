@@ -20,11 +20,14 @@ This one page explains what the app does, where everything lives, how to run and
 
 Events started before v0.7 may still be in `ALLOCATING`/`REVIEWING`; they show as step 1, claims still work in Allocating, and the organizer can **Freeze the bill now** or reopen receipts. The bottom tab bar shows only the tabs for the current step: Home · Receipts · Claim · People in step 1; Home · Pay · Receipts · People in step 2; Home · Money · Receipts · People when Done.
 
-**People without a phone ("guests"):** the organizer, or an **admin** the organizer appoints, adds them in People → *Add someone without a phone*, then taps **Act for Lola** to claim her items, approve and record her payments while showing her the screen (a coral "Acting for Lola" bar stays on top; **Done** goes back). **Show amount** opens a big-text screen (English + Tagalog) with what she owes or is owed and what she had. Nobody can act for someone who has their own phone, a manager can't confirm a payment they themselves made to the guest, and the Activity list shows "Mark saved claims **for Lola**". If Lola gets a phone later, *They got a phone? Give them access* makes a key she opens with "I have a recovery key".
+**People without a phone ("guests"):** the organizer, or an **admin** the organizer appoints, adds them in People → *Add someone without a phone*. Tap their name in the roster to open **Act for them**, or use **Act for Lola** on Home, to claim her items and record her payments while showing her the screen (a coral "Acting for Lola" bar stays on top; **Done** goes back). **Show amount** opens a big-text screen (English + Tagalog) with what she owes or is owed and what she had. Nobody can act for someone who has their own phone, a manager can't confirm a payment they themselves made to the guest, and People → **Activity** shows "Mark saved claims **for Lola**". If Lola gets a phone later, tap her name → *They got a phone? Give them access* to make a key she opens with "I have a recovery key".
 
 **Typing a receipt:** Qty × Price each fills the line total; the receipt total fills itself in (marked *Auto*) until you type the printed total, which switches to checking. Service charge and discounts can be a **percent** (service charge starts at 10%).
 
-**Sprint S7 shortcuts:** install AteAnne on the Home Screen **before** creating/joining (Safari requires its Share menu; other supported browsers show native confirmation). In the receipt editor, choose **Split this receipt equally among everyone**; each person accepts their own share in Claim. Home → Next step → **Copy reminder** refreshes, previews a group/person message, and copies it for you to paste into Messenger. It sends nothing automatically. Home → Next step → *Something wrong with the bill?* → **Correct the bill** starts a reasoned correction before Done, carrying confirmed payments into revised balances; the organizer re-freezes it with **Freeze the corrected bill**. People → **Reissue access** lets the organizer check a lost-key member in person and privately hand over a 15-minute key; this trusted-circle power can grant that person’s access, so identity checking matters.
+**Sprint S7 shortcuts:** install AteAnne on the Home Screen **before** creating/joining (Safari requires its Share menu; other supported browsers show native confirmation). In the receipt editor, choose **Split this receipt equally among everyone**; each person accepts their own share in Claim. Home → Next step → **Copy reminder** refreshes, previews a group/person message, and copies it for you to paste into Messenger. It sends nothing automatically. Home → Next step → *Something wrong with the bill?* → **Correct the bill** starts a reasoned correction before Done, carrying confirmed payments into revised balances; the organizer re-freezes it with **Freeze the corrected bill**. People → tap the person → **Reissue access** lets the organizer check a lost-key member in person and privately hand over a 15-minute key; this trusted-circle power can grant that person’s access, so identity checking matters.
+
+**Finding things in People (v0.7.1, Sprint S8, D52):** the first screen is a compact roster. Tap a person (accessible label **View [name]**) to see the actions you can take for them, such as making them an admin, reissuing access or helping a guest. The labeled rows below the roster open focused sheets: **Your profile & access** for your name, recovery key and big-text amount; **Download event record** for **Spreadsheet (CSV)** and **Full record (JSON)**; **Event settings** for organizer cancellation/deletion; **Help & privacy** for the tutorial and identity/retention explanation; **Activity** for the audit history. **Back** returns from a follow-up action to the person or section you opened it from; **Close** returns to the roster. Those actions keep their existing role and event-phase restrictions.
+
 
 **The two Home screens (v0.6.1, D48)** are laid out in reading order so people know where to look:
 - **Start screen** (`/`): your events first (if any) → **Start a hatian** / **Join with a code** → a lighter **I have a recovery key** row → the install card → *How it works* (open for newcomers, folded once you have events; the full walkthrough button lives inside it). Help is the **?** icon at the top.
@@ -119,9 +122,9 @@ src/
     event/PersonScreen.tsx    big-text "show this to them" screen (amount owed/owed to, items)
     event/todo.ts             what a guest is still waiting on (Home → People without a phone)
     event/ClaimTab.tsx        claiming wizard
-    event/MoneyTab.tsx        review & breakdown
+    event/MoneyTab.tsx        frozen split, breakdown and payments
     event/SettlementSection.tsx  paying, confirming, disputes, QR/cash setup
-    event/PeopleTab.tsx       roster, rename, recovery key, export, delete; add guests, admins
+    event/PeopleTab.tsx       compact roster; person actions and profile/export/settings/help/activity sheets
     event/ScanPanel.tsx       the "Take photo / Upload photo" block, progress, errors
     event/useReceiptScanner.ts   shared scan logic (shrink, send, cancel, time-out)
     tutorial/steps.tsx        THE 12 TUTORIAL STEPS (text + pictures)
@@ -254,7 +257,7 @@ npm run lint && npm run typecheck && npm run test:unit && npm run test:integrati
 | --- | --- |
 | `test:unit` | Money math matches the reference fixtures to the centavo; 2,500 generated cases; scan normalizer; Groq reader (mocked) |
 | `test:integration` | Real-database flows: full event lifecycle, permissions, concurrency, recovery, photos, 30-day purge, scanning |
-| `test:e2e` | iPhone-size browser tests: create → claim → review → pay → Done, tutorial, scanning, 360px layout |
+| `test:e2e` | iPhone-size browser tests: create → claim → automatic freeze → pay → Done, tutorial, scanning, 360px layout |
 | `test:reference` | The original Python reference math still passes |
 
 Latest results and live Groq scan results: `docs/test-report.md`. CI runs everything on every push (`.github/workflows/ci.yml`).
@@ -272,7 +275,7 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 | Yellow "Preview mode" banner | `DATABASE_URL` or `JOIN_CODE_HASH_KEY` is missing in Vercel |
 | Build fails at migrations | Database unreachable. Check `DIRECT_URL` is the Session pooler (not the "Direct connection") |
 | "Cross-site request blocked" | Set `APP_ORIGIN` to the exact URL you use and redeploy |
-| Someone lost their phone | Use **I have a recovery key** on Home. If the key is lost too, ask the organizer in person to **Reissue access** from People (private key expires in 15 minutes) |
+| Someone lost their phone | Use **I have a recovery key** on Home. If the key is lost too, ask the organizer in person to open People → tap your name → **Reissue access** (private key expires in 15 minutes) |
 
 ---
 

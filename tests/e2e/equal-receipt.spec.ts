@@ -15,9 +15,10 @@ test("one-tap equal receipt confirmation preserves each person’s consent", asy
   await page.getByRole("button", { name: /Open my event/ }).click();
   const tab = async (name: string) => page.getByRole("navigation", { name: "Event sections" }).getByRole("button", { name }).click();
   await tab("People");
+  await page.getByRole("button", { name: "Add someone without a phone", exact: true }).click();
   await page.getByLabel("Name of person without a phone").fill("Lola");
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(page.getByText("No phone", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "View Lola", exact: true })).toContainText("No phone");
   await tab("Receipts");
   await page.getByRole("button", { name: /Add receipt/ }).first().click();
   const sheet = page.getByRole("dialog", { name: "Add a receipt" });

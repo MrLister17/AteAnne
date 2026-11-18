@@ -20,7 +20,7 @@ export default defineConfig({
   use: { baseURL: `http://localhost:${PORT}`, trace: "off", screenshot: "only-on-failure" },
   projects: [
     { name: "iphone", use: { ...devices["iPhone 15"], browserName: "chromium" } },
-    { name: "android-360", use: { browserName: "chromium", viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }, testMatch: /(layout|tutorial|scan|install|recovery|equal-receipt|reminders|corrections|home)\.spec\.ts/ },
+    { name: "android-360", use: { browserName: "chromium", viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }, testMatch: /(layout|tutorial|scan|install|recovery|equal-receipt|reminders|corrections|home|people)\.spec\.ts/ },
   ],
   webServer: {
     command: `npx next start -p ${PORT}`,

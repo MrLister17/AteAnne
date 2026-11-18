@@ -17,6 +17,7 @@ test("organizer hands a replacement key to the same member on a new phone", asyn
 
   await organizer.page.goto(`/e/${event.eventId}`);
   await organizer.page.getByRole("navigation", { name: "Event sections" }).getByRole("button", { name: "People" }).click();
+  await organizer.page.getByRole("button", { name: "View Juan", exact: true }).click();
   await organizer.page.getByRole("button", { name: "Reissue access for Juan", exact: true }).click();
   const confirm = organizer.page.getByRole("dialog", { name: "Reissue access for Juan", exact: true });
   await expect(confirm.getByRole("button", { name: "Make replacement key" })).toBeDisabled();
@@ -35,6 +36,7 @@ test("organizer hands a replacement key to the same member on a new phone", asyn
   await newPhone.page.getByRole("button", { name: "Open the event" }).click();
   await expect(newPhone.page.getByRole("heading", { name: "Recovery dinner" })).toBeVisible();
   await newPhone.page.getByRole("navigation", { name: "Event sections" }).getByRole("button", { name: "People" }).click();
+  await newPhone.page.getByRole("button", { name: "Your profile & access", exact: true }).click();
   await expect(newPhone.page.getByText("Shown as")).toContainText("Juan");
   const view = await newPhone.context.request.get(`/api/events/${event.eventId}`);
   expect((await view.json()).me.memberId).toBe(member.memberId);

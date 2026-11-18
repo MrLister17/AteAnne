@@ -73,6 +73,17 @@ These override the original spec’s no-reset and post-report freeze limitations
 | S7-02 | Organizer-attested, expiring single-use recovery; stable financial identity and revoked old access; admin/nonmember denial and redemption races | `RecoveryPolicy`, `RecoveryService`; `integration/recovery-reissue.test.ts`, `e2e/recovery.spec.ts` |
 | S7-03 | Equal whole receipt; everyone accepts own share; exact conservation and ≤1c difference; disagreement blocks review | `EqualReceiptSplit`, `ReceiptService`; `unit/equal-receipt.test.ts`, `integration/equal-receipt.test.ts`, `e2e/equal-receipt.spec.ts` |
 | S7-04 | Preview and copy person/group reminders for Messenger; current next steps, no credentials, no duplicate-transfer nudges | `reminders.ts`, `ReminderButton` (`ReminderPanel.tsx`); `unit/reminders.test.ts`, `e2e/reminders.spec.ts` |
-| S7-05 | Reasoned correction before Done, pending/dispute gate, immutable history, stable roster, fresh approval and confirmed-payment carry-forward | `CorrectionLedger`, `EventAggregate`, `EventService`, `PaymentService`; `unit/correction-ledger.test.ts`, `integration/corrections.test.ts`, `e2e/corrections.spec.ts` |
+| S7-05 | Reasoned correction before Done, pending/dispute gate, immutable history, stable roster, confirmed-payment carry-forward and manual corrected freeze (fresh approval was superseded by D50) | `CorrectionLedger`, `EventAggregate`, `EventService`, `PaymentService`; `unit/correction-ledger.test.ts`, `integration/corrections.test.ts`, `e2e/corrections.spec.ts` |
 
 See `test-report.md` for actual command outcomes; presence of a test file alone is not a claim that it passed.
+
+## Sprint S8 People navigation (D52, v0.7.1)
+
+| ID | Acceptance requirement | Implementation / evidence |
+| --- | --- | --- |
+| S8-01 | People initially shows a compact roster; selecting a person opens only the actions allowed for the current user, person and phase | `PeopleTab.tsx`; `e2e/people.spec.ts` compact roster and role checks |
+| S8-02 | Add someone without a phone opens a short form; guest management, access hand-over, admin appointment and organizer-assisted recovery retain their existing restrictions and confirmation steps | `PeopleTab.tsx`; `e2e/people.spec.ts`, `e2e/guests.spec.ts`, `e2e/recovery.spec.ts` |
+| S8-03 | **Your profile & access**, **Download event record**, **Event settings**, **Help & privacy** and **Activity** open focused sheets; rename, own recovery key, amount display, CSV/JSON, cancellation/deletion, tutorial and audit remain reachable | `PeopleTab.tsx`; `e2e/people.spec.ts` section navigation |
+| S8-04 | One shared sheet has visible Back/Close controls, returns follow-up actions to their parent, and supports keyboard dismissal; roster/settings fit iPhone and 360px widths with ≥44px touch targets in light/dark mode | Shared `Sheet` and `PeopleTab.tsx`; `e2e/people.spec.ts` Back/Close/Escape, focus return, touch targets, overflow and screenshots |
+
+This sprint changes presentation and navigation only and preserves v0.7.0’s three-step workflow with no approval round. See `test-report.md` for actual check results and `implementation-plan.md` for completion status.

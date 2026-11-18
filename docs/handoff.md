@@ -1,24 +1,25 @@
 # Handoff
 
-_Last updated: 2026-11-18_
+_Last updated: 2026-11-19 Manila_
 
 ## Current state
 
-- **v0.7.0 "Fewer waits"** (D49–D51): three steps (Add & claim → Pay → Done), claims allowed while receipts are being collected, payer’s own receipt auto-confirms funding, the organizer’s only step-1 action is **Everyone’s here**, the bill **freezes by itself** once everyone is done, no approval round (owner decision), a paid event **closes by itself a day after its last payment activity** (daily cleanup), tabs per step. No database migration. Full local chain green on `50cec76` (92 unit, 49 integration, 51 browser tests), then merged to `main` on the owner’s instruction; see the v0.7.0 sections of [CHANGELOG.md](../CHANGELOG.md) and [test-report.md](test-report.md). The live deployment cannot be checked from this container.
-- **v0.6.1 "Simpler Home"** (D48), UI only: fast-forwarded into `main` with the owner’s approval; GitHub CI run 44370348564 passed on `main`; pushing `main` triggers the Vercel production build (not verifiable from this container). It reorganizes the start screen and the event Home tab so each has one clear primary action; every control is kept, rare ones one tap away. See [CHANGELOG.md](../CHANGELOG.md) and the v0.6.1 section of [test-report.md](test-report.md).
-- Remote `main`: **v0.6.0**, code commit `8a24cc0`, merged with owner approval after full green GitHub CI (run 44328507489).
-- **Production:** https://ateanne.vercel.app, Vercel deployment `dpl_DKFndt2NyoP1C3pmRzi73dhwRNQL`, READY. Health returned `ok: true`, version `8a24cc0`, scanner `groq`. Sprint S7 implements all five requested improvements. See [CHANGELOG.md](../CHANGELOG.md), [implementation-plan.md](implementation-plan.md), decisions D43–D47 and [test-report.md](test-report.md).
-- New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false. Applied by the production Vercel build and verified independently in Supabase at 14:53:08 UTC on 2026-11-18: boolean, NOT NULL, default false.
+- **Remote `main` / production baseline: v0.7.0**, latest commit `42da456` (implementation `50cec76`). The owner approved and merged the three-step workflow after the full local chain passed. Public URL: https://ateanne.vercel.app. The earlier release’s test evidence is preserved in [CHANGELOG.md](../CHANGELOG.md) and [test-report.md](test-report.md); the root agent is checking the new combined release before deployment.
+- **Sprint S8 / v0.7.1 (D52):** People has a compact roster and focused sheets for each person, add-guest, profile/access, downloads, event settings, help/privacy and activity. Branch `feature/people-screen`; verification of the combined v0.7.0 + People implementation is in progress. Shared Sheet restores focus and supports Back without stacking modals. No migration or server financial/authorization changes are added by this UI slice.
+- **Preserve v0.7.0 (D49–D51):** Add & claim → Pay → Done; claims work while receipts are collected; saving the payer’s own receipt confirms funding; **Everyone’s here** closes joining. The first bill freezes automatically when everyone is done, with no approval round. After a correction the organizer uses **Freeze the corrected bill**. A paid event closes a day after its last payment activity through the existing daily cleanup, or the organizer may **Close it now**. Tabs remain specific to the current step.
+- **Preserve v0.6.1 Simpler Home (D48):** the start screen and event Home retain their focused reading order, current to-do, Next step and plainly labeled disclosures. Its original merge and green GitHub CI run `44370348564` are historical release evidence.
+- Migration `20261118150000_equal_receipt_split` was applied by the v0.6.0 production build and verified in Supabase at 14:53:08 UTC on 2026-11-18: boolean, NOT NULL, default false. S8 requires no new migration.
 
-**Verification:** reference fixtures, lint, typecheck and production build passed; 87 unit, 47 PostgreSQL integration and 47 distinct browser scenarios verified locally, then the entire GitHub CI chain passed including all 47 browser tests in one run. Live synthetic smoke verified equal receipt allocation, corrected statement preservation and replacement recovery/old-browser revocation; event deleted without payment reports. Detailed failures/fixes and real-device limits are recorded in the test report.
+**Verification status:** upstream v0.7.0 recorded reference, lint, typecheck, **92 unit**, **49 PostgreSQL integration**, production build and **51 browser tests** passing on `50cec76`. The earlier People candidate passed its local suite before newer `main` was discovered; those results do not replace verification of this merged version. Record final combined command/CI/deployment outcomes in `test-report.md` before marking S8 complete. No real iPhone or human usability study is claimed.
 
 ## What changed
 
-1. Mobile create/join is preceded by Home Screen installation guidance and an explicit browser fallback. Safari requires Share → Add to Home Screen; no website API opens that confirmation. Native prompts are used where supported. Copy a shared join code before installing, then join inside the app. Recovery is never blocked by installation.
-2. Organizer can reissue a private, 15-minute single-use key after checking a phone member’s identity in person. Reissue invalidates the old key immediately; redemption moves the same member, preserving money/roles and revoking the old browser’s event access. This is an explicit trusted-circle recovery power, not additional act-for access.
-3. Whole-receipt equal policy and per-person one-tap acceptance. Everyone must agree before review; exact component conservation and final shares within one centavo.
-4. Home → Next step → Copy reminder → choose person/group → preview/copy → manually paste into Messenger. Current tasks only; pending payments do not ask for another transfer.
-5. Home → Next step → *Something wrong with the bill?* → Correct the bill before Done, with a reason and no pending/disputed reports. Earlier immutable history is preserved, roster remains locked, everyone reapproves, and all confirmed money carries forward. Overpayments create return transfers. Reverse any mistaken confirmation before superseding its statement. Done stays read-only.
+1. Mobile create/join still starts with Home Screen installation guidance and an explicit browser fallback. Safari requires Share → Add to Home Screen. Recovery is never blocked by installation.
+2. Organizer replacement access is still a private 15-minute single-use key after checking identity in person. It preserves the member, roles and financial records; redemption revokes the old browser’s event access.
+3. Whole-receipt equal sharing still requires each person’s own acceptance, with exact conservation and final shares within one centavo. In v0.7.0, claiming is the agreement; there is no separate approval round.
+4. Home → Next step → Copy reminder previews and copies current person/group tasks for manual Messenger pasting. It never sends automatically or prompts a duplicate pending transfer.
+5. Before Done, Home → Next step → *Something wrong with the bill?* → **Correct the bill** preserves statements and confirmed money. Resolve pending reports/disputes first, correct receipts/claims in Add & claim, then the organizer manually freezes the corrected bill. Overpayments become return transfers. Done remains read-only.
+6. S8 People: tap a roster name for their permitted actions. **Add someone without a phone** opens its form; **Your profile & access**, **Download event record**, **Event settings**, **Help & privacy** and **Activity** open focused sheets. Back returns to the parent; Close returns to the roster. The labels and hints stay visible for discoverability.
 
 ## Run and verify
 
@@ -30,7 +31,7 @@ Use README setup, an isolated PostgreSQL test database and Node 22. Commands: re
 
 - v0.7.0: run one real hatian with relatives. Do people claim right away without waiting, does the organizer find **Everyone’s here**, and is the automatic freeze understood ("Everyone’s done — time to pay")? The daily close relies on the existing Vercel cron (03:17 Manila); check that a fully paid test event closes the next day.
 - v0.7.0 trade-off to watch (D50): with no approval round, mistakes are caught by each person’s own claims and by *Something wrong with the bill?*. If groups freeze wrong bills often, revisit.
-- v0.6.1: watch a relative who has never used AteAnne open the start screen and an event's Home tab. Can they find the entry tick, the join code, *Go back a step* and *Correct the bill* without help?
+- v0.6.1 Home / v0.7.1 People: watch a relative who has never used AteAnne find their current task, join code, person details, own recovery key, downloads, help and correction path without guidance.
 - Real iPhone Safari installation and reopening, including joining from a Messenger link. Chromium emulation does not test the OS Share sheet or actual Safari storage behavior.
 - Try the access hand-over and big-text screen with a relative; verify identity in person and send keys privately.
 - Confirm a corrected split’s carry-forward/return-transfer explanation with a real group before relying on it.
