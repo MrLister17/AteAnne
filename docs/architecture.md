@@ -148,3 +148,11 @@ Key constraints: money is stored as `BigInt` centavos with `CHECK` bounds (0 to 
 ## Security model (summary)
 
 Opaque 32-byte session and recovery secrets, stored as SHA-256 only, in HttpOnly SameSite=Lax cookies (`Secure` over HTTPS). Join codes: 10 characters from a 32-symbol alphabet, indexed by HMAC-SHA256 under `JOIN_CODE_HASH_KEY`, AES-GCM encrypted for owner re-display, 7-day expiry, closed at roster lock. Every write checks Origin plus membership, self, author, payer or recipient authority, phase and version on the server. 404 for non-members, so existence does not leak. DB-backed rate limits. Strict Zod schemas. `no-store` on private responses. Strict CSP. Private images are decoded and re-encoded by sharp (metadata stripped), stored under random keys outside `public/`, and served only to authorized members; QR codes go only to their owner and to people who owe them.
+
+## Sprint S7 extensions
+
+- `InstallProvider` captures the single-use native install event across routes. `InstallFirst` prevents mobile create/join from issuing a new identity until installation guidance or an explicit browser choice. iOS uses instructions; its OS Share sheet cannot be invoked by a website.
+- `RecoveryPolicy` authorizes only the organizer’s attested reissue; `RecoveryService` issues/redeems hash-only credentials under the event lock, preserving identity and ledger references. Existing browser binding changes only on successful redemption.
+- `Receipt.equalSplit` defaults false. `EqualReceiptSplit` owns whole-receipt consent validation and centavo component rounding; `ReceiptService` derives only the caller’s claims. Normal item allocation is unchanged.
+- `CorrectionLedger` calculates revised residual balances from corrected economic nets plus all verified, non-reversed transfers across snapshots. Correction uses the normal phase workflow with fresh approvals; `EventService` supersedes only after checking pending/dispute gates. Old snapshot facts and report records remain untouched. `PaymentService` only mutates the active snapshot’s reports. Projection/export includes immutable statement/payment history and equal-policy metadata.
+- `ReminderPanel` refreshes the authorized read model, then `remindersFor` produces plain-text phase tasks with no credential inclusion or automatic delivery. It avoids payment nudges while a report is pending.

@@ -24,7 +24,7 @@ export function SettlementSection() {
     <div className="space-y-3">
       <BalanceBanner
         net={mine.remaining}
-        caption={mine.remaining === mine.net ? "Frozen statement · only recipient-confirmed payments change this" : `At freeze: ${balanceLabel(mine.net).text.toLowerCase()} ${phpAbs(mine.net)} · only recipient-confirmed payments count`}
+        caption={mine.remaining === mine.net ? "Frozen statement · only recipient-confirmed payments change this" : `Bill net: ${balanceLabel(mine.net).text.toLowerCase()} ${phpAbs(mine.net)} · confirmed payments included`}
       />
       {event.phase === "DONE" && <Notice tone="receive" title="Done">Every transfer was confirmed by its recipient. This statement is read-only.</Notice>}
       {s.edges.length === 0 && <Notice tone="receive">Nobody owes anybody in this event.</Notice>}

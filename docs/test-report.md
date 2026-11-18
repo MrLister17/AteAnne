@@ -1,5 +1,27 @@
 # Test report
 
+## Sprint S7 / v0.6.0 (2026-11-18, local `feature/pilot-improvements`)
+
+Base checked: remote `main` commit `2a3a8db`. Changes are uncommitted and unpublished. Local Linux runtime: Node 22.23.5, PostgreSQL 16.16 via Docker Compose, Playwright Chromium 153. Only synthetic development/test data; no production services or provider calls.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run test:reference` | Passed (Python reference fixtures; no fixture diff) |
+| `npm run lint` | Passed, exit 0 |
+| `npm run typecheck` | Passed, Prisma generation + TypeScript |
+| `npm run test:unit` | **10 files, 87 tests passed** |
+| `npm run test:integration` | **8 files, 47 tests passed** on real PostgreSQL |
+| `npm run build` | Passed, production build |
+| `npm run test:e2e` | **47 distinct scenarios verified**: full run 45 passed / 2 reminder assertion failures; corrected case-sensitive expected text and reran `tests/e2e/reminders.spec.ts`: **2/2 passed** |
+
+Full story under test: mobile install guidance → create/join → receipt policy/own acceptance → server recomputation → review/freeze → payment report/receiver confirmation → correction/fresh approvals/return transfer, alongside organizer reissue → new browser recovery → stable identity/old browser revocation, and manual reminder preview/copy. Existing lifecycle/security tests are retained. New E2E flows ran both iPhone emulation and 360px Android width.
+
+Independent review checked conservation and authority; fixed the big-text and header corrected balances and clarified settlement captions. An initial browser run found exact tab-name selectors did not allow the existing “needs your attention” accessible suffix; these were corrected. The subsequent full run passed correction/equal/recovery/install workflows on both widths; only a reminder test’s expected text capitalization failed, then both reminder reruns passed. The expanded repeated-correction/reversal integration scenario was rerun separately and passed after the full PostgreSQL suite. No application code changed after the successful final build. Snapshots now preserve the equal-receipt policy and allocation policy version. PostgreSQL tests emitted an existing `pg` concurrent-query deprecation warning; no test failed because of it.
+
+Not verified here: actual iOS Safari Share sheet/installation or storage transfer, real relative usability/pilot, real bank transfers, new live scanner-provider requests, production migration/deployment. Safari cannot be programmatically installed with one website-triggered confirmation; native prompts are tested with synthetic browser events, and Safari guidance is tested in Chromium emulation.
+
+---
+
 ## Cousins pilot fixes (2026-11-18, branch `cousins-feedback`)
 
 This session's container could not install npm packages (network policy), so **nothing was run locally**. The full chain was run by GitHub Actions (`.github/workflows/ci.yml`, real PostgreSQL 16 service, Chromium) on the branch. Results below are copied from the job logs of run 44318660752 (commit `210c230`; run 44318003068 on `2fbfdfc` was identical):

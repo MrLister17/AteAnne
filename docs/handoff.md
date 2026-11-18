@@ -2,36 +2,33 @@
 
 _Last updated: 2026-11-18_
 
-## Status
+## Current state
 
-- **Engineering:** the P0 workflow is complete and persistent (create → join → receipts → claims → review → freeze → cash/QR → reports → recipient confirmation → Done), with exact-centavo calculations matching every supplied fixture. Lint, types, 32 unit, 23 integration and 22 E2E tests pass; the production build passes ([test-report.md](test-report.md)).
-- **Retention:** every event auto-deletes 30 days after creation (owner decision); the date is shown in-app.
-- **Database:** owner is setting up Supabase. See [deploy-vercel.md → Supabase](deploy-vercel.md). Don't add a DB-side delete job; the app handles it.
-- **Receipt scanning:** photo → draft via **Groq** (free tier; set `GROQ_API_KEY`) or Claude (`ANTHROPIC_API_KEY`). Groq verified live on three synthetic receipts (all reconciled; see test-report.md). Still check real phone photos after deploying. Scanning is now on in production. One real receipt has been tested and reconciles after the crop + checking-layer work (decisions D34–D36, test-report.md); more real receipts are needed. The scan block now has Take photo / Upload photo, progress with Cancel and on-screen errors (decisions D30–D32).
-- **Cousins pilot feedback (2026-11-18):** three fixes were merged to `main` as v0.5.0 (decisions D37–D42; see [CHANGELOG.md](../CHANGELOG.md)): people **without a phone** can be added and managed by the organizer or an **admin** (act-for mode, big-text "Show amount" screen, hand-over key if they get a phone); **typed receipts add themselves up** (qty × price, automatic total, percent service charge/discount); the **recovery key** now has an obvious place on Home and works when pasted into the join-code box. The local session couldn't install packages, so lint/types/tests were run by GitHub Actions on the branch; see [test-report.md](test-report.md). New migration `20261118140000_guests_and_admins` (adds two columns with defaults; safe on existing data) runs on the next production deploy.
-- **Onboarding:** first-visit ask plus a 12-step tutorial ("?" button on Home, the event header and People).
-- **Mobile/PWA:** iPhone-first UI with safe areas, bottom tab bar, 16px inputs and 44px targets; dark mode; installable via manifest + apple-touch-icon + service worker; an install helper (iOS Share → Add to Home Screen, Android install prompt).
-- **Deployment:** pushed to GitHub `MrLister17/AteAnne`; **ready for Vercel** ([deploy-vercel.md](deploy-vercel.md)). Not deployed yet; that needs your Vercel account and a database.
-- **Pilot / research:** **not started** (human task; see [pilot-guide.md](pilot-guide.md)).
+- Remote `main`: v0.5.0, last checked commit `2a3a8db`. Latest changelog and the repository SDLC were read before work.
+- Local `feature/pilot-improvements`: **v0.6.0 / Sprint S7**, implementing the owner’s five improvements. The owner authorized committing, merging to `main` and production deployment on 2026-11-18; release checks and CI are in progress. Actual deployment results will be recorded after verification. See [CHANGELOG.md](../CHANGELOG.md), [implementation-plan.md](implementation-plan.md), decisions D43–D47 and [test-report.md](test-report.md).
+- New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false. Only local test/development databases were migrated during implementation. The authorized production release runs this migration in the Vercel build. Apply before serving new code in production.
 
-## Run it
+**Verification:** reference fixtures, lint, typecheck and production build passed; 87 unit, 47 PostgreSQL integration and 47 distinct browser scenarios verified (full run plus targeted reminder rerun). Detailed failures/fixes and real-device limits are recorded in the test report.
 
-See the README quick start. Demo data: `npm run db:seed` prints recovery keys for nine synthetic people; paste one into `/recover` in a separate browser profile to act as that person.
+## What changed
 
-## To deploy (exact steps)
+1. Mobile create/join is preceded by Home Screen installation guidance and an explicit browser fallback. Safari requires Share → Add to Home Screen; no website API opens that confirmation. Native prompts are used where supported. Copy a shared join code before installing, then join inside the app. Recovery is never blocked by installation.
+2. Organizer can reissue a private, 15-minute single-use key after checking a phone member’s identity in person. Reissue invalidates the old key immediately; redemption moves the same member, preserving money/roles and revoking the old browser’s event access. This is an explicit trusted-circle recovery power, not additional act-for access.
+3. Whole-receipt equal policy and per-person one-tap acceptance. Everyone must agree before review; exact component conservation and final shares within one centavo.
+4. Home → Copy reminder → choose person/group → preview/copy → manually paste into Messenger. Current tasks only; pending payments do not ask for another transfer.
+5. Organizer → Correct the bill before Done, with a reason and no pending/disputed reports. Earlier immutable history is preserved, roster remains locked, everyone reapproves, and all confirmed money carries forward. Overpayments create return transfers. Reverse any mistaken confirmation before superseding its statement. Done stays read-only.
 
-1. Choose a Node host with **persistent PostgreSQL**, **HTTPS** and a **persistent volume** (or implement a private object-storage `PrivateStorage` adapter). Check current prices.
-2. Set `DATABASE_URL`, `APP_ORIGIN=https://<domain>`, `JOIN_CODE_HASH_KEY` (`openssl rand -base64 32`), `PRIVATE_UPLOAD_DIR=/data/uploads`, `CLEANUP_TOKEN` (`openssl rand -hex 32`), `NODE_ENV=production`.
-3. Follow [runbooks.md → Release](runbooks.md#release). Schedule the daily cleanup and backups.
-4. On your iPhone: open the HTTPS URL in Safari → Share → **Add to Home Screen**. On Android: Chrome → **Install app**.
+## Run and verify
 
-## Known limitations / next steps
+Use README setup, an isolated PostgreSQL test database and Node 22. Commands: reference, lint, typecheck, unit, integration, build, E2E. Never reset production. This session’s Node 22 executable lives under `/home/agent/.npm/_npx/52027bd8fc0022aa/node_modules/node/bin`; local `.env` uses synthetic development secrets and is ignored. PostgreSQL runs via Docker Compose. Browser tests run against a production build on port 3100 and an isolated test database.
 
-- Try the guest flow with a real relative before relying on it: does the big-text screen read well on your phone, and is "Act for …" / "Done" obvious enough?
-- iPhone Home Screen apps keep a separate sign-in from Safari. Tell people to **add AteAnne to the Home Screen first, then join** from the app, or they'll need their recovery key once.
+**Rollback:** once correction statements exist, v0.5 is not accounting-compatible even though the migration is additive. Use a compatible forward fix; never reset money/history to roll back.
 
-See [implementation-plan.md → Next](implementation-plan.md) and [requirements.md](requirements.md) (FR-18/AT-19 partial: no deactivation of referenced members). Also verify on real iPhone Safari before the pilot (Playwright used Chromium with iPhone emulation).
+## Remaining human checks
 
-## Repository
+- Real iPhone Safari installation and reopening, including joining from a Messenger link. Chromium emulation does not test the OS Share sheet or actual Safari storage behavior.
+- Try the access hand-over and big-text screen with a relative; verify identity in person and send keys privately.
+- Confirm a corrected split’s carry-forward/return-transfer explanation with a real group before relying on it.
+- More real receipt photos and the pilot guide. No new real bank transfers, scanner-provider calls, adoption evidence or production checks were performed.
 
-Development history lives in this repository's git log (milestone commits). The GitHub repo the owner created for this project could not be reached from the build session at first. See the commit and push notes in the final session report.
+Still deferred: referenced-member deactivation (FR-18/AT-19), multi-funder receipts, automatic push reminders, post-Done changes and whole-event deletion after payment reports. Every event still expires after 30 days; export beforehand.

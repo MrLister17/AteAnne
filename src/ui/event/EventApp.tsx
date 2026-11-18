@@ -185,7 +185,7 @@ function EventLoader({ eventId }: { eventId: string }) {
 /** Sticky header: title, phase progress and my balance — never covers content or buttons. */
 function Header({ view, onRefresh, onStopActing, onShow }: { view: View; onRefresh: () => Promise<void>; onStopActing: () => void; onShow: () => void }) {
   const idx = PHASES.indexOf(view.event.phase);
-  const myNet = view.settlement?.positions.find((p) => p.memberId === view.me.memberId)?.remaining ?? (view.calculation.ok ? view.calculation.positions.find((p) => p.memberId === view.me.memberId)?.net : null);
+  const myNet = view.settlement?.positions.find((p) => p.memberId === view.me.memberId)?.remaining ?? (view.calculation.ok ? view.calculation.positions.find((p) => p.memberId === view.me.memberId)?.remaining : null);
   const frozen = Boolean(view.settlement);
   const net = myNet ? BigInt(myNet) : null;
   return (

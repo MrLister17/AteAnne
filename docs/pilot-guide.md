@@ -6,7 +6,7 @@ Goal: learn whether item claims plus a visible review make splits feel fairer, a
 
 - Deploy to an HTTPS host with persistent storage (see runbooks). Install on your own iPhone via Safari → Share → *Add to Home Screen*.
 - Recruit **one** consenting group for a low-value real purchase first; then 3–5 groups if it's understandable. Don't contact people automatically or ask for bank credentials.
-- Explain up front: how the code works (anyone with it can join until the roster locks); one browser per person and the recovery key; payments happen outside the app and only the receiver confirms; **after the first payment is reported, the bill can't be edited** (v1).
+- Explain up front: how the code works (anyone with it can join until the roster locks); one browser per person and the recovery key; payments happen outside the app and only the receiver confirms; **post-report corrections require a reason, resolved reports/disputes and everyone’s fresh approval**; confirmed money carries forward. Done stays read-only. Install on the Home Screen before joining, and explain organizer-assisted recovery’s trust trade-off.
 
 ## Scenarios
 

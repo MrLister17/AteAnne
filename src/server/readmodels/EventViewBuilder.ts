@@ -3,6 +3,7 @@ import type { Db } from "../db";
 import { JoinCodeCodec } from "../security/Crypto";
 import type { EventService } from "../services/EventService";
 import { RetentionPolicy } from "@/domain/event/RetentionPolicy";
+import { SettlementPlanner } from "@/domain/settlement/SettlementPlanner";
 
 const s = (v: bigint) => v.toString();
 
@@ -33,6 +34,7 @@ export class EventViewBuilder {
     const audit = await this.db.auditEvent.findMany({ where: { eventId: e.id }, orderBy: { createdAt: "desc" }, take: 40 });
 
     const calc = agg.calculation();
+    const remaining = calc.ok ? agg.remainingNets(calc.positions.map((p) => [p.memberId, p.net] as const)) : new Map<string, bigint>();
     const joinCode = isOwner ? this.events.revealCode(e) : null;
 
     return {
@@ -91,6 +93,7 @@ export class EventViewBuilder {
           payerId: r.payerMemberId,
           authorId: r.authorMemberId,
           payable: s(r.payableCentavos),
+          equalSplit: r.equalSplit,
           version: r.version,
           imageAssetId: r.imageAssetId,
           canEdit: e.phase === "COLLECTING" && !e.cancelled && (r.authorMemberId === me.id || isOwner),
@@ -140,13 +143,14 @@ export class EventViewBuilder {
         reviewing: e.phase === "ALLOCATING" || e.phase === "REVIEWING" ? agg.reviewGate() : null,
         settling: e.phase === "REVIEWING" ? agg.settlementGate() : null,
         done: e.phase === "SETTLING" ? agg.doneGate() : null,
+        correcting: e.phase === "SETTLING" ? agg.correctionGate() : null,
       },
       calculation: calc.ok
         ? {
             ok: true as const,
             issues: [] as string[],
-            positions: calc.positions.map((p) => ({ memberId: p.memberId, funding: s(p.funding), cost: s(p.cost), net: s(p.net) })),
-            edges: calc.edges.map((x) => ({ from: x.from, to: x.to, amount: s(x.amount) })),
+            positions: calc.positions.map((p) => ({ memberId: p.memberId, funding: s(p.funding), cost: s(p.cost), net: s(p.net), remaining: s(remaining.get(p.memberId)!) })),
+            edges: new SettlementPlanner().plan([...remaining]).map((x) => ({ from: x.from, to: x.to, amount: s(x.amount) })),
             receipts: calc.receipts.map((st) => ({
               receiptId: st.receiptId,
               shares: [...st.shares.values()].map((sh) => ({
@@ -168,6 +172,21 @@ export class EventViewBuilder {
       },
       settlement: activeSnap ? this.settlementView(agg, activeSnap, me) : null,
       supersededSnapshots: e.snapshots.filter((x) => x.status === "SUPERSEDED").map((x) => ({ id: x.id, financialVersion: x.financialVersion, supersededAt: x.supersededAt?.toISOString() ?? null })),
+      statementHistory: e.snapshots.filter((x) => x.status === "SUPERSEDED").map((x) => ({
+        id: x.id, financialVersion: x.financialVersion, policyVersion: x.policyVersion,
+        frozenAt: x.createdAt.toISOString(), supersededAt: x.supersededAt?.toISOString() ?? null,
+        facts: x.facts,
+        positions: x.shares.map((p) => ({ memberId: p.memberId, funding: s(p.fundingCentavos), cost: s(p.costCentavos), net: s(p.netCentavos) })),
+        edges: x.edges.map((edge) => ({ id: edge.id, from: edge.fromMemberId, to: edge.toMemberId, amount: s(edge.amountCentavos) })),
+      })),
+      paymentHistory: e.snapshots.filter((x) => x.status === "SUPERSEDED").flatMap((snap) => snap.edges.flatMap((edge) => edge.reports.map((r) => ({
+        id: r.id, snapshotId: snap.id, financialVersion: snap.financialVersion,
+        from: edge.fromMemberId, to: edge.toMemberId, amount: s(r.amountCentavos),
+        method: r.method, note: r.note, status: r.status, createdAt: r.createdAt.toISOString(),
+        decidedAt: r.decidedAt?.toISOString() ?? null,
+        reversal: r.reversal ? { reason: r.reversal.reason, createdAt: r.reversal.createdAt.toISOString() } : null,
+        rejectReason: r.rejectReason,
+      })))),
       instructions: Object.fromEntries(
         instructions.map((i) => [
           i.memberId,
@@ -191,8 +210,7 @@ export class EventViewBuilder {
 
   private settlementView(agg: EventAggregate, snap: SnapshotRecord, me: MemberRecord) {
     const ledger = agg.paymentLedger(snap)!;
-    const initial = new Map(snap.shares.map((x) => [x.memberId, x.netCentavos]));
-    const remaining = ledger.remainingNets(initial);
+    const remaining = agg.remainingNets(snap.shares.map((x) => [x.memberId, x.netCentavos] as const));
     return {
       snapshotId: snap.id,
       financialVersion: snap.financialVersion,

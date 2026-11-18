@@ -5,7 +5,7 @@ import { useState } from "react";
 import { api } from "../api";
 import { CredentialReveal } from "../components/CredentialReveal";
 import { Icon } from "../components/Icon";
-import { Avatar, Badge, Button, Card, Field, Notice, SectionTitle, Sheet } from "../components/ui";
+import { Avatar, Badge, Button, Card, CopyButton, Field, Notice, SectionTitle, Sheet } from "../components/ui";
 import { timeAgo } from "../format";
 import { useAction, useEvent } from "./EventContext";
 import { TutorialButton } from "../tutorial/TutorialProvider";
@@ -22,6 +22,7 @@ const AUDIT_TEXT: Record<string, string> = {
   "member.admin_added": "made someone an admin",
   "member.admin_removed": "removed an admin",
   "member.recovery_rotated": "rotated their recovery key",
+  "member.access_reissued": "reissued access after an identity check",
   "code.rotated": "made a new join code",
   "code.closed": "closed joining",
   "entry.completed": "finished entering receipts",
@@ -55,6 +56,9 @@ export function PeopleTab() {
   const act = useAction();
   const acting = Boolean(view.actingFor);
   const [guestKey, setGuestKey] = useState<{ name: string; key: string } | null>(null);
+  const [recoveryTarget, setRecoveryTarget] = useState<{ id: string; name: string } | null>(null);
+  const [identityConfirmed, setIdentityConfirmed] = useState(false);
+  const [reissuedKey, setReissuedKey] = useState<{ name: string; key: string; expiresAt: string } | null>(null);
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState(me.displayName);
   const [newKey, setNewKey] = useState<string | null>(null);
@@ -89,7 +93,7 @@ export function PeopleTab() {
                   <Badge>{m.intent === "PAID_EXPENSE" ? "Paid something" : "Pays share"}</Badge>
                 </div>
               </div>
-              {(me.isOwner || (me.canManageGuests && m.isGuest)) && !acting && !m.isOwner && event.phase === "COLLECTING" && !m.referenced && (
+              {(me.isOwner || (me.canManageGuests && m.isGuest)) && !acting && !m.isOwner && event.phase === "COLLECTING" && !event.rosterLockedAt && !m.referenced && (
                 <Button variant="ghost" className="!px-2" aria-label={`Remove ${m.displayName}`} onClick={() => confirm(`Remove ${m.displayName}? Use this for duplicates or people added by mistake.`) && void act(() => api.del(`/api/events/${event.id}/members/${m.id}`), "Removed")}>
                   <Icon name="trash" size={20} />
                 </Button>
@@ -131,13 +135,24 @@ export function PeopleTab() {
                   </Button>
                 </div>
               )}
+              {me.isOwner && !acting && !m.isOwner && !m.isGuest && m.active && (
+                <Button
+                  variant="ghost"
+                  icon="key"
+                  className="mt-1 !text-[15px]"
+                  aria-label={`Reissue access for ${m.displayName}`}
+                  onClick={() => { setIdentityConfirmed(false); setRecoveryTarget({ id: m.id, name: m.displayName }); }}
+                >
+                  Lost their key? Reissue access
+                </Button>
+              )}
             </li>
           ))}
         </ul>
       </Card>
 
-      {me.canManageGuests && event.phase === "COLLECTING" && !event.cancelled && <AddGuest />}
-      {me.canManageGuests && event.phase !== "COLLECTING" && (
+      {me.canManageGuests && event.phase === "COLLECTING" && !event.rosterLockedAt && !event.cancelled && <AddGuest />}
+      {me.canManageGuests && (event.phase !== "COLLECTING" || event.rosterLockedAt) && (
         <p className="px-1 text-[13px] text-muted">People without a phone can only be added while receipts are being collected (before the roster is locked).</p>
       )}
 
@@ -231,9 +246,10 @@ export function PeopleTab() {
           <li>Anyone with a forwarded code can join, so the organizer checks names before locking the roster. Names can repeat.</li>
           <li>A second browser or private window would join as a new person — the organizer removes duplicates before locking.</li>
           <li>Your recovery key moves you to a new phone without changing what you paid or owe. To use it, tap “I have a recovery key” on the first screen.</li>
+          <li>If you lose your key, the organizer can check your identity in person and give you a replacement that expires in 15 minutes. Whoever redeems it controls your membership, including payment confirmations. The old phone loses access when it is used.</li>
           <li>People without a phone are added by the organizer or an admin, who makes their choices for them while showing them the screen. The history records who did it. Nobody can act for someone who has their own phone.</li>
           <li>Payments happen outside AteAnne. Only the person receiving money can confirm it.</li>
-          <li>Once any payment is reported, the bill can’t be edited (v1). After Done, the record is read-only.</li>
+          <li>A correction keeps prior statements and confirmed payments. Resolve pending reports and disputes first; everyone must approve the revised bill.</li>
           <li>Every event — finished or not — is deleted {event.retentionDays} days after it was created. Export first if you want a copy.</li>
         </ul>
       </details>
@@ -245,6 +261,7 @@ export function PeopleTab() {
             <li key={a.id} className="flex gap-2 px-4 py-2.5">
               <span className="min-w-0 flex-1">
                 <b>{a.actorMemberId ? name(a.actorMemberId) : "System"}</b> {AUDIT_TEXT[a.type] ?? a.type}
+                {a.type === "member.access_reissued" && a.detail && typeof a.detail === "object" && !Array.isArray(a.detail) && typeof a.detail.memberId === "string" && <span> for {name(a.detail.memberId)}</span>}
                 {a.onBehalfOf && <span className="text-muted"> for {name(a.onBehalfOf)}</span>}
               </span>
               <span className="shrink-0 text-muted">{timeAgo(a.createdAt)}</span>
@@ -260,6 +277,48 @@ export function PeopleTab() {
               Open AteAnne, tap <b>I have a recovery key</b>, and paste this key. From then on {guestKey.name} makes their own choices, with the same items and payments.
             </Notice>
             <CredentialReveal recoveryKey={guestKey.key} onDone={() => setGuestKey(null)} doneLabel="Done" />
+          </div>
+        </Sheet>
+      )}
+      {recoveryTarget && (
+        <Sheet open onClose={() => setRecoveryTarget(null)} title={`Reissue access for ${recoveryTarget.name}`}>
+          <div className="space-y-4">
+            <Notice tone="pay" title="Check who you are giving access to">
+              Only do this with {recoveryTarget.name} present. Anyone with this key can use their membership, including confirming payments. Their receipts, items and payment history stay the same.
+            </Notice>
+            <p className="text-[14px] text-muted">The new key expires in 15 minutes and replaces their old recovery key. Their old phone loses access when the replacement is used. Add AteAnne to their Home Screen first, then enter the key there.</p>
+            <label className="flex min-h-12 items-center gap-3 text-[15px]">
+              <input type="checkbox" className="h-5 w-5 shrink-0" checked={identityConfirmed} onChange={(e) => setIdentityConfirmed(e.target.checked)} />
+              I have checked that this is {recoveryTarget.name} in person
+            </label>
+            <Button
+              full
+              icon="key"
+              disabled={!identityConfirmed}
+              onClick={async () => {
+                const target = recoveryTarget;
+                const r = await act(() => api.post<{ recoveryKey: string; expiresAt: string }>(`/api/events/${event.id}/members/${target.id}/recovery-key`, { identityConfirmed: true }));
+                if (r) {
+                  setRecoveryTarget(null);
+                  setReissuedKey({ name: target.name, key: r.recoveryKey, expiresAt: r.expiresAt });
+                }
+              }}
+            >
+              Make replacement key
+            </Button>
+          </div>
+        </Sheet>
+      )}
+      {reissuedKey && (
+        <Sheet open onClose={() => setReissuedKey(null)} title={`Replacement key for ${reissuedKey.name}`}>
+          <div className="space-y-4">
+            <Notice tone="info" title={`On ${reissuedKey.name}’s phone`}>
+              Open AteAnne from the Home Screen, tap <b>I have a recovery key</b>, and paste this key. Use it before {new Date(reissuedKey.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. They will receive their own new recovery key to save.
+            </Notice>
+            <p className="rounded-xl border border-dashed border-line bg-surface-2 p-3 font-mono text-[14px] break-all select-all" data-testid="replacement-key">{reissuedKey.key}</p>
+            <CopyButton text={reissuedKey.key} label="Copy replacement key" />
+            <Notice tone="warn">Give this key privately to {reissuedKey.name}. It grants their access; don’t post it in the group chat or keep a copy.</Notice>
+            <Button full onClick={() => setReissuedKey(null)}>Done</Button>
           </div>
         </Sheet>
       )}

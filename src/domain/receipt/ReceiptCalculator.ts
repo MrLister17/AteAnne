@@ -1,5 +1,6 @@
 import { LargestRemainderAllocator } from "../allocation/LargestRemainderAllocator";
 import { ReceiptReconciler } from "./ReceiptReconciler";
+import { EqualReceiptSplit } from "./EqualReceiptSplit";
 import { AdjustmentInput, CalculationIssue, LineInput, MemberReceiptShare, ReceiptInput } from "./types";
 
 export type ReceiptCalculation =
@@ -28,7 +29,8 @@ export class ReceiptCalculator {
 
   /** `memberOrder` is the stable participant order used for tie-breaking. */
   calculate(receipt: ReceiptInput, memberOrder: readonly string[]): ReceiptCalculation {
-    const issues = [...this.reconciler.reconcile(receipt).issues, ...this.claimIssues(receipt)];
+    const equal = new EqualReceiptSplit(this.allocator);
+    const issues = [...this.reconciler.reconcile(receipt).issues, ...this.claimIssues(receipt), ...equal.issues(receipt)];
     if (issues.length) return { ok: false, receiptId: receipt.id, issues };
 
     const rank = new Map(memberOrder.map((id, i) => [id, i]));
@@ -114,7 +116,7 @@ export class ReceiptCalculator {
       total += s.total;
     }
     if (total !== receipt.payable) throw new Error(`Invariant violated: receipt ${receipt.id} allocates ${total}, payable ${receipt.payable}`);
-    return { ok: true, receiptId: receipt.id, shares };
+    return { ok: true, receiptId: receipt.id, shares: receipt.equalSplit ? equal.calculate(receipt, memberOrder) : shares };
   }
 
   /** Completeness of claims: every positive line fully allocated. */

@@ -41,7 +41,7 @@ Source: *AteAnne — Full SDLC & Financial Specification v1.0* ([docs/spec/](spe
 | AT-10 | Service follows adjusted spending; every allocation sums exactly | Done |
 | AT-11 | All fixtures match; nets and residuals sum to zero | Done |
 | AT-12 | Same-version approvals; stale version rejected; owner cannot approve for others (approvals are self-only by construction) | Done |
-| AT-13 | Reopen before report keeps the superseded snapshot; blocked after a report | Done |
+| AT-13 | Reopening keeps the superseded snapshot; D47 now permits reasoned post-report correction after resolving pending/disputed payments | Done |
 | AT-14 | QR + cash; instruction version shown; QR hidden from non-debtors; cross-event asset read denied | Done |
 | AT-15 | Pending leaves verified balance unchanged; idempotent replay | Done |
 | AT-16 | Sender/owner cannot verify; concurrent double confirm credits once | Done |
@@ -61,4 +61,18 @@ Source: *AteAnne — Full SDLC & Financial Specification v1.0* ([docs/spec/](spe
 
 ## Non-goals (v1, per spec)
 
-Bank or payment APIs (OCR/AI scanning was later added by the owner; see above), QR decoding, multiple funders per receipt, pooled advances, custom fractional weights in the UI, post-payment bill corrections, in-app chat, public event directory.
+Bank or payment APIs (OCR/AI scanning was later added by the owner; see above), QR decoding, multiple funders per receipt, pooled advances, custom fractional weights in the UI, in-app chat, public event directory.
+
+## Sprint S7 owner additions (D43–D47)
+
+These override the original spec’s no-reset and post-report freeze limitations; original source documents remain historical specifications.
+
+| ID | Acceptance requirement | Implementation / evidence |
+| --- | --- | --- |
+| S7-01 | Home Screen guidance before mobile identity creation; native prompt where supported; honest Safari steps; explicit browser fallback | `InstallProvider`, `InstallFirst`, `InstallPrompt`; `e2e/install.spec.ts` |
+| S7-02 | Organizer-attested, expiring single-use recovery; stable financial identity and revoked old access; admin/nonmember denial and redemption races | `RecoveryPolicy`, `RecoveryService`; `integration/recovery-reissue.test.ts`, `e2e/recovery.spec.ts` |
+| S7-03 | Equal whole receipt; everyone accepts own share; exact conservation and ≤1c difference; disagreement blocks review | `EqualReceiptSplit`, `ReceiptService`; `unit/equal-receipt.test.ts`, `integration/equal-receipt.test.ts`, `e2e/equal-receipt.spec.ts` |
+| S7-04 | Preview and copy person/group reminders for Messenger; current next steps, no credentials, no duplicate-transfer nudges | `reminders.ts`, `ReminderPanel`; `unit/reminders.test.ts`, `e2e/reminders.spec.ts` |
+| S7-05 | Reasoned correction before Done, pending/dispute gate, immutable history, stable roster, fresh approval and confirmed-payment carry-forward | `CorrectionLedger`, `EventAggregate`, `EventService`, `PaymentService`; `unit/correction-ledger.test.ts`, `integration/corrections.test.ts`, `e2e/corrections.spec.ts` |
+
+See `test-report.md` for actual command outcomes; presence of a test file alone is not a claim that it passed.

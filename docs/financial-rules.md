@@ -48,3 +48,13 @@ Debtors and creditors are sorted by stable order. Each step sends min(debt, cred
 ## Settlement (`PaymentLedger`)
 
 Per edge: `verified` = confirmed and not reversed; `pending` = reported; `outstanding` = amount − verified; `capacity` = outstanding − pending. A new report must be > 0 and ≤ capacity, and is blocked while the edge has an open dispute (except the agreed replacement). **Done** requires every edge to have outstanding = 0, pending = 0 and no open dispute.
+
+## Whole-receipt equal policy (D45)
+
+Item-by-item allocation remains the default. When a receipt explicitly proposes equal sharing, all roster members accept their own full receipt share; missing/declined answers block review. The reconciler still validates discounts/scopes and positive charge bases. The equal policy uses cumulative uniform component allocations and differences between them so every line/adjustment conserves centavos while each person’s final receipt share equals payable ÷ roster size (±1 centavo). This policy deliberately distributes rounding across components instead of repeatedly awarding every line’s extra centavo to the first person. Frozen facts retain the equal policy and `ateanne-allocation-v2` policy identifier; earlier snapshots retain their original policy.
+
+## Post-report corrections (D47)
+
+Before Done, organizer may start a reasoned correction only when no report is pending and no dispute is open. Original snapshot facts, shares, edges, reports and reversals remain unchanged; only its status becomes superseded. The roster stays locked. Receipts and claims may be corrected using the usual earlier phases, invalidating approvals; everyone approves the new financial version.
+
+For each person, new remaining net = corrected merchant funding − corrected consumption + **all non-reversed receiver-confirmed outgoing repayments across all statements** − confirmed incoming repayments. New deterministic edges settle these residuals. Thus a prior overpayment becomes a return transfer, never a fake reversal/refund or erased payment. New reports belong only to the active statement; old statements cannot receive or alter payments after superseding. Correct mistaken confirmations before starting correction. Done also checks zero remaining nets. Done events cannot reopen.

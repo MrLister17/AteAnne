@@ -2,7 +2,7 @@
 
 This file records every release of AteAnne, what changed and why, and where work stopped. It is written so a person or another AI can pick the project up cold.
 
-**Read in this order:** this file → [`CLAUDE.md`](CLAUDE.md) (rules for coding agents) → [`GUIDE.md`](GUIDE.md) (map of the app and how to change it) → [`docs/decisions.md`](docs/decisions.md) (why things are the way they are, D1–D42) → [`docs/test-report.md`](docs/test-report.md) (what was really run).
+**Read in this order:** this file → [`CLAUDE.md`](CLAUDE.md) (rules for coding agents) → [`GUIDE.md`](GUIDE.md) (map of the app and how to change it) → [`docs/decisions.md`](docs/decisions.md) (why things are the way they are, D1–D47) → [`docs/test-report.md`](docs/test-report.md) (what was really run).
 
 Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from the git history; the code only started carrying a version number (`package.json`) at 0.5.0.
 
@@ -10,34 +10,33 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ## Where we left off (2026-11-18)
 
-**State of the code**
+- Remote `main` is v0.5.0, latest checked commit `2a3a8db` (the E2E confirmation timing fix).
+- **v0.6.0 is ready on `feature/pilot-improvements`.** The owner authorized commit, merge to `main` and production deployment on 2026-11-18. Release checks and CI are in progress; actual results will be recorded after verification.
+- Sprint S7 covers the owner’s five requested improvements. See [`docs/implementation-plan.md`](docs/implementation-plan.md) for acceptance criteria and [`docs/test-report.md`](docs/test-report.md) for actual verification.
+- New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false, preserving existing receipt behavior. Apply before serving the new code.
+- Next human checks: real iPhone Safari installation before joining, organizer recovery hand-over with a relative, and correction explanations with a real group. Automated mobile tests use Chromium emulation, not iOS Safari.
+- Still deferred: more real scanned receipt photos, the pilot study, referenced-member deactivation (FR-18/AT-19), multi-funder receipts, push notifications, and changes after Done.
 
-- `main` = **v0.5.0**. The owner approved it, and branch `cousins-feedback` was fast-forwarded into `main` on 2026-11-18. The branch can be deleted.
-- GitHub Actions CI passed on the merged commits: lint, typecheck, 70 unit tests, 41 integration tests, build and 31 E2E tests (last branch run 44320383957).
-- Pushing `main` triggers the Vercel production deploy. Migration `20261118140000_guests_and_admins` runs during that deploy. It only adds two columns with defaults (`Member.managed`, `Member.isAdmin`) and two check constraints.
-- Vercel reported the production deployment of `99fa5ec` as completed (GitHub commit status), so the migration ran as part of that build. This session can't open the live site, so `/api/health` hasn't been checked from here.
+---
 
-**Open next steps (owner's choice)**
+## v0.6.0: Relatives’ next five improvements (2026-11-18) · release candidate
 
-1. Confirm the production deploy: open `/api/health` on the live site, and check that the version matches `main`. If the build failed, look at the Vercel deployment log; the migration runs in `scripts/vercel-build.mjs`.
-2. Test the guest flow with a real relative on a real iPhone. CI only uses Chromium with iPhone emulation, and the big-text screen hasn't been looked at by eye or in dark mode.
-3. Suggested improvements, in priority order. None of these is started.
-   - **Home Screen first, then join.** Nudge people to add AteAnne to the Home Screen right after they join in Safari. On iPhone the Home Screen app keeps a separate sign-in, so joining in Safari forces a recovery-key trip later.
-   - **Organizer-assisted recovery.** Let the organizer re-issue access for someone who lost their key while that person is present. Today, no key means no way back in. The hand-over key from v0.5.0 (`EventService.guestAccessKey`) already does most of the work, but the security trade-off needs a decision first.
-   - **Equal-split shortcut.** "Split this receipt equally among everyone", so people don't claim shared platters item by item.
-   - **Reminders.** A "Copy reminder" message to paste into Messenger. The app only refreshes while it's open.
-   - **Corrections after a payment is reported.** Today the bill is frozen after the first report (v1 rule).
-4. Still open from before: try more real receipt photos with the scanner; the pilot study ([`docs/pilot-guide.md`](docs/pilot-guide.md)); and FR-18/AT-19, deactivating a member who is already on receipts ([`docs/requirements.md`](docs/requirements.md)).
+Decisions **D43–D47**, Sprint **S7**. Owner requested all five items from the v0.5.0 backlog.
 
-**Working-environment notes for the next AI**
+### Added
 
-- A session may be unable to `npm install` (blocked network). In that case, push a branch and use GitHub Actions as the test runner. The CI job runs the full `CLAUDE.md` chain against real PostgreSQL.
-- Job logs and annotations of this public repo can be read without a token:
-  - `https://api.github.com/repos/MrLister17/AteAnne/actions/runs?branch=<branch>`
-  - `…/actions/runs/<id>/jobs`
-  - `…/actions/jobs/<jobId>/logs`
-- Record real results in `docs/test-report.md`. Never invent results, deployments or pilot data.
-- Commit or push only when the owner asks. Branch first; don't push straight to `main`.
+- **Home Screen first.** Before creating/joining on mobile, show an install action. Supporting browsers open their native confirmation; Safari explains Share → Add to Home Screen → reopen. Safari cannot open its install confirmation from a website. Shared join links offer copying the code before installing; an explicit browser fallback explains saving the recovery key.
+- **Organizer-assisted lost-key recovery.** People → Reissue access → check identity in person → private 15-minute key. Only the organizer can do this for active phone members. Redemption preserves member ID, roles and financial records, rotates the key and removes old browser access atomically. Reissuing invalidates the old key immediately, not the old browser until redemption. Admins only retain guest hand-over.
+- **Split this receipt equally among everyone.** Explicit receipt policy, all lines shared, one-tap acceptance by each member. Nobody’s claims are silently assigned. Review blocks until everyone agrees; exact receipt-wide rounding gives totals at most one centavo apart. Existing item claims remain the default.
+- **Copy reminder.** Home → preview everyone’s or one person’s outstanding tasks → Copy message → paste into Messenger. Refreshes first, includes an event-access link, never keys/codes. Pending payments ask the recipient to check arrival rather than prompt a duplicate transfer. Nothing is sent automatically.
+- **Corrections after reported payments.** Before Done, organizer provides a reason after resolving pending reports/disputes. Keep the roster locked, supersede the original statement, collect fresh approvals, and freeze remaining transfers from corrected net plus confirmed payments. Overpayments generate return transfers. Old statements and payment history remain visible/exportable and cannot be rewritten. Reverse mistaken confirmations before beginning correction; Done stays read-only.
+
+### Verification and handoff
+
+- New unit coverage: equal receipt rounding/conservation, correction carry-forward, phase-specific reminders including duplicate-transfer prevention.
+- New PostgreSQL integration coverage: recovery authority/expiry/concurrent redemption, equal-split consent, post-report correction/return transfer/history.
+- New browser specs: installation, organizer recovery, equal receipt acceptance, copy reminders and corrected settlement.
+- Requirements, financial rules, guide, privacy, decisions, sprint plan, test report and handoff updated. Actual test results are recorded separately; no real bank transaction, pilot evidence or deployment is claimed.
 
 ---
 

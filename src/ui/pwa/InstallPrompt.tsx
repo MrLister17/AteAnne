@@ -1,81 +1,64 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Icon } from "../components/Icon";
+import { Button, Notice } from "../components/ui";
+import { useInstall } from "./InstallProvider";
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-const DISMISS_KEY = "ateanne.install.dismissed";
-
-/**
- * "Add to Home Screen" helper. iPhone Safari has no install API, so we show
- * the Share → Add to Home Screen steps; Android/Chrome gets the native prompt.
- * Hidden once installed (standalone) or dismissed.
- */
+/** Safari has no install API. Never imply that Web Share installs an app. */
 export function InstallPrompt() {
-  const [mode, setMode] = useState<"ios" | "android" | null>(null);
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-
-  useEffect(() => {
-    const standalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as unknown as { standalone?: boolean }).standalone === true;
-    let dismissed = false;
-    try {
-      dismissed = localStorage.getItem(DISMISS_KEY) === "1";
-    } catch {
-      /* private mode */
-    }
-    if (standalone || dismissed) return;
-    const ua = navigator.userAgent;
-    const isIos = /iPhone|iPad|iPod/.test(ua) || (ua.includes("Macintosh") && navigator.maxTouchPoints > 1);
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- browser-only value read after hydration
-    if (isIos) setMode("ios");
-    const onPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferred(e as BeforeInstallPromptEvent);
-      setMode("android");
-    };
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
-  }, []);
-
-  if (!mode) return null;
-  const dismiss = () => {
-    try {
-      localStorage.setItem(DISMISS_KEY, "1");
-    } catch {
-      /* ignore */
-    }
-    setMode(null);
-  };
+  const { device, canPrompt, install } = useInstall();
+  const [expanded, setExpanded] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  if (device === "loading" || device === "installed") return null;
 
   return (
-    <aside className="card relative flex gap-3 p-4" aria-label="Install AteAnne">
-      <img src="/icons/icon-192.png" alt="" width={48} height={48} className="size-12 rounded-xl" />
-      <div className="min-w-0 flex-1 pr-6 text-[15px]">
-        <p className="font-semibold">Install AteAnne on your phone</p>
-        {mode === "ios" ? (
-          <p className="mt-0.5 text-muted">
-            In Safari, tap <Icon name="share" size={16} className="inline align-[-3px]" label="Share" /> then <b>Add to Home Screen</b>. It opens full-screen like an app.
-          </p>
-        ) : (
-          <button
-            type="button"
-            className="btn btn-primary mt-2 !min-h-11 !px-4"
-            onClick={async () => {
-              await deferred?.prompt();
-              setMode(null);
-            }}
-          >
-            Install app
-          </button>
-        )}
+    <aside className="card p-4" aria-label="Install AteAnne">
+      <div className="flex items-center gap-3">
+        <img src="/icons/icon-192.png" alt="" width={48} height={48} className="size-12 rounded-xl" />
+        <div className="min-w-0">
+          <h2 className="text-[17px] font-bold">Add AteAnne to your Home Screen first</h2>
+          <p className="mt-1 text-[15px] text-muted">Then open the app to start or join your hatian.</p>
+        </div>
       </div>
-      <button type="button" onClick={dismiss} className="absolute top-2 right-2 inline-flex size-11 items-center justify-center rounded-full text-muted" aria-label="Dismiss install tip">
-        <Icon name="x" size={18} />
-      </button>
+      <p className="mt-3 text-[15px]">Your icon, app name and full-screen view are ready. On iPhone, adding it before joining keeps your event in the app’s sign-in.</p>
+      <Button
+        full
+        icon="plus"
+        className="mt-4"
+        aria-expanded={!canPrompt ? expanded : undefined}
+        onClick={async () => {
+          if (!canPrompt) { setExpanded((open) => !open); return; }
+          const outcome = await install();
+          if (outcome === "accepted") setResult("Added! Open AteAnne from your Home Screen to start or join there.");
+          else if (outcome === "dismissed") setResult("Installation was cancelled. You can try again from your browser’s menu.");
+          else setResult("The install prompt could not open. Use your browser’s menu to add AteAnne to your Home Screen.");
+          setExpanded(true);
+        }}
+      >
+        {canPrompt ? "Install AteAnne" : expanded ? "Hide install steps" : "Add to Home Screen"}
+      </Button>
+      {result && <p className="mt-3 text-[15px]" role="status">{result}</p>}
+      {expanded && (
+        <div className="mt-4 space-y-3 text-[15px]">
+          {device === "ios" ? (
+            <>
+              <Notice tone="info">Safari requires these taps; a website cannot open its Add to Home Screen confirmation for you.</Notice>
+              <ol className="list-decimal space-y-2 pl-5">
+                <li>Open this page in <b>Safari</b> if you came from Messenger or another app.</li>
+                <li>Tap <Icon name="share" size={16} className="inline align-[-3px]" label="Share" /> <b>Share</b>, then <b>Add to Home Screen</b>. You may need to scroll the menu.</li>
+                <li>Keep <b>Open as Web App</b> on if shown, and tap <b>Add</b>.</li>
+                <li>Open <b>AteAnne</b> from your Home Screen, then start or join there.</li>
+              </ol>
+            </>
+          ) : (
+            <ol className="list-decimal space-y-2 pl-5">
+              <li>Open your browser’s menu and choose <b>Install app</b> or <b>Add to Home Screen</b>.</li>
+              <li>Confirm, then open <b>AteAnne</b> from its new icon to start or join.</li>
+            </ol>
+          )}
+        </div>
+      )}
     </aside>
   );
 }

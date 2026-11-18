@@ -9,6 +9,7 @@ import { Button, Field, Notice } from "@/ui/components/ui";
 import { CredentialReveal } from "@/ui/components/CredentialReveal";
 import { IntentPicker } from "@/ui/components/IntentPicker";
 import { looksLikeRecoveryKey } from "@/ui/recovery";
+import { InstallFirst } from "@/ui/pwa/InstallFirst";
 
 export default function Join() {
   const router = useRouter();
@@ -46,6 +47,7 @@ export default function Join() {
 
   return (
     <PageShell title="Join with a code">
+      <InstallFirst joinCode={isKey ? undefined : code} recovery={isKey}>
       <form
         className="mt-2 space-y-5"
         onSubmit={async (e) => {
@@ -111,6 +113,7 @@ export default function Join() {
           The code lets anyone it was forwarded to join, so the organizer checks the roster before locking it. Use one browser per person — a second browser profile would join as someone new.
         </Notice>
       </form>
+      </InstallFirst>
     </PageShell>
   );
 }

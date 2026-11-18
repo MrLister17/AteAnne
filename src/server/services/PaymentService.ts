@@ -134,9 +134,11 @@ export class PaymentService extends BaseService {
   async cancel(caller: Caller, reportId: string): Promise<void> {
     const eventId = await this.eventIdForReport(reportId);
     await this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
-      const { report } = this.findReport(agg, reportId);
+      const { snap, report } = this.findReport(agg, reportId);
       if (report.senderMemberId !== me.id) throw new PermissionError("not_sender", "Only the sender can cancel their report");
       if (report.status === "CANCELLED") return;
+      if (snap.status !== "ACTIVE") throw new ConflictError("superseded", "This payment belongs to a prior statement and is kept as history");
+      agg.machine.assertIn("SETTLING");
       if (report.status !== "REPORTED") throw new ConflictError("not_pending", "Only a pending report can be cancelled; a confirmed payment is corrected by the recipient");
       await tx.paymentReport.update({ where: { id: reportId }, data: { status: "CANCELLED", version: { increment: 1 }, decidedAt: new Date() } });
       await this.audit(tx, eventId, me.id, "payment.cancelled", { reportId });
@@ -170,7 +172,8 @@ export class PaymentService extends BaseService {
     const eventId = await this.eventIdForReport(reportId);
     return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       agg.machine.assertIn("SETTLING");
-      const { edge, report } = this.findReport(agg, reportId);
+      const { snap, edge, report } = this.findReport(agg, reportId);
+      if (snap.status !== "ACTIVE") throw new ConflictError("superseded", "This payment belongs to a prior statement and is kept as history");
       if (report.status === "REJECTED" && report.recipientMemberId === me.id) {
         const existing = edge.disputes.find((d) => d.rejectedReportId === reportId)!;
         return { disputeId: existing.id };
@@ -193,8 +196,10 @@ export class PaymentService extends BaseService {
     const data = reverseSchema.parse(input);
     const eventId = await this.eventIdForReport(reportId);
     await this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
-      const { report } = this.findReport(agg, reportId);
+      const { snap, report } = this.findReport(agg, reportId);
       PaymentLedger.assertCanReverse({ recipientId: report.recipientMemberId, status: report.status, reversed: Boolean(report.reversal) }, me.id, agg.phase === "DONE", data.reason);
+      if (snap.status !== "ACTIVE") throw new ConflictError("superseded", "This confirmation was carried into a revised bill and cannot be changed. Resolve confirmation mistakes before starting a bill correction.");
+      agg.machine.assertIn("SETTLING");
       await tx.paymentReversal.create({ data: { reportId, actorMemberId: me.id, reason: data.reason } });
       await this.audit(tx, eventId, me.id, "payment.verification_reversed", { reportId, amount: report.amountCentavos.toString() });
     });

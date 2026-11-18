@@ -19,7 +19,7 @@ const shot = (p: Page, name: string) => p.screenshot({ path: path.join(SHOTS, `$
 async function newPhone(browser: Browser, testInfo: { project: { use: Record<string, unknown> } }): Promise<{ ctx: BrowserContext; page: Page }> {
   const ctx = await browser.newContext({ ...(testInfo.project.use as object) });
   // Returning visitors: skip the first-visit tutorial ask (covered in tutorial.spec.ts).
-  await ctx.addInitScript(() => localStorage.setItem("ateanne.tutorial.v1", "asked"));
+  await ctx.addInitScript(() => { localStorage.setItem("ateanne.tutorial.v1", "asked"); sessionStorage.setItem("ateanne.install.browser.v1", "1"); });
   const page = await ctx.newPage();
   return { ctx, page };
 }

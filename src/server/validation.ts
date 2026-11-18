@@ -59,6 +59,7 @@ export const updateMeSchema = z.object({
 export const transitionSchema = z.object({
   target: z.enum(["COLLECTING", "ALLOCATING", "REVIEWING", "SETTLING", "DONE"]),
   expectedFinancialVersion: z.number().int().positive(),
+  reason: plain(300, 3).optional(),
 });
 
 const lineSchema = z.object({
@@ -80,6 +81,7 @@ const adjustmentSchema = z.object({
 
 export const receiptSchema = z.object({
   label: plain(80, 1),
+  equalSplit: z.boolean().default(false),
   payerMemberId: id,
   payable: centavos,
   lines: z.array(lineSchema).min(1).max(50),
@@ -95,6 +97,8 @@ export const claimsSchema = z.object({
   expectedClaimVersion: z.number().int().positive(),
   /** "finish" = I claimed my items; "none" = I got nothing; "draft" = save progress. */
   status: z.enum(["finish", "none", "draft"]),
+  /** Explicit consent; the server derives every line rather than trusting a client list. */
+  acceptEqualSplit: z.boolean().optional(),
   claims: z.array(z.object({ lineId: id, units: z.number().int().min(1).max(1000) })).max(50),
 });
 

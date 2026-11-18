@@ -5,7 +5,7 @@ import path from "node:path";
 import { writeFileSync, mkdirSync } from "node:fs";
 
 test("scan a receipt, check the draft, save it with the photo", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("ateanne.tutorial.v1", "asked"));
+  await page.addInitScript(() => { localStorage.setItem("ateanne.tutorial.v1", "asked"); sessionStorage.setItem("ateanne.install.browser.v1", "1"); });
   mkdirSync("test-results/screens", { recursive: true });
   const photoPath = path.join("test-results", "synthetic-receipt.jpg");
   writeFileSync(photoPath, await sharp({ create: { width: 900, height: 1400, channels: 3, background: "#fdfdf8" } }).jpeg().toBuffer());
@@ -49,7 +49,7 @@ test("scan a receipt, check the draft, save it with the photo", async ({ page })
 });
 
 test("the Add-receipt form itself offers 'Fill in from a photo'", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("ateanne.tutorial.v1", "asked"));
+  await page.addInitScript(() => { localStorage.setItem("ateanne.tutorial.v1", "asked"); sessionStorage.setItem("ateanne.install.browser.v1", "1"); });
   const photoPath = path.join("test-results", "synthetic-receipt-2.jpg");
   writeFileSync(photoPath, await sharp({ create: { width: 800, height: 1200, channels: 3, background: "#fff" } }).jpeg().toBuffer());
   await page.goto("/new");
@@ -81,7 +81,7 @@ test("the Add-receipt form itself offers 'Fill in from a photo'", async ({ page 
 });
 
 test("a failed scan stays on screen with a way to retry; buttons respond to presses", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("ateanne.tutorial.v1", "asked"));
+  await page.addInitScript(() => { localStorage.setItem("ateanne.tutorial.v1", "asked"); sessionStorage.setItem("ateanne.install.browser.v1", "1"); });
   const badPath = path.join("test-results", "not-a-photo.jpg");
   writeFileSync(badPath, "this is not an image");
   await page.goto("/new");

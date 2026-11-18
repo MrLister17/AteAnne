@@ -75,11 +75,12 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "install",
     who: "Everyone",
-    title: "Put it on your home screen",
+    title: "Add to Home Screen before joining",
     points: [
-      "iPhone: open AteAnne in Safari, tap the Share button, then “Add to Home Screen”.",
+      "Do this before starting or joining: iPhone keeps a separate sign-in for the Home Screen app.",
+      "iPhone: open AteAnne in Safari, tap Share → Add to Home Screen → Add. Safari requires those taps; a website cannot do them for you.",
       "Android: in Chrome, tap “Install app” (or ⋮ → Add to Home screen).",
-      "It then opens full-screen like a normal app.",
+      "Open AteAnne from its new icon, then start or join there. Keep your join code handy.",
     ],
     art: (
       <Phone>
@@ -212,8 +213,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Freeze the statement",
     points: [
       "Once everyone approved, the organizer taps “Freeze & start settling”.",
-      "AteAnne locks the amounts and shows the fewest simple transfers, e.g. “Juan → Mark ₱495.00”.",
-      "If anything was wrong, the organizer can still reopen — but only until the first payment is reported.",
+      "AteAnne locks the amounts and shows simple transfers, e.g. “Juan → Mark ₱495.00”.",
+      "Before Done, the organizer can start a correction with a reason. Resolve pending reports and disputes first; everyone reviews again, and confirmed money is carried forward.",
     ],
     art: (
       <div aria-hidden className="space-y-3">
@@ -270,7 +271,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     points: [
       "When every transfer is confirmed by the people who received it, the organizer taps “Mark as Done”.",
       "The event becomes a read-only record. Every event is deleted 30 days after it was created — finished or not — so export a CSV/JSON copy from People if you want one.",
-      "Lost your phone, or opened AteAnne from your Home Screen and your event is missing? Tap “I have a recovery key” on the first screen.",
+      "Lost your phone, or opened AteAnne from your Home Screen and your event is missing? Tap “I have a recovery key” on the first screen. If you lost the key too, ask the organizer in person for replacement access.",
     ],
     art: (
       <div aria-hidden className="space-y-3">

@@ -3,6 +3,7 @@ import "./globals.css";
 import { ServiceWorkerRegistrar } from "@/ui/pwa/ServiceWorkerRegistrar";
 import { TutorialProvider } from "@/ui/tutorial/TutorialProvider";
 import { SetupBanner } from "@/ui/pwa/SetupBanner";
+import { InstallProvider } from "@/ui/pwa/InstallProvider";
 
 export const metadata: Metadata = {
   title: { default: "AteAnne", template: "%s · AteAnne" },
@@ -37,7 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en-PH">
       <body className="antialiased">
         <SetupBanner />
-        <TutorialProvider>{children}</TutorialProvider>
+        <InstallProvider><TutorialProvider>{children}</TutorialProvider></InstallProvider>
         <ServiceWorkerRegistrar />
       </body>
     </html>

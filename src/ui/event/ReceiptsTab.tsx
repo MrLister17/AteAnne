@@ -73,6 +73,7 @@ export function ReceiptsTab() {
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {r.reconciliation.reconciled ? <Badge tone="receive">✓ Adds up</Badge> : <Badge tone="pay">✗ Doesn’t add up</Badge>}
                   {r.fundingAcknowledged ? <Badge tone="receive">✓ Payer confirmed</Badge> : <Badge tone="warn">Payer to confirm</Badge>}
+                  {r.equalSplit && <Badge tone="violet">Everyone splits equally</Badge>}
                 </div>
               </div>
               <p className="tnum shrink-0 text-[16px] font-bold">{php(r.payable)}</p>
@@ -123,6 +124,7 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
       }
     >
       <div className="space-y-4">
+        {r.equalSplit && <Notice tone="info" title="Split equally among everyone">All items, discounts and charges are included. Each person must confirm their own share before review; totals can differ by one centavo.</Notice>}
         <div className="flex items-center justify-between">
           <p className="text-muted">
             Paid by <b className="text-ink">{name(r.payerId)}</b> · entered by {name(r.authorId)} · v{r.version}
@@ -249,7 +251,7 @@ function ClaimProgress({ r }: { r: ReceiptView }) {
           .map((a) => (
             <li key={a.memberId} className="flex justify-between">
               <span>{name(a.memberId)}</span>
-              <span className="text-muted">{a.kind && !a.stale ? (a.kind === "NONE" ? "Got nothing" : "Claimed") : a.stale ? "Needs to re-check" : "Not yet"}</span>
+              <span className="text-muted">{a.kind && !a.stale ? (a.kind === "NONE" ? (r.equalSplit ? "Disagreed" : "Got nothing") : r.equalSplit ? "Confirmed equal share" : "Claimed") : a.stale ? "Needs to re-check" : "Not yet"}</span>
             </li>
           ))}
       </ul>

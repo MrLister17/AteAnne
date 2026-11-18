@@ -7,6 +7,7 @@ import { PageShell } from "@/ui/components/Shell";
 import { Button, Field, Notice } from "@/ui/components/ui";
 import { CredentialReveal } from "@/ui/components/CredentialReveal";
 import { IntentPicker } from "@/ui/components/IntentPicker";
+import { InstallFirst } from "@/ui/pwa/InstallFirst";
 
 export default function NewEvent() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function NewEvent() {
 
   return (
     <PageShell title="Start a hatian">
+      <InstallFirst>
       <form
         className="mt-2 space-y-5"
         onSubmit={async (e) => {
@@ -60,6 +62,7 @@ export default function NewEvent() {
         <p className="text-center text-[13px] text-muted">Events are deleted automatically 30 days after they’re created, finished or not.</p>
         <p className="text-center text-[13px] text-muted">You become the organizer. Organizers guide the steps but can never confirm payments for someone else.</p>
       </form>
+      </InstallFirst>
     </PageShell>
   );
 }

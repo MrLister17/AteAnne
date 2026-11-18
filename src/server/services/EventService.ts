@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { SettlementPlanner } from "@/domain/settlement/SettlementPlanner";
 import { ConflictError, PermissionError, ValidationError } from "@/domain/errors";
 import type { Phase } from "@/domain/event/PhaseMachine";
 import type { Db, Tx } from "../db";
@@ -84,7 +85,7 @@ export class EventService extends BaseService {
         if (!existing.active) throw new PermissionError("member_inactive", "Your access to this event was deactivated");
         return { eventId: fresh.id, memberId: existing.id, recoveryKey: null };
       }
-      if (fresh.phase !== "COLLECTING" || !fresh.joinCodeHash || fresh.cancelled) {
+      if (fresh.phase !== "COLLECTING" || !fresh.joinCodeHash || fresh.cancelled || fresh.rosterLockedAt) {
         throw new GoneError("joins_closed", "This event's roster is locked; new people cannot join.");
       }
       if (fresh.members.filter((m) => m.active).length >= MAX_MEMBERS) {
@@ -106,6 +107,7 @@ export class EventService extends BaseService {
       agg.assertOwner(me.id);
       agg.machine.assertIn("COLLECTING");
       agg.assertNotCancelled();
+      if (agg.record.rosterLockedAt) throw new ConflictError("roster_locked", "The roster is locked; correcting receipts does not reopen joining");
       const join = this.newJoinCode();
       await tx.event.update({ where: { id: eventId }, data: join.data });
       await this.audit(tx, eventId, me.id, "code.rotated");
@@ -151,6 +153,7 @@ export class EventService extends BaseService {
       agg.guests.assertCanManageGuests(me);
       agg.machine.assertIn("COLLECTING");
       agg.assertNotCancelled();
+      if (agg.record.rosterLockedAt) throw new ConflictError("roster_locked", "The roster is locked; no new guests can be added during corrections");
       if (agg.activeMembers().length >= MAX_MEMBERS) throw new ConflictError("event_full", `This event already has ${MAX_MEMBERS} people`);
       // The recovery hash is required and unique; a random one nobody knows means "no key yet".
       // A real key is only created when a manager hands the guest their own access.
@@ -222,6 +225,7 @@ export class EventService extends BaseService {
       }
       agg.machine.assertIn("COLLECTING");
       if (agg.isOwner(target.id)) throw new ConflictError("cannot_remove_owner", "The organizer cannot be removed");
+      if (agg.record.rosterLockedAt) throw new ConflictError("roster_locked", "The roster is locked; correcting a bill cannot remove a participant");
       if (agg.memberReferenced(target.id)) {
         throw new ConflictError("member_referenced", `${target.displayName} is referenced by receipts or claims and cannot be removed. Edit those first.`);
       }
@@ -234,7 +238,7 @@ export class EventService extends BaseService {
   }
 
   async transition(actorId: string, eventId: string, input: z.input<typeof transitionSchema>): Promise<{ phase: Phase }> {
-    const { target, expectedFinancialVersion } = transitionSchema.parse(input);
+    const { target, expectedFinancialVersion, reason } = transitionSchema.parse(input);
     return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
       agg.assertOwner(me.id);
       if (agg.record.financialVersion !== expectedFinancialVersion) {
@@ -258,9 +262,12 @@ export class EventService extends BaseService {
       } else if (target === "REVIEWING" && from === "SETTLING") {
         const snap = agg.activeSnapshot();
         if (!snap) throw new ConflictError("no_snapshot", "No frozen settlement to reopen");
-        if (snap.firstReportAt) throw new ConflictError("payments_reported", "A payment has already been reported, so the bill is frozen (v1 rule).");
+        const gate = agg.correctionGate();
+        if (!gate.ready) throw new ConflictError("correction_blocked", "Resolve pending reports and disputes before correcting the bill", { blockers: gate.blockers });
+        if (!reason) throw new ValidationError("correction_reason", "Explain why the bill needs a correction");
         await tx.snapshot.update({ where: { id: snap.id }, data: { status: "SUPERSEDED", supersededAt: new Date() } });
         await this.bumpFinancial(tx, eventId);
+        await this.audit(tx, eventId, me.id, "bill.correction_started", { snapshotId: snap.id, reason, financialVersion: agg.record.financialVersion });
       } else if (target === "DONE") {
         const gate = agg.doneGate();
         if (!gate.ready) throw new ConflictError("gate_blocked", "Not everything is settled yet", { blockers: gate.blockers });
@@ -282,7 +289,10 @@ export class EventService extends BaseService {
     if (!gate.ready) throw new ConflictError("gate_blocked", "Not everyone has approved the current version", { blockers: gate.blockers });
     const calc = agg.calculation();
     if (!calc.ok) throw new ConflictError("calculation_failed", "The split cannot be calculated");
+    const remaining = agg.remainingNets(calc.positions.map((p) => [p.memberId, p.net] as const));
+    const edges = new SettlementPlanner().plan([...remaining]);
     const facts = {
+      carriedPayments: agg.confirmedTransfers().map((p) => ({ from: p.from, to: p.to, amount: p.amount.toString() })),
       receipts: agg.record.receipts.map((r) => {
         const st = calc.receipts.find((s) => s.receiptId === r.id)!;
         return {
@@ -291,6 +301,7 @@ export class EventService extends BaseService {
           payerId: r.payerMemberId,
           version: r.version,
           payable: r.payableCentavos.toString(),
+          equalSplit: r.equalSplit,
           lines: r.lines.map((l) => ({ id: l.id, label: l.label, quantity: l.quantity, amount: l.amountCentavos.toString(), mode: l.mode })),
           adjustments: r.adjustments.map((a) => ({ id: a.id, kind: a.kind, label: a.label, amount: a.amountCentavos.toString(), scopeAll: a.scopeAll, eligibleLineIds: a.eligibleLineIds })),
           shares: [...st.shares.values()]
@@ -316,10 +327,10 @@ export class EventService extends BaseService {
         policyVersion: POLICY_VERSION,
         facts,
         shares: { create: calc.positions.map((p) => ({ memberId: p.memberId, fundingCentavos: p.funding, costCentavos: p.cost, netCentavos: p.net })) },
-        edges: { create: calc.edges.map((e, i) => ({ position: i, fromMemberId: e.from, toMemberId: e.to, amountCentavos: e.amount })) },
+        edges: { create: edges.map((e, i) => ({ position: i, fromMemberId: e.from, toMemberId: e.to, amountCentavos: e.amount })) },
       },
     });
-    await this.audit(tx, agg.id, ownerId, "snapshot.frozen", { financialVersion: agg.record.financialVersion, edges: calc.edges.length });
+    await this.audit(tx, agg.id, ownerId, "snapshot.frozen", { financialVersion: agg.record.financialVersion, edges: edges.length });
   }
 
   async setCancelled(actorId: string, eventId: string, cancelled: boolean): Promise<void> {

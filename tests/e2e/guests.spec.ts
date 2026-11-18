@@ -10,7 +10,7 @@ test.describe.configure({ mode: "serial" });
 
 async function newPhone(browser: Browser, testInfo: { project: { use: Record<string, unknown> } }) {
   const ctx = await browser.newContext({ ...(testInfo.project.use as object) });
-  await ctx.addInitScript(() => localStorage.setItem("ateanne.tutorial.v1", "asked"));
+  await ctx.addInitScript(() => { localStorage.setItem("ateanne.tutorial.v1", "asked"); sessionStorage.setItem("ateanne.install.browser.v1", "1"); });
   return { ctx, page: await ctx.newPage() };
 }
 

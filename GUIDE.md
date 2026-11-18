@@ -24,6 +24,8 @@ This one page explains what the app does, where everything lives, how to run and
 
 **Typing a receipt:** Qty × Price each fills the line total; the receipt total fills itself in (marked *Auto*) until you type the printed total, which switches to checking. Service charge and discounts can be a **percent** (service charge starts at 10%).
 
+**Sprint S7 shortcuts:** install AteAnne on the Home Screen **before** creating/joining (Safari requires its Share menu; other supported browsers show native confirmation). In the receipt editor, choose **Split this receipt equally among everyone**; each person accepts their own share in Claim. Home → **Copy reminder** refreshes, previews a group/person message, and copies it for you to paste into Messenger. It sends nothing automatically. Organizer → **Correct the bill** starts a reasoned correction before Done, carrying confirmed payments into revised balances. People → **Reissue access** lets the organizer check a lost-key member in person and privately hand over a 15-minute key; this trusted-circle power can grant that person’s access, so identity checking matters.
+
 **Other features:** first-visit "First time here?" prompt plus a 12-step tutorial (the **?** button); recovery key to move to a new phone (Home → **I have a recovery key**; pasting it into the join-code box also works); cash/QR payment instructions; private receipt photos; CSV/JSON export; events auto-delete **30 days after creation**; "preview mode" when no database is connected.
 
 ---
@@ -155,7 +157,7 @@ Receipt scan flow: phone shrinks the photo (`src/ui/image.ts`) → `POST /api/ev
 - **Order:** items first → discounts (only on the items they apply to) → service charge and other charges in proportion to each person's spending after discounts. No spending means no service charge.
 - **Net = paid to stores − your share.** The transfer list is frozen when the organizer freezes the statement.
 - **Payments:** "reported" means pending and changes nothing. Only the **receiver** can confirm. A rejection opens a dispute that **both** sides must resolve. A receiver can undo a confirmation **once**, with a reason, before Done.
-- **After the first payment report, the bill can't be edited** (v1 rule). After Done, everything is read-only.
+- **Before Done, the organizer can correct a reported bill** after pending reports/disputes resolve. A reason, fresh approvals and a new statement are required. Confirmed money carries forward; overpayments become return transfers. Original history stays read-only; Done stays read-only.
 - Full detail: `docs/financial-rules.md`. The original spec is in `docs/spec/`.
 
 ---
@@ -264,7 +266,7 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 | Yellow "Preview mode" banner | `DATABASE_URL` or `JOIN_CODE_HASH_KEY` is missing in Vercel |
 | Build fails at migrations | Database unreachable. Check `DIRECT_URL` is the Session pooler (not the "Direct connection") |
 | "Cross-site request blocked" | Set `APP_ORIGIN` to the exact URL you use and redeploy |
-| Someone lost their phone | They use **Recover access** on the home page with their recovery key |
+| Someone lost their phone | Use **I have a recovery key** on Home. If the key is lost too, ask the organizer in person to **Reissue access** from People (private key expires in 15 minutes) |
 
 ---
 
@@ -272,7 +274,7 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 
 **Acting for a guest, technically:** the app sends the header `x-ateanne-act-as: <memberId>`. Routes for a person's own actions call `ctx.caller()` and pass it to the service; `BaseService.inEvent` checks `GuestPolicy` inside the event lock and gives the service `me` = the guest and `by` = the real person. All other routes call `ctx.actor()`, which rejects the header. To let a new route work for guests, switch it to `ctx.caller()` and make the service method take a `Caller`.
 
-**Limits (v1):** one payer per receipt; bill frozen after the first payment report; no deactivating a person who already has receipts or claims; deleting an event after payments is blocked (export instead); identity is "this browser" (no accounts); scanning accuracy on real crumpled receipts still needs checking; Groq free tier is about 2–3 scans/minute.
+**Limits (v1):** one payer per receipt; no bill changes after Done; no deactivating a person who already has receipts or claims; deleting an event after payments is blocked (export instead); identity is "this browser" (no accounts); scanning accuracy on real crumpled receipts still needs checking; Groq free tier is about 2–3 scans/minute.
 
 **Ideas:** receipt scanning on the phone with no AI (Tesseract.js) as a fallback; "paste receipt text" box for iPhone Live Text; push notifications ("Mark confirmed your payment"); multiple payers per receipt; editing after payments with an audit trail; iOS splash screens.
 

@@ -46,7 +46,7 @@ export function MoneyTab() {
   return (
     <div className="space-y-3">
       <Header />
-      <BalanceBanner net={pos.net} estimate={event.phase !== "REVIEWING"} caption={`Paid ${php(pos.funding)} − your share ${php(pos.cost)}`} />
+      <BalanceBanner net={pos.remaining} estimate={event.phase !== "REVIEWING"} caption={`Paid ${php(pos.funding)} − your share ${php(pos.cost)} · confirmed payments included`} />
       {event.phase === "REVIEWING" && <ApprovalCard />}
       <SectionTitle>Your share, line by line</SectionTitle>
       <Breakdown receipts={receipts} sharesFor={(rid) => view.calculation.receipts.find((x) => x.receiptId === rid)?.shares ?? []} />
@@ -65,7 +65,33 @@ function Header() {
       <p className="text-[14px] text-muted">
         {view.settlement ? `Frozen statement · version ${view.settlement.financialVersion}` : `Version ${view.event.financialVersion} · server-calculated, to the centavo`}
       </p>
+      {view.paymentHistory.length > 0 && (
+        <>
+          <Notice tone="info" title="Earlier payments are included">
+            Confirmed money carries forward into this bill. Revised transfers can include money to return. Prior statements and reports stay in the history below and in your export.
+          </Notice>
+          <PaymentHistory />
+        </>
+      )}
     </div>
+  );
+}
+
+function PaymentHistory() {
+  const { view, name } = useEvent();
+  return (
+    <details className="card my-3 text-[14px]">
+      <summary className="min-h-11 cursor-pointer font-semibold">Payment history from prior statements</summary>
+      <ul className="divide-y divide-line">
+        {view.paymentHistory.map((r) => (
+          <li key={r.id} className="py-3">
+            <p>{name(r.from)} → {name(r.to)} · <b>{php(r.amount)}</b></p>
+            <p className="text-muted">Version {r.financialVersion} · {r.reversal ? "Confirmation reversed — not counted" : r.status === "VERIFIED" ? "Confirmed received — included in this bill" : r.status === "CANCELLED" ? "Report cancelled — not counted" : "Rejected — not counted"}</p>
+            {r.reversal && <p>Reason: {r.reversal.reason}</p>}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -187,7 +213,7 @@ function Everyone({ positions, frozen }: { positions: { memberId: string; fundin
       <Card className="p-0">
         <ul className="divide-y divide-line">
           {positions.map((p) => {
-            const net = frozen && p.remaining !== undefined ? p.remaining : p.net;
+            const net = p.remaining ?? p.net;
             const b = balanceLabel(net);
             return (
               <li key={p.memberId} className="flex items-center gap-3 px-4 py-3">
@@ -225,7 +251,7 @@ function ProposedTransfers() {
       <SectionTitle>Proposed transfers</SectionTitle>
       <Card className="space-y-2">
         {view.calculation.edges.length === 0 ? (
-          <p className="text-muted">Nobody owes anybody — everyone paid exactly their share.</p>
+          <p className="text-muted">Nobody owes anybody after confirmed payments.</p>
         ) : (
           view.calculation.edges.map((e, i) => (
             <p key={i} className="tnum flex items-center gap-2">

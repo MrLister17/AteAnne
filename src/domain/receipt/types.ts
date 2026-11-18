@@ -35,6 +35,8 @@ export interface ReceiptInput {
   label: string;
   payerId: string;
   payable: bigint;
+  /** Explicit receipt-wide equal policy; every listed participant must accept all lines. */
+  equalSplit?: { memberIds: string[] };
   lines: LineInput[];
   adjustments: AdjustmentInput[];
 }
@@ -48,7 +50,8 @@ export interface CalculationIssue {
     | "UNITS_UNDER_ALLOCATED"
     | "UNITS_OVER_ALLOCATED"
     | "NO_LINES"
-    | "UNKNOWN_LINE_SCOPE";
+    | "UNKNOWN_LINE_SCOPE"
+    | "EQUAL_SPLIT_UNCONFIRMED";
   message: string;
   receiptId: string;
   lineId?: string;

@@ -26,7 +26,7 @@ A mobile-first, installable web app (iPhone-first PWA) where people claim what t
 *Not yet measured.* Sample size, completion, accuracy vs manual calc, time to verified settlement.
 
 ## Limitations (honest)
-One payer per receipt; manual entry and manual verification; trusted-circle identity (no accounts); bill frozen after the first payment report; deactivation of referenced members not yet built.
+One payer per receipt; manual entry and manual verification; trusted-circle identity (no accounts); corrections require resolved payment reports/disputes and fresh approval; Done stays read-only; deactivation of referenced members not yet built.
 
 ## Links
 Repository · CI · (deployed URL when it exists) · Kulayan and the Lucena commute guide are separate projects.

@@ -102,7 +102,7 @@ export default function Recover() {
           <span className="flex gap-2">
             <Icon name="key" size={18} className="mt-0.5 shrink-0" />
             <span>
-              Recovery moves your identity to this phone and signs the old one out of that event. It never creates a new person or erases what you paid or owe. Each key is for one event. Without a key or your old phone, ask the organizer to check the roster.
+              Recovery moves your identity to this phone and signs the old one out of that event. It never creates a new person or erases what you paid or owe. Each key is for one event. Lost your key and old phone? Ask the organizer to check your identity in person and reissue access from People.
             </span>
           </span>
         </Notice>

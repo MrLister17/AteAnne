@@ -1,8 +1,8 @@
 {
   "name": "ateanne",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
-  "description": "AteAnne — hatian na malinaw. Mobile-first shared-expense app with exact-centavo item splitting and recipient-verified settlement.",
+  "description": "AteAnne \u2014 hatian na malinaw. Mobile-first shared-expense app with exact-centavo item splitting and recipient-verified settlement.",
   "type": "module",
   "engines": {
     "node": "22.x"

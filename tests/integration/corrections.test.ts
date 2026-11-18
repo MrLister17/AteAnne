@@ -1,0 +1,92 @@
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { eventWith, makeApp, resetDb } from "./helpers";
+
+const { app, db } = makeApp();
+beforeAll(() => resetDb(db));
+afterAll(() => db.$disconnect());
+
+describe("post-payment bill corrections", () => {
+  it("preserves statements and payments, requires new approvals, and returns an overpayment", async () => {
+    const ctx = await eventWith(app, ["Mark", "Juan"]);
+    const mark = ctx.people.Mark;
+    const juan = ctx.people.Juan;
+    const view = () => app.queries.view(mark.actorId, ctx.eventId);
+    const move = async (target: "ALLOCATING" | "REVIEWING" | "SETTLING" | "COLLECTING" | "DONE", reason?: string) => app.events.transition(mark.actorId, ctx.eventId, { target, expectedFinancialVersion: (await view()).event.financialVersion, reason });
+    const claim = async (actorId: string, none = false) => {
+      const v = await app.queries.view(actorId, ctx.eventId);
+      const r = v.receipts[0];
+      await app.receipts.saveClaims(actorId, r.id, { receiptVersion: r.version, expectedClaimVersion: v.me.claimVersion, status: none ? "none" : "finish", claims: none ? [] : r.lines.map((l) => ({ lineId: l.id, units: 1 })) });
+    };
+    const approve = async () => {
+      const financialVersion = (await view()).event.financialVersion;
+      for (const p of [mark, juan]) await app.receipts.approveReview(p.actorId, ctx.eventId, financialVersion);
+    };
+    const { receiptId } = await app.receipts.create(mark.actorId, ctx.eventId, { label: "Dinner", payerMemberId: mark.memberId, payable: "10000", lines: [{ label: "Shared meal", quantity: 1, amount: "10000", mode: "SHARED" }], adjustments: [] });
+    await app.receipts.acknowledgeFunding(mark.actorId, receiptId, { receiptVersion: 1, amount: "10000" });
+    for (const p of [mark, juan]) await app.events.updateMe(p.actorId, ctx.eventId, { entryComplete: true });
+    await move("ALLOCATING");
+    await claim(mark.actorId);
+    await claim(juan.actorId);
+    await move("REVIEWING");
+    await approve();
+    await move("SETTLING");
+    const first = (await view()).settlement!;
+    const frozenBefore = await db.snapshot.findUniqueOrThrow({ where: { id: first.snapshotId }, include: { shares: true, edges: true } });
+    const paid = await app.payments.report(juan.actorId, first.edges[0].id, { amount: "5000", method: "CASH", idempotencyKey: "correction-first-payment" });
+    await expect(move("REVIEWING", "Juan did not eat this meal")).rejects.toThrow(/pending reports/);
+    await app.payments.verify(mark.actorId, paid.reportId);
+    await expect(move("REVIEWING")).rejects.toThrow(/why the bill/);
+    await expect(app.events.transition(juan.actorId, ctx.eventId, { target: "REVIEWING", expectedFinancialVersion: (await view()).event.financialVersion, reason: "Wrong split" })).rejects.toThrow(/organizer/);
+    await move("REVIEWING", "Juan did not eat this meal");
+    expect((await view()).review.approvals).toEqual([]);
+    await expect(move("SETTLING")).rejects.toThrow(/approved/);
+    await expect(app.payments.reverse(mark.actorId, paid.reportId, { reason: "Too late" })).rejects.toThrow(/carried into a revised bill/);
+    await expect(app.payments.report(juan.actorId, first.edges[0].id, { amount: "1", method: "CASH", idempotencyKey: "stale-edge-payment" })).rejects.toThrow();
+    await move("COLLECTING");
+    await expect(app.events.rotateCode(mark.actorId, ctx.eventId)).rejects.toThrow(/roster is locked/);
+    await expect(app.events.addGuest(mark.actorId, ctx.eventId, { displayName: "New guest" })).rejects.toThrow(/roster is locked/);
+    await move("ALLOCATING");
+    await claim(juan.actorId, true);
+    await move("REVIEWING");
+    const preview = await view();
+    expect(preview.calculation.edges).toEqual([{ from: mark.memberId, to: juan.memberId, amount: "5000" }]);
+    await approve();
+    await move("SETTLING");
+    const corrected = await view();
+    expect(corrected.settlement!.edges.map(({ from, to, amount }) => ({ from, to, amount }))).toEqual([{ from: mark.memberId, to: juan.memberId, amount: "5000" }]);
+    expect(corrected.paymentHistory).toHaveLength(1);
+    expect(corrected.paymentHistory[0]).toMatchObject({ id: paid.reportId, amount: "5000", status: "VERIFIED" });
+    const frozenAfter = await db.snapshot.findUniqueOrThrow({ where: { id: first.snapshotId }, include: { shares: true, edges: true } });
+    expect(frozenAfter.facts).toEqual(frozenBefore.facts);
+    expect(frozenAfter.shares).toEqual(frozenBefore.shares);
+    expect(frozenAfter.edges).toEqual(frozenBefore.edges);
+    expect(frozenAfter.status).toBe("SUPERSEDED");
+    const exported = JSON.parse((await app.queries.export(mark.actorId, ctx.eventId, "json")).body);
+    expect(exported.priorPaymentHistory[0]).toMatchObject({ reportId: paid.reportId, amountPhp: "50.00", status: "VERIFIED" });
+    expect(exported.supersededStatements[0].facts).toEqual(frozenBefore.facts);
+    await expect(move("DONE")).rejects.toThrow(/not everything|Not everything/);
+    const returned = await app.payments.report(mark.actorId, corrected.settlement!.edges[0].id, { amount: "5000", method: "CASH", idempotencyKey: "correction-return-payment" });
+    await app.payments.verify(juan.actorId, returned.reportId);
+    expect((await view()).settlement!.positions.every((p) => p.remaining === "0")).toBe(true);
+    // A mistaken confirmation must be excluded when the next statement
+    // carries money across multiple correction rounds.
+    await app.payments.reverse(juan.actorId, returned.reportId, { reason: "Counted the wrong cash envelope" });
+    const afterReversal = await view();
+    expect(afterReversal.settlement!.positions.find((p) => p.memberId === mark.memberId)!.remaining).toBe("-5000");
+    const actualReturn = await app.payments.report(mark.actorId, corrected.settlement!.edges[0].id, { amount: "5000", method: "CASH", idempotencyKey: "correction-actual-return" });
+    await app.payments.verify(juan.actorId, actualReturn.reportId);
+    await move("REVIEWING", "Review the corrected statement once more");
+    expect((await view()).review.approvals).toEqual([]);
+    await approve();
+    await move("SETTLING");
+    const finalStatement = await view();
+    expect(finalStatement.supersededSnapshots).toHaveLength(2);
+    expect(finalStatement.settlement!.edges).toEqual([]);
+    expect(finalStatement.settlement!.positions.every((p) => p.remaining === "0")).toBe(true);
+    expect(finalStatement.paymentHistory).toHaveLength(3);
+    expect(finalStatement.paymentHistory.find((p) => p.id === returned.reportId)!.reversal).toMatchObject({ reason: "Counted the wrong cash envelope" });
+    expect(finalStatement.gates.done!.ready).toBe(true);
+    await move("DONE");
+    await expect(move("REVIEWING", "Late correction")).rejects.toThrow(/Cannot move/);
+  });
+});

@@ -140,7 +140,7 @@ describe("Reviewing and freeze", () => {
 
   it("can reopen before any report (old snapshot superseded), then re-freeze", async () => {
     let v = await version(app, ctx.eventId, P().Mark.actorId);
-    await app.events.transition(P().Mark.actorId, ctx.eventId, { target: "REVIEWING", expectedFinancialVersion: v });
+    await app.events.transition(P().Mark.actorId, ctx.eventId, { target: "REVIEWING", expectedFinancialVersion: v, reason: "Check the statement again" });
     v = await version(app, ctx.eventId, P().Mark.actorId);
     for (const n of ["Mark", "Juan", "Paolo"]) await app.receipts.approveReview(P()[n].actorId, ctx.eventId, v);
     await app.events.transition(P().Mark.actorId, ctx.eventId, { target: "SETTLING", expectedFinancialVersion: v });
@@ -163,9 +163,9 @@ describe("Settling", () => {
     ids.pay1 = first.reportId;
   });
 
-  it("no financial reopen after any report", async () => {
+  it("blocks financial corrections while a report is pending", async () => {
     const v = await version(app, ctx.eventId, P().Mark.actorId);
-    await expect(app.events.transition(P().Mark.actorId, ctx.eventId, { target: "REVIEWING", expectedFinancialVersion: v })).rejects.toThrow(/already been reported/);
+    await expect(app.events.transition(P().Mark.actorId, ctx.eventId, { target: "REVIEWING", expectedFinancialVersion: v, reason: "Correct the bill" })).rejects.toThrow(/pending reports/);
   });
 
   it("sender and owner cannot verify; recipient rejects → dispute blocks new reports", async () => {

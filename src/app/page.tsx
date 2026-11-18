@@ -32,7 +32,11 @@ export default function Home() {
       <p className="mt-4 text-[17px] leading-relaxed">
         Split the bill by <b>what each person actually had</b>, not just total ÷ people. AteAnne explains every centavo and tracks who has really been paid back.</p>
 
-      <div className="mt-6 grid gap-3">
+      <div className="mt-6">
+        <InstallPrompt />
+      </div>
+
+      <div className="mt-4 grid gap-3">
         <Link href="/new" className="flex min-h-14 items-center gap-3 rounded-2xl bg-violet px-5 text-[17px] font-semibold text-violet-ink shadow-sm active:opacity-90">
           <Icon name="plus" /> Start a hatian
         </Link>
@@ -54,10 +58,6 @@ export default function Home() {
 
       <div className="mt-3">
         <TutorialButton />
-      </div>
-
-      <div className="mt-5">
-        <InstallPrompt />
       </div>
 
       {events && events.length > 0 && (

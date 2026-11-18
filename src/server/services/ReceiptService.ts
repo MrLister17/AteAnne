@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ConflictError, PermissionError, ValidationError } from "@/domain/errors";
+import { EqualReceiptSplit } from "@/domain/receipt/EqualReceiptSplit";
 import type { Db, Tx } from "../db";
 import { NotFoundError } from "../http/HttpError";
 import { EventAggregate, MAX_LINES, MAX_RECEIPTS, MemberRecord } from "../aggregate/EventAggregate";
@@ -59,11 +60,11 @@ export class ReceiptService extends BaseService {
       this.validatePayload(agg, data);
       const position = Math.max(-1, ...agg.record.receipts.map((r) => r.position)) + 1;
       const receipt = await tx.receipt.create({
-        data: { eventId, authorMemberId: me.id, payerMemberId: data.payerMemberId, label: data.label, payableCentavos: data.payable, position },
+        data: { eventId, authorMemberId: me.id, payerMemberId: data.payerMemberId, label: data.label, payableCentavos: data.payable, equalSplit: data.equalSplit, position },
       });
       await this.writeLinesAndAdjustments(tx, receipt.id, [], data);
       await this.bumpFinancial(tx, eventId);
-      await this.audit(tx, eventId, me.id, "receipt.created", { receiptId: receipt.id, label: data.label, payable: data.payable.toString() });
+      await this.audit(tx, eventId, me.id, "receipt.created", { receiptId: receipt.id, label: data.label, payable: data.payable.toString(), equalSplit: data.equalSplit });
       return { receiptId: receipt.id };
     });
   }
@@ -81,11 +82,11 @@ export class ReceiptService extends BaseService {
       this.validatePayload(agg, data);
       await tx.receipt.update({
         where: { id: receiptId },
-        data: { label: data.label, payerMemberId: data.payerMemberId, payableCentavos: data.payable, version: { increment: 1 } },
+        data: { label: data.label, payerMemberId: data.payerMemberId, payableCentavos: data.payable, equalSplit: data.equalSplit, version: { increment: 1 } },
       });
       await this.writeLinesAndAdjustments(tx, receiptId, receipt.lines.map((l) => l.id), data);
       await this.bumpFinancial(tx, eventId);
-      await this.audit(tx, eventId, me.id, isAuthor ? "receipt.updated" : "receipt.organizer_correction", { receiptId, label: data.label, fromVersion: receipt.version });
+      await this.audit(tx, eventId, me.id, isAuthor ? "receipt.updated" : "receipt.organizer_correction", { receiptId, label: data.label, fromVersion: receipt.version, equalSplit: data.equalSplit });
       return { version: receipt.version + 1 };
     });
   }
@@ -97,7 +98,7 @@ export class ReceiptService extends BaseService {
     await tx.adjustment.deleteMany({ where: { receiptId } });
     const ids: string[] = [];
     for (const [position, l] of data.lines.entries()) {
-      const fields = { position, label: l.label, quantity: l.quantity, amountCentavos: l.amount, unitPriceCentavos: l.unitPrice ?? null, mode: l.mode };
+      const fields = { position, label: l.label, quantity: l.quantity, amountCentavos: l.amount, unitPriceCentavos: l.unitPrice ?? null, mode: data.equalSplit ? "SHARED" as const : l.mode };
       if (l.id && keep.has(l.id)) {
         await tx.receiptLine.update({ where: { id: l.id }, data: fields });
         ids.push(l.id);
@@ -166,6 +167,12 @@ export class ReceiptService extends BaseService {
       const receipt = agg.receipt(receiptId);
       if (receipt.version !== data.receiptVersion) throw new ConflictError("stale_receipt", "This receipt was corrected. Review the new version and claim again.");
       if (me.claimVersion !== data.expectedClaimVersion) throw new ConflictError("stale_claims", "Your claims were changed from another tab or device. Reload to see them.");
+      if (data.acceptEqualSplit) {
+        if (!receipt.equalSplit || data.status !== "finish") throw new ValidationError("not_equal_split", "This receipt is not waiting for equal-split confirmation. Reload it.");
+        data.claims = new EqualReceiptSplit().claimsFor(receipt.lines);
+      } else if (receipt.equalSplit && data.status !== "none") {
+        throw new ValidationError("equal_split_confirmation", "Confirm your equal share of the whole receipt, or tell the organizer you disagree.");
+      }
       if (data.status === "none" && data.claims.length) throw new ValidationError("none_with_claims", "Remove your items to say you got nothing from this receipt");
       if (data.status === "finish" && !data.claims.length) throw new ValidationError("finish_without_claims", "Pick your items, or choose “I got nothing from this receipt”");
 
@@ -204,7 +211,7 @@ export class ReceiptService extends BaseService {
       }
       const updated = await tx.member.update({ where: { id: me.id }, data: { claimVersion: { increment: 1 } } });
       await this.bumpFinancial(tx, eventId);
-      await this.audit(tx, eventId, me.id, "claims.saved", { receiptId, status: data.status, lines: data.claims.length });
+      await this.audit(tx, eventId, me.id, "claims.saved", { receiptId, status: data.status, lines: data.claims.length, equalSplitAccepted: Boolean(data.acceptEqualSplit) });
       return { claimVersion: updated.claimVersion };
     });
   }

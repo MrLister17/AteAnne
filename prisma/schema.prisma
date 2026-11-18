@@ -183,6 +183,8 @@ model Receipt {
   payer            Member    @relation("ReceiptPayer", fields: [payerMemberId], references: [id], onDelete: Restrict)
   label            String    @db.VarChar(80)
   payableCentavos  BigInt
+  /// Everyone on the locked roster explicitly accepts the whole receipt equally.
+  equalSplit       Boolean   @default(false)
   /// Bumped on every edit; claims/acks from older versions become stale drafts.
   version          Int       @default(1)
   position         Int
@@ -295,7 +297,7 @@ model Snapshot {
   policyVersion     String
   /// Frozen receipts, lines, adjustments, claims and per-receipt statements.
   facts             Json
-  /// Set the first time any payment report is created; blocks reopening forever.
+  /// Set the first time any payment report is created; preserves report history on correction.
   firstReportAt     DateTime?
   createdAt         DateTime        @default(now())
   supersededAt      DateTime?

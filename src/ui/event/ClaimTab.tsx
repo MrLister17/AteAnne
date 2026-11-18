@@ -6,6 +6,7 @@ import { Icon } from "../components/Icon";
 import { Avatar, Badge, Button, Card, Notice } from "../components/ui";
 import { php } from "../format";
 import { ReceiptView, useAction, useEvent } from "./EventContext";
+import { EqualReceiptSplit } from "@/domain/receipt/EqualReceiptSplit";
 
 /**
  * Allocation wizard: one receipt at a time, the person claims only their
@@ -89,8 +90,8 @@ function ReceiptClaimer({ receipt: r, readOnly, onNext }: { receipt: ReceiptView
     setConflict(null);
     const claims = status === "none" ? [] : Object.entries(draft).filter(([, u]) => u > 0).map(([lineId, units]) => ({ lineId, units }));
     const res = await act(
-      () => api.put(`/api/receipts/${r.id}/claims`, { receiptVersion: r.version, expectedClaimVersion: view.me.claimVersion, status, claims }),
-      status === "none" ? "Saved: you got nothing from this receipt" : status === "finish" ? "Claims saved" : "Draft saved",
+      () => api.put(`/api/receipts/${r.id}/claims`, { receiptVersion: r.version, expectedClaimVersion: view.me.claimVersion, status, claims, ...(r.equalSplit && status === "finish" ? { acceptEqualSplit: true } : {}) }),
+      status === "none" ? (r.equalSplit ? "Disagreement saved — tell the organizer what needs changing" : "Saved: you got nothing from this receipt") : status === "finish" ? "Claims saved" : "Draft saved",
     );
     setBusy(null);
     if (res === undefined) setConflict("Not saved. Someone may have claimed the last piece — check the counts and try again.");
@@ -106,11 +107,20 @@ function ReceiptClaimer({ receipt: r, readOnly, onNext }: { receipt: ReceiptView
             Paid by {name(r.payerId)} · total {php(r.payable)}
           </p>
         </div>
-        {ack ? <Badge tone="receive">{ack === "NONE" ? "Got nothing" : "Claimed"}</Badge> : <Badge tone="coral">Your turn</Badge>}
+        {ack ? <Badge tone={r.equalSplit && ack === "NONE" ? "warn" : "receive"}>{ack === "NONE" ? (r.equalSplit ? "Disagreed" : "Got nothing") : r.equalSplit ? "Confirmed" : "Claimed"}</Badge> : <Badge tone="coral">Your turn</Badge>}
       </Card>
 
       {staleDraft && <Notice tone="warn" title="This receipt was corrected">Your earlier picks are shown as a draft. Check them against the new version and save again.</Notice>}
       {conflict && <Notice tone="pay">{conflict}</Notice>}
+
+      {r.equalSplit && (
+        <Notice tone="info" title="Split equally among everyone">
+          <p>The whole receipt, including discounts and charges, is divided among all {view.members.filter((m) => m.active).length} people. Confirm only your own share below.</p>
+          <p className="font-semibold">Your share: {php(new EqualReceiptSplit().totals(BigInt(r.payable), view.members.filter((m) => m.active).map((m) => m.id)).get(me.memberId) ?? 0n)}</p>
+          <p>{r.acks.filter((a) => a.kind === "FINISHED" && !a.stale && view.members.some((m) => m.id === a.memberId && m.active)).length} of {view.members.filter((m) => m.active).length} people confirmed. Final totals can differ by one centavo.</p>
+          {ack === "NONE" && <p className="font-semibold">You disagreed. Tell the organizer what needs changing; review stays blocked until everyone agrees or the receipt is changed.</p>}
+        </Notice>
+      )}
 
       <ul className="space-y-2">
         {r.lines.map((l) => {
@@ -130,7 +140,7 @@ function ReceiptClaimer({ receipt: r, readOnly, onNext }: { receipt: ReceiptView
                     {php(l.amount)} · {l.mode === "SHARED" ? "shared equally" : `${otherUnits + mine} of ${l.quantity} pieces claimed`}
                   </p>
                 </div>
-                {l.mode === "SHARED" ? (
+                {r.equalSplit ? <Badge tone="violet">Everyone</Badge> : l.mode === "SHARED" ? (
                   <button
                     type="button"
                     disabled={readOnly}
@@ -193,13 +203,13 @@ function ReceiptClaimer({ receipt: r, readOnly, onNext }: { receipt: ReceiptView
 
       {!readOnly && (
         <div className="space-y-2 pt-1">
-          <Button full busy={busy === "finish"} disabled={!Object.values(draft).some((u) => u > 0)} onClick={() => void save("finish")}>
-            Save my items{ack ? "" : " & next"}
+          <Button full busy={busy === "finish"} disabled={!r.equalSplit && !Object.values(draft).some((u) => u > 0)} onClick={() => void save("finish")}>
+            {r.equalSplit ? "Confirm my equal share" : `Save my items${ack ? "" : " & next"}`}
           </Button>
           <Button full variant="secondary" busy={busy === "none"} onClick={() => void save("none")}>
-            I got nothing from this receipt
+            {r.equalSplit ? "I disagree — ask organizer to change it" : "I got nothing from this receipt"}
           </Button>
-          {dirty && (
+          {dirty && !r.equalSplit && (
             <Button full variant="tonal" busy={busy === "draft"} onClick={() => void save("draft")}>
               Save as draft (not finished)
             </Button>

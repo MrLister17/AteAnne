@@ -23,7 +23,7 @@ type AdjDraft = { kind: "DISCOUNT" | "SERVICE" | "CHARGE"; label: string; amount
 const KIND_LABEL = { DISCOUNT: "Discount", SERVICE: "Service charge", CHARGE: "Other charge" } as const;
 
 /** `payableAuto`: the total paid follows items − discounts + charges until the person types the printed total. */
-type Draft = { label: string; payerMemberId: string; payable: string; payableAuto: boolean; lines: LineDraft[]; adjustments: AdjDraft[] };
+type Draft = { label: string; payerMemberId: string; equalSplit: boolean; payable: string; payableAuto: boolean; lines: LineDraft[]; adjustments: AdjDraft[] };
 
 const cv = (s: string): bigint | null => {
   const c = s.trim() === "" ? null : toCentavos(s);
@@ -88,6 +88,7 @@ function fromScan(s: ScannedDraft, myId: string): Draft {
   return {
     label: s.label,
     payerMemberId: myId,
+    equalSplit: false,
     // The printed total stays as read, so a misread line shows up as a mismatch.
     payable: toInput(s.payable),
     payableAuto: false,
@@ -103,6 +104,7 @@ function fromReceipt(r: ReceiptView | null, myId: string): Draft {
     return {
       label: "",
       payerMemberId: myId,
+      equalSplit: false,
       payable: "",
       payableAuto: true,
       lines: [emptyLine()],
@@ -112,6 +114,7 @@ function fromReceipt(r: ReceiptView | null, myId: string): Draft {
   return {
     label: r.label,
     payerMemberId: r.payerId,
+    equalSplit: r.equalSplit,
     payable: toInput(r.payable),
     payableAuto: r.payable === r.reconciliation.computedPayable,
     lines: r.lines.map((l) => ({ id: l.id, label: l.label, quantity: String(l.quantity), amount: toInput(l.amount), unitPrice: l.unitPrice ? toInput(l.unitPrice) : "", mode: l.mode, autoTotal: consistent(l.unitPrice, l.quantity, l.amount) })),
@@ -199,6 +202,7 @@ export function ReceiptEditor({
     const body = {
       label: d.label,
       payerMemberId: d.payerMemberId,
+      equalSplit: d.equalSplit,
       payable: calc.payable.toString(),
       lines: d.lines.map((l, i) => ({
         ...(l.id ? { id: l.id } : {}),
@@ -206,7 +210,7 @@ export function ReceiptEditor({
         quantity: Math.max(1, Math.floor(Number(l.quantity) || 1)),
         amount: toCentavos(resolved.lineAmounts[i])!,
         unitPrice: l.unitPrice ? toCentavos(l.unitPrice) : null,
-        mode: l.mode,
+        mode: d.equalSplit ? "SHARED" : l.mode,
       })),
       adjustments: d.adjustments.map((a, i) => ({
         kind: a.kind,
@@ -312,6 +316,14 @@ export function ReceiptEditor({
           )}
         </Field>
 
+        <div className="card space-y-2 p-4">
+          <label className="flex min-h-11 cursor-pointer items-start gap-3">
+            <input type="checkbox" className="mt-1 size-5 shrink-0 accent-violet" checked={d.equalSplit} onChange={(e) => setD({ ...d, equalSplit: e.target.checked })} />
+            <span className="font-semibold">Split this receipt equally among everyone</span>
+          </label>
+          <p className="text-[14px] text-muted">Everyone on the locked roster confirms their own share with one tap. This includes all items, discounts and charges; totals differ by at most one centavo. Nobody is signed up for them.</p>
+        </div>
+
         <div>
           <h3 className="mb-2 text-[15px] font-bold">Items</h3>
           <ol className="space-y-3">
@@ -333,16 +345,16 @@ export function ReceiptEditor({
                   invalid={!!err(resolved.lineAmounts[i])}
                   onChange={(patch) => setLine(i, patch)}
                 />
-                <fieldset>
+                <fieldset disabled={d.equalSplit}>
                   <legend className="text-[13px] text-muted">How will people claim it?</legend>
                   <div className="segmented mt-1">
                     {(["SHARED", "UNITS"] as const).map((m) => (
-                      <button key={m} type="button" aria-pressed={l.mode === m} onClick={() => setLine(i, { mode: m })} >
+                      <button key={m} type="button" aria-pressed={(d.equalSplit ? "SHARED" : l.mode) === m} onClick={() => setLine(i, { mode: m })} >
                         {m === "SHARED" ? "Shared equally" : "By piece"}
                       </button>
                     ))}
                   </div>
-                  <p className="mt-1 text-[12px] text-muted">{l.mode === "SHARED" ? "Split equally among whoever ticks it (one person = solo)." : `Each person claims whole pieces; all ${l.quantity || "?"} must be claimed.`}</p>
+                  <p className="mt-1 text-[12px] text-muted">{d.equalSplit ? "Included in everyone’s equal share of the whole receipt." : l.mode === "SHARED" ? "Split equally among whoever ticks it (one person = solo)." : `Each person claims whole pieces; all ${l.quantity || "?"} must be claimed.`}</p>
                 </fieldset>
               </li>
             ))}

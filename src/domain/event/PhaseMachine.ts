@@ -15,8 +15,9 @@ export const PHASE_LABEL: Record<Phase, string> = {
 /**
  * Allowed phase transitions. Forward moves pass a readiness gate checked by
  * the application service; backward moves are corrections and are only
- * allowed before money is reported (Settling → Reviewing needs a snapshot
- * with no payment reports ever created).
+ * allowed while unfinished. Settling → Reviewing preserves the old snapshot
+ * and carries confirmed money into the next statement; pending/disputed
+ * reports must be resolved first.
  */
 const TRANSITIONS: Record<Phase, readonly Phase[]> = {
   COLLECTING: ["ALLOCATING"],

@@ -13,12 +13,28 @@ Each milestone was a usable vertical slice with tests.
 | M5b Onboarding | First-visit ask, full start-to-finish walkthrough (12 steps, swipe/keyboard, progress), tutorial buttons | ✅ Done |
 | M6 Release | CI workflow, Dockerfile, docker-compose, cleanup job, backup/restore/verify scripts, runbooks, pilot + case-study docs | ✅ Done locally · ⏳ not deployed |
 
-## Next (P1 backlog, not started)
+## Sprint S7 — relatives’ next five improvements (2026-11-18)
+
+Owner request: continue from v0.5.0 using the existing vertical-slice SDLC. Work is on `feature/pilot-improvements`; the owner subsequently authorized commit, merge to `main` and production deployment (2026-11-18).
+
+| Slice | Acceptance criteria | Status |
+| --- | --- | --- |
+| S7.1 Home Screen first | Install guidance before creating/joining; native install prompt where supported; honest Safari Share → Add to Home Screen steps; explicit browser fallback; no duplicate member on install | Complete; verified |
+| S7.2 Lost-key recovery | Organizer-only, short-lived single-use replacement; same member/ledger; old device revoked on redemption; no identity merging; visible audit and trust explanation | Complete; verified |
+| S7.3 Equal receipt shortcut | Explicit receipt policy, exact centavo conservation; everyone accepts their own share; incomplete/declined answers block review | Complete; verified |
+| S7.4 Copy reminders | Current phase-specific next steps; group/person preview and copy for Messenger; no automatic sending or credentials; pending reports never prompt duplicate transfers | Complete; verified |
+| S7.5 Post-report corrections | Reasoned correction before Done; pending/disputed transfers resolved first; old statements/history immutable; roster locked; fresh approvals; confirmed transfers carried into remaining balances, including return transfers | Complete; verified |
+
+Validation completed: 87 unit tests, 47 PostgreSQL integration tests and 47 distinct browser scenarios verified (full run plus corrected reminder assertion rerun); lint, typecheck, reference fixtures and production build passed. See `test-report.md` for exact runs.
+
+Validation gate: reference fixtures → lint → typecheck → unit → real PostgreSQL integration → production build → Playwright (iPhone emulation and 360px). Record actual results in `test-report.md`; real iPhone Safari installation remains a human check. Update requirements, decision log, changelog and handoff before delivery.
+
+## Next (P1 backlog)
 
 1. Deactivate a member who has financial references (redact access, keep money). Gap from FR-18 / AT-19.
 2. Deletion after payments with every member's approval.
 3. Organizer correction *proposals* (accept/decline objects) instead of direct audited edits.
-4. Post-payment append-only bill corrections.
+4. Post-payment append-only bill corrections are included in Sprint S7 above.
 5. Multiple funders on one receipt; pooled advances.
 6. iOS splash-screen images (`apple-touch-startup-image`) per device size.
 7. Object-storage adapter for `PrivateStorage` (e.g. S3-compatible, private bucket).

@@ -5,10 +5,11 @@ import type { Phase } from "@/domain/event/PhaseMachine";
 import { api } from "../api";
 import { ShareJoin } from "../components/CredentialReveal";
 import { Icon } from "../components/Icon";
-import { BalanceBanner, Blockers, Button, Card, Notice, SectionTitle } from "../components/ui";
+import { BalanceBanner, Blockers, Button, Card, Notice, SectionTitle, useToast } from "../components/ui";
 import { php } from "../format";
 import { TabId, useAction, useEvent } from "./EventContext";
 import { pendingFor } from "./todo";
+import { ReminderPanel } from "./ReminderPanel";
 
 export function OverviewTab() {
   const { view, me, event, setTab } = useEvent();
@@ -21,7 +22,7 @@ export function OverviewTab() {
       {myPos ? (
         <BalanceBanner net={myPos.remaining} caption={phase === "DONE" ? "Everything was confirmed received." : `Paid ${php(myPos.funding)} · your share ${php(myPos.cost)} · frozen statement`} />
       ) : estimate && phase !== "COLLECTING" ? (
-        <BalanceBanner net={estimate.net} estimate caption={`Paid ${php(estimate.funding)} · your share so far ${php(estimate.cost)}`} />
+        <BalanceBanner net={estimate.remaining} estimate caption={`Paid ${php(estimate.funding)} · your share so far ${php(estimate.cost)} · confirmed payments included`} />
       ) : null}
 
       {view.actingFor && (
@@ -31,6 +32,8 @@ export function OverviewTab() {
       )}
 
       <MyTodo phase={phase} onGo={setTab} />
+
+      <ReminderPanel />
 
       {me.canManageGuests && <GuestsPanel />}
 
@@ -157,14 +160,15 @@ function MyTodo({ phase, onGo }: { phase: Phase; onGo: (t: TabId) => void }) {
 function OrganizerPanel() {
   const { view, event } = useEvent();
   const act = useAction();
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const move = async (target: Phase, label: string) => {
+  const move = async (target: Phase, label: string, reason?: string) => {
     setBusy(true);
-    await act(() => api.post(`/api/events/${event.id}/phase`, { target, expectedFinancialVersion: event.financialVersion }), label);
+    await act(() => api.post(`/api/events/${event.id}/phase`, { target, expectedFinancialVersion: event.financialVersion, reason }), label);
     setBusy(false);
   };
   const g = view.gates;
-  const reopenAllowed = event.phase === "SETTLING" && view.settlement && !view.settlement.hasReports;
+  const reopenAllowed = event.phase === "SETTLING" && view.settlement && g.correcting?.ready;
 
   return (
     <>
@@ -193,7 +197,7 @@ function OrganizerPanel() {
           ) : (
             <div className="flex items-center justify-between gap-3">
               <p className="text-[15px] text-muted">Joining is closed.</p>
-              {!event.cancelled && (
+              {!event.cancelled && !event.rosterLockedAt && (
                 <Button variant="secondary" onClick={() => act(() => api.post(`/api/events/${event.id}/code`), "Joining reopened with a new code")}>
                   Reopen with new code
                 </Button>
@@ -231,7 +235,7 @@ function OrganizerPanel() {
       {event.phase === "REVIEWING" && g.settling && (
         <Card className="space-y-3">
           <p className="font-semibold">Freeze the statement</p>
-          <p className="text-[14px] text-muted">Freezing locks version {event.financialVersion} and the transfers. After the first payment is reported, the bill can no longer be changed in this version of AteAnne.</p>
+          <p className="text-[14px] text-muted">Freezing locks version {event.financialVersion} and the transfers. A later correction keeps this statement and confirmed payments, and needs everyone’s approval again.</p>
           <Blockers items={g.settling.blockers} />
           <Button full busy={busy} disabled={!g.settling.ready || event.cancelled} onClick={() => void move("SETTLING", "Frozen — time to settle")}>
             <Icon name="lock" size={18} /> Freeze & start settling
@@ -255,11 +259,20 @@ function OrganizerPanel() {
             <Icon name="check" size={18} /> Mark as Done
           </Button>
           {reopenAllowed && (
-            <Button full variant="tonal" busy={busy} onClick={() => void move("REVIEWING", "Reopened for review; the old statement is kept as superseded")}>
-              Reopen review (no payments reported yet)
+            <Button full variant="tonal" busy={busy} onClick={() => {
+              const reason = prompt("Why does the bill need a correction? Confirmed payments will carry forward. Correct any mistaken payment confirmations first; prior statements become read-only.");
+              if (reason === null) return;
+              if (reason.trim().length < 3 || reason.trim().length > 300) {
+                toast("Enter a correction reason between 3 and 300 characters.", "error");
+                return;
+              }
+              void move("REVIEWING", "Reopened for correction; prior payments and statement are preserved", reason.trim());
+            }}>
+              Correct the bill
             </Button>
           )}
-          {!reopenAllowed && view.settlement?.hasReports && <p className="text-[13px] text-muted">A payment was reported, so the bill is frozen. Mistakes after this point are a documented v1 limitation.</p>}
+          {!reopenAllowed && <Blockers items={g.correcting?.blockers ?? []} title="Before correcting the bill" />}
+          <p className="text-[13px] text-muted">Corrections preserve prior statements and confirmed money. They create a new review for everyone; overpayments become return transfers. Done events stay read-only.</p>
         </Card>
       )}
     </>
@@ -271,7 +284,7 @@ function GuestsPanel() {
   const { view, actAs, showPerson, setTab } = useEvent();
   const guests = view.members.filter((m) => m.isGuest && m.active);
   if (guests.length === 0) {
-    if (view.event.phase !== "COLLECTING") return null;
+    if (view.event.phase !== "COLLECTING" || view.event.rosterLockedAt) return null;
     return (
       <Card className="flex items-center gap-3">
         <Icon name="user" className="text-violet" />

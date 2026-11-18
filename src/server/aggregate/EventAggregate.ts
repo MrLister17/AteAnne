@@ -6,6 +6,7 @@ import { ReconciliationResult, ReceiptReconciler } from "@/domain/receipt/Receip
 import type { ReceiptInput } from "@/domain/receipt/types";
 import { PermissionError } from "@/domain/errors";
 import { GuestPolicy } from "@/domain/event/GuestPolicy";
+import { CorrectionLedger } from "@/domain/settlement/CorrectionLedger";
 import { NotFoundError } from "../http/HttpError";
 import type { EVENT_INCLUDE } from "./EventRepository";
 
@@ -22,7 +23,7 @@ export interface Gate {
 export const MAX_MEMBERS = 20;
 export const MAX_RECEIPTS = 25;
 export const MAX_LINES = 50;
-export const POLICY_VERSION = "ateanne-allocation-v1";
+export const POLICY_VERSION = "ateanne-allocation-v2";
 
 /**
  * Aggregate root for one event. Wraps the loaded records and answers every
@@ -117,6 +118,7 @@ export class EventAggregate {
       label: r.label,
       payerId: r.payerMemberId,
       payable: r.payableCentavos,
+      ...(r.equalSplit ? { equalSplit: { memberIds: this.activeMembers().map((m) => m.id) } } : {}),
       lines: r.lines.map((l) => ({
         id: l.id,
         position: l.position,
@@ -223,6 +225,26 @@ export class EventAggregate {
     return this.record.snapshots.find((s) => s.status === "ACTIVE") ?? null;
   }
 
+  confirmedTransfers() {
+    return this.record.snapshots.flatMap((snap) => snap.edges.flatMap((edge) => edge.reports
+      .filter((r) => r.status === "VERIFIED" && !r.reversal)
+      .map((r) => ({ from: edge.fromMemberId, to: edge.toMemberId, amount: r.amountCentavos }))));
+  }
+
+  /** Revised bill nets after all actual recipient-confirmed transfers, including older statements. */
+  remainingNets(balances: ReadonlyArray<readonly [string, bigint]>) {
+    return new CorrectionLedger().remaining(balances, this.confirmedTransfers());
+  }
+
+  correctionGate(): Gate {
+    const blockers: string[] = [];
+    for (const snap of this.record.snapshots) for (const edge of snap.edges) {
+      if (edge.reports.some((r) => r.status === "REPORTED")) blockers.push("Confirm or cancel every pending payment report before correcting the bill.");
+      if (edge.disputes.some((d) => d.status !== "RESOLVED")) blockers.push("Resolve every payment dispute before correcting the bill.");
+    }
+    return { ready: blockers.length === 0, blockers: [...new Set(blockers)] };
+  }
+
   paymentLedger(snapshot: SnapshotRecord | null = this.activeSnapshot()): PaymentLedger | null {
     if (!snapshot) return null;
     const edges = snapshot.edges.map((e) => ({ id: e.id, from: e.fromMemberId, to: e.toMemberId, amount: e.amountCentavos }));
@@ -247,6 +269,8 @@ export class EventAggregate {
       if (s.disputed) blockers.push(`${label}: a rejected report is unresolved.`);
       if (s.outstanding > 0n) blockers.push(`${label}: PHP ${fmt(s.outstanding)} not yet confirmed received.`);
     }
+    const remaining = this.remainingNets(snapshot.shares.map((s) => [s.memberId, s.netCentavos] as const));
+    for (const [id, amount] of remaining) if (amount !== 0n) blockers.push(`${name(id)}: a non-zero balance remains.`);
     return { ready: blockers.length === 0, blockers };
   }
 }

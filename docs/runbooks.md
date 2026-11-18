@@ -39,6 +39,8 @@ Rehearsed locally on 2026-11-15 against dev data (checksums OK, restore OK, veri
 
 ## Rollback
 
+**v0.6.0 accounting boundary:** after a post-report correction has been created, do not roll application code back to v0.5.0. Its settlement logic does not carry prior confirmed payments across corrected statements and may ask for already-paid money again. The additive schema is compatible, but that old accounting behavior is not. Use a compatible forward fix or maintenance mode while investigating; preserve all statement/payment history.
+
 Roll the **application** back to the previous schema-compatible image (`ateanne:<previous-sha>`). Prefer additive migrations so the previous release still runs. Do not assume a down-migration can undo real financial history. If data is damaged, restore into an isolated DB and reconcile; do not overwrite payment history.
 
 ## Storage

@@ -34,8 +34,16 @@ export class QueryService {
       exportedAt: new Date().toISOString(),
       event: { title: view.event.title, phase: view.event.phase, cancelled: view.event.cancelled, financialVersion: view.event.financialVersion },
       members: view.members.map((m) => ({ id: m.id, seq: m.seq, displayName: m.displayName, active: m.active })),
+      supersededStatements: view.statementHistory,
+      priorPaymentHistory: view.paymentHistory.map((r) => ({
+        reportId: r.id, snapshotId: r.snapshotId, financialVersion: r.financialVersion,
+        from: name(r.from), to: name(r.to), amountPhp: peso(r.amount), method: r.method,
+        status: r.status, reportedAt: r.createdAt, decidedAt: r.decidedAt,
+        reversal: r.reversal, rejectReason: r.rejectReason,
+      })),
       receipts: view.receipts.map((r) => ({
         label: r.label,
+        equalSplit: r.equalSplit,
         payer: name(r.payerId),
         payablePhp: peso(r.payable),
         lines: r.lines.map((l) => ({ label: l.label, quantity: l.quantity, amountPhp: peso(l.amount), mode: l.mode, consumers: l.claims.filter((c) => !c.stale).map((c) => ({ member: name(c.memberId), units: c.units })) })),
@@ -76,6 +84,7 @@ export class QueryService {
       rows.push(["transfer_edge", `${t.from} → ${t.to}`, t.from, "", t.amountPhp, `verified ${t.verifiedPhp}`]);
       for (const r of t.reports) rows.push(["payment_report", `${t.from} → ${t.to}`, t.from, r.method, r.amountPhp, r.reversed ? "VERIFIED then REVERSED" : r.status]);
     }
+    for (const r of statement.priorPaymentHistory) rows.push(["prior_payment_report", `${r.from} → ${r.to} (version ${r.financialVersion})`, r.from, r.method, r.amountPhp, r.reversal ? "VERIFIED then REVERSED" : r.status]);
     const csv = rows.map((row) => row.map((c) => (/[",\n]/.test(c) || /^[=+\-@]/.test(c) ? `"${c.replace(/^([=+\-@])/, "'$1").replace(/"/g, '""')}"` : c)).join(",")).join("\n");
     return { body: csv, contentType: "text/csv; charset=utf-8", filename: `ateanne-${slug}.csv` };
   }
