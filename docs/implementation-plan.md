@@ -29,6 +29,8 @@ Validation completed: 87 unit tests, 47 PostgreSQL integration tests and 47 dist
 
 Validation gate: reference fixtures → lint → typecheck → unit → real PostgreSQL integration → production build → Playwright (iPhone emulation and 360px). Record actual results in `test-report.md`; real iPhone Safari installation remains a human check. Update requirements, decision log, changelog and handoff before delivery.
 
+Release: owner-approved code commit `8a24cc0` merged to `main`; full GitHub CI green, Vercel production READY, migration and live synthetic smoke verified. Details in `test-report.md`.
+
 ## Next (P1 backlog)
 
 1. Deactivate a member who has financial references (redact access, keep money). Gap from FR-18 / AT-19.

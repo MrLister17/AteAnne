@@ -10,16 +10,16 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ## Where we left off (2026-11-18)
 
-- Remote `main` is v0.5.0, latest checked commit `2a3a8db` (the E2E confirmation timing fix).
-- **v0.6.0 is ready on `feature/pilot-improvements`.** The owner authorized commit, merge to `main` and production deployment on 2026-11-18. Release checks and CI are in progress; actual results will be recorded after verification.
+- Remote `main` now includes **v0.6.0**, code commit `8a24cc0`, fast-forwarded after green CI with the owner’s approval.
+- **v0.6.0 is live:** https://ateanne.vercel.app. Production deployment `dpl_DKFndt2NyoP1C3pmRzi73dhwRNQL` reached READY; `/api/health` returned `ok: true`, version `8a24cc0`, scanner `groq`.
 - Sprint S7 covers the owner’s five requested improvements. See [`docs/implementation-plan.md`](docs/implementation-plan.md) for acceptance criteria and [`docs/test-report.md`](docs/test-report.md) for actual verification.
-- New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false, preserving existing receipt behavior. Apply before serving the new code.
+- New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false, preserving existing receipt behavior. Applied and independently verified in production on 2026-11-18 at 14:53:08 UTC (boolean, NOT NULL, default false).
 - Next human checks: real iPhone Safari installation before joining, organizer recovery hand-over with a relative, and correction explanations with a real group. Automated mobile tests use Chromium emulation, not iOS Safari.
 - Still deferred: more real scanned receipt photos, the pilot study, referenced-member deactivation (FR-18/AT-19), multi-funder receipts, push notifications, and changes after Done.
 
 ---
 
-## v0.6.0: Relatives’ next five improvements (2026-11-18) · release candidate
+## v0.6.0: Relatives’ next five improvements (2026-11-18) · merged to `main` and deployed
 
 Decisions **D43–D47**, Sprint **S7**. Owner requested all five items from the v0.5.0 backlog.
 
@@ -30,6 +30,15 @@ Decisions **D43–D47**, Sprint **S7**. Owner requested all five items from the 
 - **Split this receipt equally among everyone.** Explicit receipt policy, all lines shared, one-tap acceptance by each member. Nobody’s claims are silently assigned. Review blocks until everyone agrees; exact receipt-wide rounding gives totals at most one centavo apart. Existing item claims remain the default.
 - **Copy reminder.** Home → preview everyone’s or one person’s outstanding tasks → Copy message → paste into Messenger. Refreshes first, includes an event-access link, never keys/codes. Pending payments ask the recipient to check arrival rather than prompt a duplicate transfer. Nothing is sent automatically.
 - **Corrections after reported payments.** Before Done, organizer provides a reason after resolving pending reports/disputes. Keep the roster locked, supersede the original statement, collect fresh approvals, and freeze remaining transfers from corrected net plus confirmed payments. Overpayments generate return transfers. Old statements and payment history remain visible/exportable and cannot be rewritten. Reverse mistaken confirmations before beginning correction; Done stays read-only.
+
+### Production release (owner authorized)
+
+- Code commit `8a24cc0`; GitHub Actions run [44328507489](https://github.com/MrLister17/AteAnne/actions/runs/44328507489) passed the full chain, including all 47 browser tests in one run.
+- Production deployment: [Vercel build](https://vercel.com/yvan17/ateanne/DKFndt2NyoP1C3pmRzi73dhwRNQL), READY on the existing Singapore project. Public URL: https://ateanne.vercel.app.
+- Migration `20261118150000_equal_receipt_split` completed; independently checked using read-only Supabase queries. Existing receipts default to item claims.
+- Live synthetic smoke passed create/join, equal receipt persistence with 51/50 centavo shares, approval/freeze, reasoned correction preserving the original statement, replacement recovery with stable identity/revoked old access, and unrelated-browser denial. Synthetic event deleted; no payment reports or real transfers created. Post-report accounting remains covered by integration/E2E tests, not simulated production payments.
+- Runtime error/fatal scan returned no matching logs at the time checked. Real iPhone OS installation and human usability remain unverified.
+- **Rollback:** after correction statements exist, v0.5 accounting is not compatible; use a compatible forward fix, preserving all money/history.
 
 ### Verification and handoff
 

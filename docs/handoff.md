@@ -4,11 +4,11 @@ _Last updated: 2026-11-18_
 
 ## Current state
 
-- Remote `main`: v0.5.0, last checked commit `2a3a8db`. Latest changelog and the repository SDLC were read before work.
-- Local `feature/pilot-improvements`: **v0.6.0 / Sprint S7**, implementing the owner’s five improvements. The owner authorized committing, merging to `main` and production deployment on 2026-11-18; release checks and CI are in progress. Actual deployment results will be recorded after verification. See [CHANGELOG.md](../CHANGELOG.md), [implementation-plan.md](implementation-plan.md), decisions D43–D47 and [test-report.md](test-report.md).
-- New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false. Only local test/development databases were migrated during implementation. The authorized production release runs this migration in the Vercel build. Apply before serving new code in production.
+- Remote `main`: **v0.6.0**, code commit `8a24cc0`, merged with owner approval after full green GitHub CI (run 44328507489).
+- **Production:** https://ateanne.vercel.app, Vercel deployment `dpl_DKFndt2NyoP1C3pmRzi73dhwRNQL`, READY. Health returned `ok: true`, version `8a24cc0`, scanner `groq`. Sprint S7 implements all five requested improvements. See [CHANGELOG.md](../CHANGELOG.md), [implementation-plan.md](implementation-plan.md), decisions D43–D47 and [test-report.md](test-report.md).
+- New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false. Applied by the production Vercel build and verified independently in Supabase at 14:53:08 UTC on 2026-11-18: boolean, NOT NULL, default false.
 
-**Verification:** reference fixtures, lint, typecheck and production build passed; 87 unit, 47 PostgreSQL integration and 47 distinct browser scenarios verified (full run plus targeted reminder rerun). Detailed failures/fixes and real-device limits are recorded in the test report.
+**Verification:** reference fixtures, lint, typecheck and production build passed; 87 unit, 47 PostgreSQL integration and 47 distinct browser scenarios verified locally, then the entire GitHub CI chain passed including all 47 browser tests in one run. Live synthetic smoke verified equal receipt allocation, corrected statement preservation and replacement recovery/old-browser revocation; event deleted without payment reports. Detailed failures/fixes and real-device limits are recorded in the test report.
 
 ## What changed
 
@@ -29,6 +29,6 @@ Use README setup, an isolated PostgreSQL test database and Node 22. Commands: re
 - Real iPhone Safari installation and reopening, including joining from a Messenger link. Chromium emulation does not test the OS Share sheet or actual Safari storage behavior.
 - Try the access hand-over and big-text screen with a relative; verify identity in person and send keys privately.
 - Confirm a corrected split’s carry-forward/return-transfer explanation with a real group before relying on it.
-- More real receipt photos and the pilot guide. No new real bank transfers, scanner-provider calls, adoption evidence or production checks were performed.
+- More real receipt photos and the pilot guide. No real bank transfers, scanner-provider calls or adoption evidence were created. Production health, migration and synthetic API smoke were checked; actual iOS installation still needs a person.
 
 Still deferred: referenced-member deactivation (FR-18/AT-19), multi-funder receipts, automatic push reminders, post-Done changes and whole-event deletion after payment reports. Every event still expires after 30 days; export beforehand.

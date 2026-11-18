@@ -1,8 +1,20 @@
 # Test report
 
+## Authorized production release (2026-11-18)
+
+- Source commit: `8a24cc06cecad6031808b1a5440f7f1dacd69f34`, fast-forwarded into `main` after owner approval.
+- GitHub CI: [44328507489](https://github.com/MrLister17/AteAnne/actions/runs/44328507489), **success** on all steps: reference, lint, types, unit, real PostgreSQL integration, production build, **47 E2E tests in one full run**.
+- Vercel production deployment `dpl_DKFndt2NyoP1C3pmRzi73dhwRNQL`: **READY**, https://ateanne.vercel.app. Health HTTP 200: `{"ok":true,"version":"8a24cc0","receiptScan":"groq"}`; response `Cache-Control: no-store`.
+- Supabase read-only verification: new column boolean/NOT NULL/default false; Prisma migration `20261118150000_equal_receipt_split` finished `2026-11-18T14:53:08.996817Z`, no rollback.
+- Live synthetic API smoke: **PASS** for create/join, persisted equal policy and exact 51/50 centavo split, approval/freeze allocation-v2, reasoned correction keeping old statement, organizer replacement access preserving member identity, old browser denied and signed-out browser denied. Event deleted afterward. **No payment reports or real transfers created**; post-report/return-transfer accounting was verified by automated isolated tests.
+- Smoke harness adjustments: Node client required the inherited network proxy; a signed-out browser correctly returns 401 (not the initially expected 404). Corrected harness then passed. These were test-harness issues, not production app changes.
+- Deployment runtime error/fatal scan: no matching logs found at the time checked. No claim of continuous monitoring, backup verification or real iPhone OS installation.
+
+---
+
 ## Sprint S7 / v0.6.0 (2026-11-18, local `feature/pilot-improvements`)
 
-Base checked: remote `main` commit `2a3a8db`. Changes are uncommitted and unpublished. Local Linux runtime: Node 22.23.5, PostgreSQL 16.16 via Docker Compose, Playwright Chromium 153. Only synthetic development/test data; no production services or provider calls.
+Base checked: remote `main` commit `2a3a8db`. This section records the local implementation checks before the subsequently authorized release above. Local Linux runtime: Node 22.23.5, PostgreSQL 16.16 via Docker Compose, Playwright Chromium 153. Only synthetic development/test data; no production services or provider calls.
 
 | Command | Actual result |
 | --- | --- |
@@ -18,7 +30,7 @@ Full story under test: mobile install guidance → create/join → receipt polic
 
 Independent review checked conservation and authority; fixed the big-text and header corrected balances and clarified settlement captions. An initial browser run found exact tab-name selectors did not allow the existing “needs your attention” accessible suffix; these were corrected. The subsequent full run passed correction/equal/recovery/install workflows on both widths; only a reminder test’s expected text capitalization failed, then both reminder reruns passed. The expanded repeated-correction/reversal integration scenario was rerun separately and passed after the full PostgreSQL suite. No application code changed after the successful final build. Snapshots now preserve the equal-receipt policy and allocation policy version. PostgreSQL tests emitted an existing `pg` concurrent-query deprecation warning; no test failed because of it.
 
-Not verified here: actual iOS Safari Share sheet/installation or storage transfer, real relative usability/pilot, real bank transfers, new live scanner-provider requests, production migration/deployment. Safari cannot be programmatically installed with one website-triggered confirmation; native prompts are tested with synthetic browser events, and Safari guidance is tested in Chromium emulation.
+Not verified here: actual iOS Safari Share sheet/installation or storage transfer, real relative usability/pilot, real bank transfers, new live scanner-provider requests, production migration/deployment during the initial local implementation (subsequently verified above). Safari cannot be programmatically installed with one website-triggered confirmation; native prompts are tested with synthetic browser events, and Safari guidance is tested in Chromium emulation.
 
 ---
 
