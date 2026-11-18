@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PHASES, PHASE_LABEL } from "@/domain/event/PhaseMachine";
 import { api, ApiError } from "../api";
 import { Icon, IconName } from "../components/Icon";
@@ -15,6 +15,9 @@ import { MoneyTab } from "./MoneyTab";
 import { PeopleTab } from "./PeopleTab";
 import { TutorialButton } from "../tutorial/TutorialProvider";
 import { PersonScreen } from "./PersonScreen";
+
+/** Increments per view request, so a slow older reply never overwrites a newer one (e.g. after switching who you act for). */
+let viewRequestSeq = 0;
 
 const actingKey = (eventId: string) => `ateanne:acting:${eventId}`;
 function readActing(eventId: string): string | null {
@@ -48,7 +51,6 @@ function EventLoader({ eventId }: { eventId: string }) {
   // Acting for a guest survives a refresh of this tab, but not closing it.
   const [actingAs, setActingAs] = useState<string | null>(() => readActing(eventId));
   const [personFor, setPersonFor] = useState<string | null>(null);
-  const latest = useRef(0);
 
   // Set before any request below runs (effects run in order).
   useEffect(() => {
@@ -57,14 +59,14 @@ function EventLoader({ eventId }: { eventId: string }) {
   }, [actingAs]);
 
   const reload = useCallback(async () => {
-    const mine = ++latest.current;
+    const mine = ++viewRequestSeq;
     try {
       const next = await api.get<View>(`/api/events/${eventId}`);
-      if (mine !== latest.current) return; // a newer request (e.g. after switching who you act for) wins
+      if (mine !== viewRequestSeq) return; // a newer request wins
       setView(next);
       setError(null);
     } catch (e) {
-      if (mine !== latest.current) return;
+      if (mine !== viewRequestSeq) return;
       if (actingAs && e instanceof ApiError && [400, 403, 404].includes(e.status)) {
         // The guest took over with their own phone, or was removed: go back to being yourself.
         try {

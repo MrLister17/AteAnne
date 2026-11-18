@@ -20,7 +20,11 @@ This one page explains what the app does, where everything lives, how to run and
 | 4. Settling | Transfers are frozen (e.g. "Juan → Mark ₱495"). Payers send money outside the app and tap "I sent money". Receivers tap "Received" or "Not received". | Organizer: **Mark as Done** |
 | 5. Done | Read-only record. | — |
 
-**Other features:** first-visit "First time here?" prompt plus a 12-step tutorial (the **?** button); recovery key to move to a new phone; cash/QR payment instructions; private receipt photos; CSV/JSON export; events auto-delete **30 days after creation**; "preview mode" when no database is connected.
+**People without a phone ("guests"):** the organizer, or an **admin** the organizer appoints, adds them in People → *Add someone without a phone*, then taps **Act for Lola** to claim her items, approve and record her payments while showing her the screen (a coral "Acting for Lola" bar stays on top; **Done** goes back). **Show amount** opens a big-text screen (English + Tagalog) with what she owes or is owed and what she had. Nobody can act for someone who has their own phone, a manager can't confirm a payment they themselves made to the guest, and the Activity list shows "Mark saved claims **for Lola**". If Lola gets a phone later, *They got a phone? Give them access* makes a key she opens with "I have a recovery key".
+
+**Typing a receipt:** Qty × Price each fills the line total; the receipt total fills itself in (marked *Auto*) until you type the printed total, which switches to checking. Service charge and discounts can be a **percent** (service charge starts at 10%).
+
+**Other features:** first-visit "First time here?" prompt plus a 12-step tutorial (the **?** button); recovery key to move to a new phone (Home → **I have a recovery key**; pasting it into the join-code box also works); cash/QR payment instructions; private receipt photos; CSV/JSON export; events auto-delete **30 days after creation**; "preview mode" when no database is connected.
 
 ---
 
@@ -60,6 +64,8 @@ src/
     receipt/ReceiptDraftNormalizer.ts     cleans a scanned receipt (VAT-discount fix)
     event/EventLedger.ts                  totals for the whole event, nets
     event/PhaseMachine.ts                 which phase can go to which
+    event/GuestPolicy.ts                  who may act for a guest (no-phone person); admins; conflict rule
+    receipt/EntryMath.ts                  qty × price and percent helpers for typed receipts
     event/RetentionPolicy.ts              30-day auto-delete date
     settlement/SettlementPlanner.ts       who pays whom (transfer list)
     payments/PaymentLedger.ts             pending/confirmed/disputed payment rules
@@ -70,7 +76,7 @@ src/
     db.ts, PostgresOptions.ts database connection (TLS for Supabase)
     aggregate/EventAggregate.ts   loads one event; answers "is it ready for the next step?"
     services/                 one class per area; every change goes through these
-      EventService.ts         create/join/phases/freeze/cancel/delete
+      EventService.ts         create/join/phases/freeze/cancel/delete; add guest, admins, guest access key
       ReceiptService.ts       receipts, funding confirm, claims, approvals
       PaymentService.ts       payment instructions, reports, confirm/reject/reverse, disputes
       AssetService.ts         private photos (validate, re-encode, store, serve)
@@ -101,11 +107,13 @@ src/
     event/EventApp.tsx        header, phase bar, bottom tab bar
     event/OverviewTab.tsx     "Home" tab: to-do list, organizer buttons, deletion notice
     event/ReceiptsTab.tsx     receipt list + Scan button
-    event/ReceiptEditor.tsx   add/edit receipt form (+ "Fill in from a photo")
+    event/ReceiptEditor.tsx   add/edit receipt form (+ "Fill in from a photo"; auto totals, % charges)
+    event/PersonScreen.tsx    big-text "show this to them" screen (amount owed/owed to, items)
+    event/todo.ts             what a guest is still waiting on (Home → People without a phone)
     event/ClaimTab.tsx        claiming wizard
     event/MoneyTab.tsx        review & breakdown
     event/SettlementSection.tsx  paying, confirming, disputes, QR/cash setup
-    event/PeopleTab.tsx       roster, rename, recovery key, export, delete
+    event/PeopleTab.tsx       roster, rename, recovery key, export, delete; add guests, admins
     event/ScanPanel.tsx       the "Take photo / Upload photo" block, progress, errors
     event/useReceiptScanner.ts   shared scan logic (shrink, send, cancel, time-out)
     tutorial/steps.tsx        THE 12 TUTORIAL STEPS (text + pictures)
@@ -261,6 +269,8 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 ---
 
 ## 12. Known limits and ideas for next
+
+**Acting for a guest, technically:** the app sends the header `x-ateanne-act-as: <memberId>`. Routes for a person's own actions call `ctx.caller()` and pass it to the service; `BaseService.inEvent` checks `GuestPolicy` inside the event lock and gives the service `me` = the guest and `by` = the real person. All other routes call `ctx.actor()`, which rejects the header. To let a new route work for guests, switch it to `ctx.caller()` and make the service method take a `Caller`.
 
 **Limits (v1):** one payer per receipt; bill frozen after the first payment report; no deactivating a person who already has receipts or claims; deleting an event after payments is blocked (export instead); identity is "this browser" (no accounts); scanning accuracy on real crumpled receipts still needs checking; Groq free tier is about 2–3 scans/minute.
 
