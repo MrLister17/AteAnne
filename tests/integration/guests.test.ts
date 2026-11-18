@@ -5,7 +5,7 @@
  * every step, and every such action is audited with both names.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { eventWith, makeApp, newActor, pesos, resetDb, version } from "./helpers";
+import { eventWith, makeApp, newActor, pesos, resetDb } from "./helpers";
 
 const { app, db } = makeApp();
 let ctx: Awaited<ReturnType<typeof eventWith>>;
@@ -101,16 +101,17 @@ describe("a guest through the whole hatian", () => {
     const after = await app.queries.view(P().Mark.actorId, ctx.eventId);
     expect(after.receipts.every((r) => r.fundingAcknowledged)).toBe(true);
     for (const n of ["Mark", "Juan", "Paolo"]) await app.events.updateMe(P()[n].actorId, ctx.eventId, { entryComplete: true });
-    // Guests start with entry marked complete, so they never block the roster lock.
+    // Guests start with entry marked complete, so they never hold up the freeze.
     expect(after.members.filter((m) => m.isGuest).every((m) => m.entryComplete)).toBe(true);
-    await app.events.transition(P().Mark.actorId, ctx.eventId, { target: "ALLOCATING", expectedFinancialVersion: await version(app, ctx.eventId, P().Mark.actorId) });
+    // "Everyone's here": nobody has claimed yet, so nothing freezes.
+    expect((await app.events.lockRoster(P().Mark.actorId, ctx.eventId)).phase).toBe("COLLECTING");
   });
 
   it("guests can no longer be added once the roster is locked", async () => {
     await expect(app.events.addGuest(P().Mark.actorId, ctx.eventId, { displayName: "Late" })).rejects.toThrow();
   });
 
-  it("managers claim for guests; people with phones claim for themselves", async () => {
+  it("managers claim for guests; people with phones claim for themselves; the last claim freezes the bill", async () => {
     const claim = async (caller: string | { actorId: string; asMemberId?: string }, receiptId: string, pick: Record<string, number> | "none") => {
       const v = await app.queries.view(caller, ctx.eventId);
       const r = v.receipts.find((x) => x.id === receiptId)!;
@@ -124,19 +125,13 @@ describe("a guest through the whole hatian", () => {
     await claim(as("Juan", "lola"), ids.dinner, { Pancit: 1, "Lechon kawali": 2 }); // an admin can act for any guest
     await claim(as("Mark", "tito"), ids.dinner, "none");
     const v = await app.queries.view(P().Mark.actorId, ctx.eventId);
-    expect(v.gates.reviewing!.ready).toBe(true);
     const saved = v.audit.filter((a) => a.type === "claims.saved" && a.onBehalfOf === ids.lola);
     expect(saved.map((a) => a.actorMemberId).sort()).toEqual([P().Mark.memberId, P().Juan.memberId].sort());
-    await app.events.transition(P().Mark.actorId, ctx.eventId, { target: "REVIEWING", expectedFinancialVersion: v.event.financialVersion });
-  });
-
-  it("approvals: managers approve for guests, then the statement freezes", async () => {
-    const fv = await version(app, ctx.eventId, P().Mark.actorId);
-    for (const n of ["Mark", "Juan", "Paolo"]) await app.receipts.approveReview(P()[n].actorId, ctx.eventId, fv);
-    await app.receipts.approveReview(as("Mark", "lola"), ctx.eventId, fv);
-    await app.receipts.approveReview(as("Juan", "tito"), ctx.eventId, fv);
-    await app.events.transition(P().Mark.actorId, ctx.eventId, { target: "SETTLING", expectedFinancialVersion: fv });
-    const v = await app.queries.view(P().Mark.actorId, ctx.eventId);
+    // Tito's answer (made by Mark for him) was the last one: the app froze the bill itself.
+    expect(v.event.phase).toBe("SETTLING");
+    const frozen = v.audit.find((a) => a.type === "snapshot.frozen");
+    expect(frozen?.actorMemberId).toBeNull();
+    expect(frozen?.onBehalfOf).toBeNull();
     expect(v.settlement).not.toBeNull();
     const total = v.settlement!.positions.reduce((a, p) => a + BigInt(p.net), 0n);
     expect(total).toBe(0n);

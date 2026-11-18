@@ -4,7 +4,8 @@ import { LargestRemainderAllocator } from "@/domain/allocation/LargestRemainderA
 import { ReceiptCalculator } from "@/domain/receipt/ReceiptCalculator";
 import { EventLedger } from "@/domain/event/EventLedger";
 import { PaymentLedger } from "@/domain/payments/PaymentLedger";
-import { PhaseMachine } from "@/domain/event/PhaseMachine";
+import { PhaseMachine, stepOf } from "@/domain/event/PhaseMachine";
+import { AutoAdvance, type AdvanceFacts } from "@/domain/event/AutoAdvance";
 import { SettlementPlanner } from "@/domain/settlement/SettlementPlanner";
 import type { ReceiptInput } from "@/domain/receipt/types";
 
@@ -189,10 +190,56 @@ describe("PaymentLedger", () => {
 });
 
 describe("PhaseMachine", () => {
-  it("guards transitions", () => {
-    expect(new PhaseMachine("COLLECTING").canMoveTo("ALLOCATING")).toBe(true);
-    expect(new PhaseMachine("COLLECTING").canMoveTo("SETTLING")).toBe(false);
+  it("guards transitions (v0.7: Add & claim → Pay → Done; corrections go back to Add & claim)", () => {
+    expect(new PhaseMachine("COLLECTING").canMoveTo("SETTLING")).toBe(true);
+    expect(new PhaseMachine("COLLECTING").canMoveTo("ALLOCATING")).toBe(false);
+    expect(new PhaseMachine("COLLECTING").canMoveTo("DONE")).toBe(false);
+    expect(new PhaseMachine("SETTLING").canMoveTo("COLLECTING")).toBe(true);
+    expect(new PhaseMachine("SETTLING").canMoveTo("REVIEWING")).toBe(false);
+    // Events started before v0.7 can still finish.
+    expect(new PhaseMachine("ALLOCATING").canMoveTo("SETTLING")).toBe(true);
+    expect(new PhaseMachine("REVIEWING").canMoveTo("SETTLING")).toBe(true);
     expect(new PhaseMachine("DONE").canMoveTo("SETTLING")).toBe(false);
     expect(() => new PhaseMachine("SETTLING").assertIn("COLLECTING")).toThrow();
+  });
+
+  it("shows three steps", () => {
+    expect(stepOf("COLLECTING")).toEqual({ index: 0, label: "Add & claim" });
+    expect(stepOf("ALLOCATING").index).toBe(0);
+    expect(stepOf("REVIEWING").index).toBe(0);
+    expect(stepOf("SETTLING")).toEqual({ index: 1, label: "Pay" });
+    expect(stepOf("DONE")).toEqual({ index: 2, label: "Done" });
+  });
+});
+
+describe("AutoAdvance", () => {
+  const base: AdvanceFacts = { phase: "COLLECTING", cancelled: false, rosterLocked: true, hasStatement: false, freezeReady: true };
+
+  it("freezes the first statement once the roster is closed and everyone is done", () => {
+    expect(AutoAdvance.next(base)).toBe("SETTLING");
+    expect(AutoAdvance.next({ ...base, phase: "ALLOCATING" })).toBe("SETTLING");
+    expect(AutoAdvance.next({ ...base, phase: "REVIEWING" })).toBe("SETTLING");
+  });
+
+  it("waits while anyone can still join, someone isn't done, or the event is cancelled", () => {
+    expect(AutoAdvance.next({ ...base, rosterLocked: false })).toBeNull();
+    expect(AutoAdvance.next({ ...base, freezeReady: false })).toBeNull();
+    expect(AutoAdvance.next({ ...base, cancelled: true })).toBeNull();
+  });
+
+  it("never re-freezes by itself after a correction, and never moves a paying or done event", () => {
+    expect(AutoAdvance.next({ ...base, hasStatement: true })).toBeNull();
+    expect(AutoAdvance.next({ ...base, phase: "SETTLING" })).toBeNull();
+    expect(AutoAdvance.next({ ...base, phase: "DONE" })).toBeNull();
+  });
+
+  it("closes a fully paid event one day after the last payment activity, leaving time to undo a mistake", () => {
+    const last = new Date("2026-11-18T10:00:00Z");
+    const at = (hours: number) => new Date(last.getTime() + hours * 3_600_000);
+    const close = { phase: "SETTLING" as const, doneReady: true, lastActivityAt: last };
+    expect(AutoAdvance.shouldClose({ ...close, now: at(23.9) })).toBe(false);
+    expect(AutoAdvance.shouldClose({ ...close, now: at(24) })).toBe(true);
+    expect(AutoAdvance.shouldClose({ ...close, doneReady: false, now: at(48) })).toBe(false);
+    expect(AutoAdvance.shouldClose({ ...close, phase: "DONE", now: at(48) })).toBe(false);
   });
 });

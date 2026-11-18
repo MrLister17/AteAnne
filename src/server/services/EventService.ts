@@ -1,12 +1,12 @@
 import { z } from "zod";
-import { SettlementPlanner } from "@/domain/settlement/SettlementPlanner";
 import { ConflictError, PermissionError, ValidationError } from "@/domain/errors";
 import type { Phase } from "@/domain/event/PhaseMachine";
+import { AutoAdvance } from "@/domain/event/AutoAdvance";
 import type { Db, Tx } from "../db";
 import { GoneError, NotFoundError } from "../http/HttpError";
 import { JoinCodeCodec, SecretGenerator } from "../security/Crypto";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
-import { MAX_MEMBERS, POLICY_VERSION } from "../aggregate/EventAggregate";
+import { MAX_MEMBERS } from "../aggregate/EventAggregate";
 import { addGuestSchema, createEventSchema, joinSchema, setAdminSchema, transitionSchema, updateMeSchema } from "../validation";
 import { BaseService, Caller } from "./BaseService";
 
@@ -139,6 +139,7 @@ export class EventService extends BaseService {
       if (data.displayName !== undefined && data.displayName !== me.displayName) {
         await this.audit(tx, eventId, me.id, "member.renamed", { from: me.displayName, to: data.displayName });
       }
+      if (data.entryComplete) await this.advanceIfReady(tx, eventId);
     });
   }
 
@@ -237,6 +238,52 @@ export class EventService extends BaseService {
     });
   }
 
+  /**
+   * "Everyone's here" (D49): the organizer closes the roster for good. Receipts
+   * and claims carry on; the bill freezes by itself once everyone is done,
+   * possibly right now.
+   */
+  async lockRoster(actorId: string, eventId: string): Promise<{ phase: Phase }> {
+    return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+      agg.assertOwner(me.id);
+      agg.machine.assertIn("COLLECTING");
+      agg.assertNotCancelled();
+      if (!agg.record.rosterLockedAt) {
+        await tx.event.update({ where: { id: eventId }, data: { rosterLockedAt: new Date(), joinCodeHash: null, joinCodeCiphertext: null, joinCodeExpiresAt: null } });
+        await this.audit(tx, eventId, me.id, "roster.locked");
+      }
+      return { phase: await this.advanceIfReady(tx, eventId) };
+    });
+  }
+
+  /**
+   * Daily job (D49): close every event whose payments have all been confirmed
+   * for at least a day. Done is read-only, so the day is the window to undo a
+   * mistaken "Received". Credited to the app ("System"). Returns how many closed.
+   */
+  async closeSettledEvents(now = new Date()): Promise<number> {
+    const candidates = await this.db.event.findMany({ where: { phase: "SETTLING" }, select: { id: true } });
+    let closed = 0;
+    for (const { id } of candidates) {
+      const did = await this.db.$transaction(async (tx) => {
+        await this.repo.lock(tx, id);
+        const agg = await this.repo.load(tx, id);
+        const last = agg.lastSettlementActivity();
+        if (!last || !AutoAdvance.shouldClose({ phase: agg.phase, doneReady: agg.doneGate().ready, lastActivityAt: last, now })) return false;
+        await tx.event.update({ where: { id }, data: { phase: "DONE", completedAt: now } });
+        await this.audit(tx, id, null, "phase.changed", { from: "SETTLING", to: "DONE", auto: true });
+        return true;
+      });
+      if (did) closed++;
+    }
+    return closed;
+  }
+
+  /**
+   * Organizer-only phase moves. Most moves now happen by themselves
+   * (advanceIfReady); what remains by hand: freezing a corrected bill (or an
+   * event started before v0.7), a reasoned correction, and Done as a fallback.
+   */
   async transition(actorId: string, eventId: string, input: z.input<typeof transitionSchema>): Promise<{ phase: Phase }> {
     const { target, expectedFinancialVersion, reason } = transitionSchema.parse(input);
     return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
@@ -246,20 +293,11 @@ export class EventService extends BaseService {
       }
       agg.machine.assertCanMoveTo(target);
       const from = agg.phase;
-      const forward = ["COLLECTING", "ALLOCATING", "REVIEWING", "SETTLING", "DONE"].indexOf(target) > ["COLLECTING", "ALLOCATING", "REVIEWING", "SETTLING", "DONE"].indexOf(from);
-      if (forward && target !== "DONE") agg.assertNotCancelled();
 
-      if (target === "ALLOCATING" && from === "COLLECTING") {
-        const gate = agg.allocationGate();
-        if (!gate.ready) throw new ConflictError("gate_blocked", "Not ready to start allocating", { blockers: gate.blockers });
-        // Lock the explicit roster: joins close for good at this point.
-        await tx.event.update({ where: { id: eventId }, data: { rosterLockedAt: new Date(), joinCodeHash: null, joinCodeCiphertext: null, joinCodeExpiresAt: null } });
-      } else if (target === "REVIEWING" && from === "ALLOCATING") {
-        const gate = agg.reviewGate();
-        if (!gate.ready) throw new ConflictError("gate_blocked", "Not ready for review", { blockers: gate.blockers });
-      } else if (target === "SETTLING" && from === "REVIEWING") {
+      if (target === "SETTLING") {
+        agg.assertNotCancelled();
         await this.freeze(tx, agg, me.id);
-      } else if (target === "REVIEWING" && from === "SETTLING") {
+      } else if (target === "COLLECTING" && from === "SETTLING") {
         const snap = agg.activeSnapshot();
         if (!snap) throw new ConflictError("no_snapshot", "No frozen settlement to reopen");
         const gate = agg.correctionGate();
@@ -273,7 +311,7 @@ export class EventService extends BaseService {
         if (!gate.ready) throw new ConflictError("gate_blocked", "Not everything is settled yet", { blockers: gate.blockers });
         await tx.event.update({ where: { id: eventId }, data: { completedAt: new Date() } });
       } else {
-        // Backward correction (Allocating/Reviewing → earlier). New approvals needed.
+        // An event started before v0.7, stepping back from Allocating/Reviewing to fix receipts.
         await this.bumpFinancial(tx, eventId);
       }
 
@@ -281,56 +319,6 @@ export class EventService extends BaseService {
       await this.audit(tx, eventId, me.id, "phase.changed", { from, to: target });
       return { phase: target };
     });
-  }
-
-  /** Recompute from the database, check approvals and write the immutable snapshot. */
-  private async freeze(tx: Tx, agg: import("../aggregate/EventAggregate").EventAggregate, ownerId: string): Promise<void> {
-    const gate = agg.settlementGate();
-    if (!gate.ready) throw new ConflictError("gate_blocked", "Not everyone has approved the current version", { blockers: gate.blockers });
-    const calc = agg.calculation();
-    if (!calc.ok) throw new ConflictError("calculation_failed", "The split cannot be calculated");
-    const remaining = agg.remainingNets(calc.positions.map((p) => [p.memberId, p.net] as const));
-    const edges = new SettlementPlanner().plan([...remaining]);
-    const facts = {
-      carriedPayments: agg.confirmedTransfers().map((p) => ({ from: p.from, to: p.to, amount: p.amount.toString() })),
-      receipts: agg.record.receipts.map((r) => {
-        const st = calc.receipts.find((s) => s.receiptId === r.id)!;
-        return {
-          id: r.id,
-          label: r.label,
-          payerId: r.payerMemberId,
-          version: r.version,
-          payable: r.payableCentavos.toString(),
-          equalSplit: r.equalSplit,
-          lines: r.lines.map((l) => ({ id: l.id, label: l.label, quantity: l.quantity, amount: l.amountCentavos.toString(), mode: l.mode })),
-          adjustments: r.adjustments.map((a) => ({ id: a.id, kind: a.kind, label: a.label, amount: a.amountCentavos.toString(), scopeAll: a.scopeAll, eligibleLineIds: a.eligibleLineIds })),
-          shares: [...st.shares.values()]
-            .filter((s) => s.total > 0n || s.itemsGross > 0n)
-            .map((s) => ({
-              memberId: s.memberId,
-              lines: Object.fromEntries([...s.lineShares].map(([k, v]) => [k, v.toString()])),
-              discounts: Object.fromEntries([...s.discountShares].map(([k, v]) => [k, v.toString()])),
-              charges: Object.fromEntries([...s.chargeShares].map(([k, v]) => [k, v.toString()])),
-              itemsGross: s.itemsGross.toString(),
-              discountTotal: s.discountTotal.toString(),
-              chargeTotal: s.chargeTotal.toString(),
-              total: s.total.toString(),
-            })),
-        };
-      }),
-      members: agg.record.members.map((m) => ({ id: m.id, seq: m.seq, displayName: m.displayName })),
-    };
-    await tx.snapshot.create({
-      data: {
-        eventId: agg.id,
-        financialVersion: agg.record.financialVersion,
-        policyVersion: POLICY_VERSION,
-        facts,
-        shares: { create: calc.positions.map((p) => ({ memberId: p.memberId, fundingCentavos: p.funding, costCentavos: p.cost, netCentavos: p.net })) },
-        edges: { create: edges.map((e, i) => ({ position: i, fromMemberId: e.from, toMemberId: e.to, amountCentavos: e.amount })) },
-      },
-    });
-    await this.audit(tx, agg.id, ownerId, "snapshot.frozen", { financialVersion: agg.record.financialVersion, edges: edges.length });
   }
 
   async setCancelled(actorId: string, eventId: string, cancelled: boolean): Promise<void> {

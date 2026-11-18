@@ -25,6 +25,8 @@ const AUDIT_TEXT: Record<string, string> = {
   "member.access_reissued": "reissued access after an identity check",
   "code.rotated": "made a new join code",
   "code.closed": "closed joining",
+  "roster.locked": "said everyone’s here (joining closed)",
+  "bill.correction_started": "reopened the bill to correct it",
   "entry.completed": "finished entering receipts",
   "entry.reopened": "reopened receipt entry",
   "receipt.created": "added a receipt",
@@ -249,7 +251,8 @@ export function PeopleTab() {
           <li>If you lose your key, the organizer can check your identity in person and give you a replacement that expires in 15 minutes. Whoever redeems it controls your membership, including payment confirmations. The old phone loses access when it is used.</li>
           <li>People without a phone are added by the organizer or an admin, who makes their choices for them while showing them the screen. The history records who did it. Nobody can act for someone who has their own phone.</li>
           <li>Payments happen outside AteAnne. Only the person receiving money can confirm it.</li>
-          <li>A correction keeps prior statements and confirmed payments. Resolve pending reports and disputes first; everyone must approve the revised bill.</li>
+          <li>Claiming is your agreement: the bill freezes by itself once the organizer said everyone’s here and everyone is done. Check your claims before you tick that you’re done.</li>
+          <li>A correction keeps prior statements and confirmed payments. Resolve pending reports and disputes first; the organizer freezes the revised bill again.</li>
           <li>Every event — finished or not — is deleted {event.retentionDays} days after it was created. Export first if you want a copy.</li>
         </ul>
       </details>
@@ -260,7 +263,7 @@ export function PeopleTab() {
           {view.audit.map((a) => (
             <li key={a.id} className="flex gap-2 px-4 py-2.5">
               <span className="min-w-0 flex-1">
-                <b>{a.actorMemberId ? name(a.actorMemberId) : "System"}</b> {AUDIT_TEXT[a.type] ?? a.type}
+                <b>{a.actorMemberId ? name(a.actorMemberId) : "AteAnne"}</b> {AUDIT_TEXT[a.type] ?? a.type}
                 {a.type === "member.access_reissued" && a.detail && typeof a.detail === "object" && !Array.isArray(a.detail) && typeof a.detail.memberId === "string" && <span> for {name(a.detail.memberId)}</span>}
                 {a.onBehalfOf && <span className="text-muted"> for {name(a.onBehalfOf)}</span>}
               </span>

@@ -27,19 +27,22 @@ test("one-tap equal receipt confirmation preserves each person’s consent", asy
   await sheet.getByLabel("Split this receipt equally among everyone").check();
   await sheet.getByRole("button", { name: "Save receipt", exact: true }).click();
   await expect(page.getByText("Everyone splits equally", { exact: true })).toBeVisible();
+  // Saved by its payer: already counts as paid. Claiming starts straight away, no lock needed.
   await page.getByRole("button", { name: /Bakery/ }).click();
-  await page.getByRole("button", { name: "I paid PHP 100.01 for this", exact: true }).click();
+  await expect(page.getByRole("button", { name: /I paid PHP 100.01/ })).toHaveCount(0);
   await page.getByRole("dialog", { name: "Bakery" }).getByRole("button", { name: "Close", exact: true }).click();
   await tab("Home");
   await page.getByLabel("I’ve entered every receipt I paid").check();
   await expect(page.getByLabel("I’ve entered every receipt I paid")).toBeChecked();
-  await page.reload();
-  await page.getByRole("button", { name: "Lock roster & start claiming", exact: true }).click();
   await tab("Claim");
   await expect(page.getByText("Your share: PHP 50.01", { exact: true })).toBeVisible();
   await expect(page.getByText(/0 of 2 people confirmed/)).toBeVisible();
   await page.getByRole("button", { name: "Confirm my equal share", exact: true }).click();
   await expect(page.getByText(/1 of 2 people confirmed/)).toBeVisible();
+  // Once confirmed, the screen says so instead of still offering "Confirm".
+  await expect(page.getByText("You confirmed your share", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Confirm my equal share", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /I disagree/ })).toBeHidden();
   await tab("Home");
   await page.getByRole("button", { name: "Act for Lola", exact: true }).click();
   await tab("Claim");

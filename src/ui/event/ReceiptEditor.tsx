@@ -222,7 +222,7 @@ export function ReceiptEditor({
     setBusy(true);
     const ok = await act(
       () => (receipt ? api.put(`/api/receipts/${receipt.id}`, { ...body, expectedVersion: receipt.version }) : api.post<{ receiptId: string }>(`/api/events/${event.id}/receipts`, body)),
-      receipt ? "Receipt updated — claims and approvals reset" : "Receipt added",
+      receipt ? "Receipt updated — everyone re-checks their claims on it" : "Receipt added",
     );
     if (ok && !receipt && photoBlob && "receiptId" in (ok as object)) {
       // Keep the scanned photo as private supporting evidence on the new receipt.
@@ -297,11 +297,14 @@ export function ReceiptEditor({
             </button>
           </div>
         )}
-        {receipt && <Notice tone="warn">Saving a change resets everyone’s claims on this receipt to drafts and clears all approvals. The payer must confirm the amount again.</Notice>}
+        {receipt && <Notice tone="warn">Saving a change resets everyone’s claims on this receipt to drafts. If someone else paid, they confirm the amount again.</Notice>}
         <Field label="Store or label" error={tried && !d.label.trim() ? "Required" : null}>
           {(p) => <input {...p} className="field" maxLength={80} value={d.label} onChange={(e) => setD({ ...d, label: e.target.value })} placeholder="Kusina ni Ate / 7-Eleven snacks" />}
         </Field>
-        <Field label="Who actually paid the merchant?" hint="Only this person can confirm the funding. You can enter receipts someone else paid.">
+        <Field
+          label="Who actually paid the merchant?"
+          hint={d.payerMemberId === view.me.memberId ? "That’s you: saving this receipt confirms you paid it." : "You can enter a receipt someone else paid. They confirm the amount once on the receipt."}
+        >
           {(p) => (
             <select {...p} className="field" value={d.payerMemberId} onChange={(e) => setD({ ...d, payerMemberId: e.target.value })}>
               {view.members

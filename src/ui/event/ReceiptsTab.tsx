@@ -49,7 +49,8 @@ export function ReceiptsTab() {
       {canAdd && view.features.receiptScan && <ScanPanel scanner={scanner} variant="hero" onFile={(f) => void startScan(f)} onType={() => setEditing("new")} />}
       {canAdd && !view.features.receiptScan && me.isOwner && <ScanOffNote />}
 
-      {event.phase !== "COLLECTING" && <Notice tone="info">Receipts are locked while the group claims and reviews. The organizer can step back to fix one; that resets claims on it.</Notice>}
+      {(event.phase === "SETTLING" || event.phase === "DONE") && <Notice tone="info">Receipts are frozen with the bill. If something is wrong, the organizer can reopen them from Home → “Something wrong with the bill?”.</Notice>}
+      {(event.phase === "ALLOCATING" || event.phase === "REVIEWING") && <Notice tone="info">Receipts are locked. The organizer can reopen them from Home; that resets claims on the receipt that changes.</Notice>}
 
       {view.receipts.length === 0 && (
         <Card className="py-10 text-center">
@@ -234,7 +235,7 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
           <img src={`/api/assets/${r.imageAssetId}`} alt={`Photo of ${r.label} receipt`} className="w-full rounded-2xl border border-line" />
         )}
         <p className="text-[13px] text-muted">Photos are supporting evidence only — the typed amounts are what count. Only people in this event can see them.</p>
-        {view.event.phase === "ALLOCATING" && <ClaimProgress r={r} />}
+        {(view.event.phase === "COLLECTING" || view.event.phase === "ALLOCATING") && <ClaimProgress r={r} />}
       </div>
     </Sheet>
   );

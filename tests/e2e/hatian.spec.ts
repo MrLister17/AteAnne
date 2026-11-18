@@ -1,9 +1,10 @@
 /**
- * Full mobile workflow with isolated browser contexts (organizer + 2 guests):
- * create → join → receipts (payer ≠ creator, units, service) → claims (Juan
- * skips rice and gets nothing from drinks) → review/approve → freeze → QR +
- * cash instructions → partial report → recipient confirms → Done → persists
- * after reload. All data is synthetic.
+ * Full mobile workflow with isolated browser contexts (organizer + 2 members),
+ * v0.7 "fewer waits" (D49, D50): create → join → receipts (payer ≠ creator,
+ * units, service) and claims in the same step (Juan skips rice and gets
+ * nothing from drinks) → everyone ticks done → organizer taps "Everyone's
+ * here" and the bill freezes by itself → QR + cash instructions → partial
+ * report → recipient confirms → close → persists after reload. Synthetic data.
  */
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import sharp from "sharp";
@@ -30,7 +31,7 @@ async function saveRecoveryAndContinue(page: Page, button: RegExp) {
   await page.getByRole("button", { name: button }).click();
 }
 
-async function tab(page: Page, name: "Home" | "Receipts" | "Claim" | "Money" | "People") {
+async function tab(page: Page, name: "Home" | "Receipts" | "Claim" | "Money" | "Pay" | "People") {
   await page.getByRole("navigation", { name: "Event sections" }).getByRole("button", { name }).click();
 }
 
@@ -72,7 +73,7 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
     await expect(p.getByRole("heading", { name: "Dinner sa Lucena" })).toBeVisible();
   }
   // A guest cannot reach organizer controls.
-  await expect(juan.page.getByRole("button", { name: /Lock roster/ })).toHaveCount(0);
+  await expect(juan.page.getByRole("button", { name: /Everyone’s here/ })).toHaveCount(0);
 
   // ---------------------------------------------------------------- receipts
   await tab(mark.page, "Receipts");
@@ -117,9 +118,9 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
   await sheet2.getByRole("button", { name: "Save receipt" }).click();
   await expect(mark.page.getByText("Drinks")).toBeVisible();
 
-  // Each payer confirms their own funding.
+  // Mark saved Kusina as its payer, so that already counts as "I paid". Paolo confirms the receipt Mark typed for him.
   await mark.page.getByRole("button", { name: /Kusina/ }).click();
-  await mark.page.getByRole("button", { name: "I paid PHP 1,133.00 for this" }).click();
+  await expect(mark.page.getByRole("button", { name: /I paid PHP 1,133.00/ })).toHaveCount(0);
   await mark.page.getByRole("dialog", { name: "Kusina" }).getByRole("button", { name: "Close" }).click();
   await paolo.page.reload();
   await tab(paolo.page, "Receipts");
@@ -128,19 +129,7 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
   await paolo.page.getByRole("dialog", { name: "Drinks" }).getByRole("button", { name: "Close" }).click();
   await shot(paolo.page, "04-receipts");
 
-  // Everyone marks entry complete; organizer locks roster.
-  for (const p of [mark.page, juan.page, paolo.page]) {
-    await p.reload();
-    await tab(p, "Home");
-    await p.getByLabel("I’ve entered every receipt I paid").check();
-    await expect(p.getByLabel("I’ve entered every receipt I paid")).toBeChecked();
-  }
-  await mark.page.reload();
-  await shot(mark.page, "05-organizer");
-  await mark.page.getByRole("button", { name: "Lock roster & start claiming" }).click();
-  await expect(mark.page.getByText("Step 2 of 5 · Allocating")).toBeVisible();
-
-  // ---------------------------------------------------------------- claims
+  // ---------------------------------------------------------------- claims (same step, no waiting for a lock)
   async function claimShared(p: Page, item: string) {
     await p.getByRole("switch", { name: `I had some ${item}` }).click();
   }
@@ -179,11 +168,21 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
   await paolo.page.getByRole("button", { name: /Save my items/ }).click();
   await expect(paolo.page.getByText("2 of 2 receipts answered")).toBeVisible();
 
-  // ---------------------------------------------------------------- review
+  // Everyone says they're done adding receipts.
+  for (const p of [mark.page, juan.page, paolo.page]) {
+    await p.reload();
+    await tab(p, "Home");
+    await p.getByLabel("I’ve entered every receipt I paid").check();
+    await expect(p.getByLabel("I’ve entered every receipt I paid")).toBeChecked();
+  }
+  await expect(paolo.page.getByText("You’re done for now")).toBeVisible();
+
+  // ---------------------------------------------------------------- one organizer tap, then it freezes by itself
   await mark.page.reload();
-  await tab(mark.page, "Home");
-  await mark.page.getByRole("button", { name: "Start review" }).click();
-  await expect(mark.page.getByText("Step 3 of 5 · Reviewing")).toBeVisible();
+  await shot(mark.page, "05-organizer");
+  mark.page.once("dialog", (d) => d.accept());
+  await mark.page.getByRole("button", { name: "Everyone’s here" }).click();
+  await expect(mark.page.getByText("Step 2 of 3 · Pay")).toBeVisible();
 
   for (const [p, label, amount] of [
     [mark.page, "Net to receive", "+PHP 706.00"],
@@ -191,27 +190,23 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
     [paolo.page, "Net to pay", "−PHP 211.00"],
   ] as const) {
     await p.reload();
-    await tab(p, "Money");
+    // Claiming is the agreement: no Claim tab and no approval in the Pay step.
+    await expect(p.getByRole("navigation", { name: "Event sections" }).getByRole("button", { name: /^Claim/ })).toHaveCount(0);
+    await tab(p, "Pay");
     const banner = p.getByRole("status").filter({ hasText: label });
     await expect(banner).toContainText(amount);
+    await expect(p.getByRole("button", { name: "I agree with this split" })).toHaveCount(0);
     if (p === juan.page) {
-      // Juan has no rice and no drinks; service only on her PHP 450 of items.
+      // Juan has no rice and no drinks; service only on his PHP 450 of items.
       await expect(p.getByText("You had nothing from this receipt")).toBeVisible();
       await expect(p.getByText("PHP 103.00 × your PHP 450.00 ÷ PHP 1,030.00 spending")).toBeVisible();
       await shot(p, "07-review-juan");
     }
-    await p.getByRole("button", { name: "I agree with this split" }).click();
-    await expect(p.getByText("You approved this version.")).toBeVisible();
   }
-
-  await mark.page.reload();
-  await tab(mark.page, "Home");
-  await mark.page.getByRole("button", { name: "Freeze & start settling" }).click();
-  await expect(mark.page.getByText("Step 4 of 5 · Settling")).toBeVisible();
 
   // ---------------------------------------------------------------- settle
   // Mark shares cash + a QR (synthetic PNG).
-  await tab(mark.page, "Money");
+  await tab(mark.page, "Pay");
   await mark.page.getByRole("button", { name: "Set up" }).click();
   const qrPath = path.join(SHOTS, "synthetic-qr.png");
   writeFileSync(qrPath, await sharp({ create: { width: 200, height: 200, channels: 3, background: "#000" } }).png().toBuffer());
@@ -224,7 +219,7 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
 
   // Juan pays PHP 200 cash first (partial).
   await juan.page.reload();
-  await tab(juan.page, "Money");
+  await tab(juan.page, "Pay");
   await expect(juan.page.getByAltText("Payment QR shared by Mark")).toBeVisible();
   await shot(juan.page, "08-pay");
   await juan.page.getByRole("button", { name: "I sent money" }).click();
@@ -238,38 +233,41 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
 
   // Mark confirms.
   await mark.page.reload();
-  await tab(mark.page, "Money");
+  await tab(mark.page, "Pay");
   await shot(mark.page, "09-receive");
   await mark.page.getByRole("button", { name: "Received", exact: true }).click();
   // Wait until the confirmation is saved before looking from Juan's phone (was a race: CI run 44322635354).
   await expect(mark.page.getByText("Confirmed received").first()).toBeVisible();
   await juan.page.reload();
-  await tab(juan.page, "Money");
+  await tab(juan.page, "Pay");
   await expect(juan.page.getByRole("status").filter({ hasText: "Net to pay" })).toContainText("−PHP 295.00");
 
   // Juan pays the rest; Paolo pays by QR.
   await juan.page.getByRole("button", { name: "I sent money" }).click();
   await juan.page.getByRole("dialog", { name: "Report money sent to Mark" }).getByRole("button", { name: /Report PHP 295.00 sent/ }).click();
   await paolo.page.reload();
-  await tab(paolo.page, "Money");
+  await tab(paolo.page, "Pay");
   await paolo.page.getByRole("button", { name: "I sent money" }).click();
   const mrep = paolo.page.getByRole("dialog", { name: "Report money sent to Mark" });
   await expect(mrep.getByLabel("QR / e-wallet")).toBeChecked();
   await mrep.getByLabel("Note (optional)").fill("ref ending 4821");
   await mrep.getByRole("button", { name: /Report PHP 211.00 sent/ }).click();
 
-  // Done is blocked while reports are pending.
+  // Nothing to close while reports are pending.
   await mark.page.reload();
   await tab(mark.page, "Home");
-  await expect(mark.page.getByRole("button", { name: "Mark as Done" })).toBeDisabled();
-  await tab(mark.page, "Money");
+  await expect(mark.page.getByText("Everyone pays what they owe")).toBeVisible();
+  await expect(mark.page.getByRole("button", { name: "Close it now" })).toHaveCount(0);
+  await tab(mark.page, "Pay");
   for (let i = 0; i < 2; i++) {
     await mark.page.getByRole("button", { name: "Received", exact: true }).first().click();
     await expect(mark.page.getByRole("button", { name: "Received", exact: true })).toHaveCount(1 - i);
   }
+  // Everyone is paid: it would close by itself a day later; the organizer may close it now.
   await tab(mark.page, "Home");
-  await mark.page.getByRole("button", { name: "Mark as Done" }).click();
-  await expect(mark.page.getByText("Step 5 of 5 · Done")).toBeVisible();
+  await expect(mark.page.getByText("Everyone is paid ✓")).toBeVisible();
+  await mark.page.getByRole("button", { name: "Close it now" }).click();
+  await expect(mark.page.getByText("Step 3 of 3 · Done")).toBeVisible();
 
   // ---------------------------------------------------------------- persistence
   await paolo.page.goto(eventUrl);

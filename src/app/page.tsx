@@ -105,10 +105,9 @@ export default function Home() {
         <div className="card mt-1 space-y-4 p-4">
           <ol className="space-y-3 text-[15px]">
             {[
-              ["receipt", "Collect", "Everyone adds the receipts they paid — items, discounts, service charge."],
-              ["hand", "Claim", "Each person ticks what they actually ate or used. Shared or by piece."],
-              ["check", "Review", "Everyone approves the same exact split, centavo for centavo."],
-              ["wallet", "Settle", "Pay by cash or QR outside the app; the receiver confirms it arrived."],
+              ["receipt", "Add & claim", "Whoever paid adds the receipt. Everyone ticks what they actually had, shared or by piece."],
+              ["wallet", "Pay", "When everyone is done, the bill freezes by itself. Pay by cash or QR; the receiver confirms it arrived."],
+              ["check", "Done", "Once everything is confirmed, the hatian closes by itself."],
             ].map(([icon, title, text], i) => (
               <li key={title} className="flex gap-3">
                 <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-soft text-violet">

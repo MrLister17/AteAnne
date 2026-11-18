@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { PHASES, PHASE_LABEL } from "@/domain/event/PhaseMachine";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { STEPS, stepOf, type Phase } from "@/domain/event/PhaseMachine";
 import { api, ApiError } from "../api";
 import { Icon, IconName } from "../components/Icon";
-import { Badge, Button, Spinner, ToastProvider } from "../components/ui";
+import { Badge, Button, Spinner, ToastProvider, useToast } from "../components/ui";
 import { phpAbs } from "../format";
 import { EventContext, TabId, View } from "./EventContext";
 import { OverviewTab } from "./OverviewTab";
@@ -15,6 +15,7 @@ import { MoneyTab } from "./MoneyTab";
 import { PeopleTab } from "./PeopleTab";
 import { TutorialButton } from "../tutorial/TutorialProvider";
 import { PersonScreen } from "./PersonScreen";
+import { everyoneAnswered } from "./todo";
 
 /** Increments per view request, so a slow older reply never overwrites a newer one (e.g. after switching who you act for). */
 let viewRequestSeq = 0;
@@ -35,6 +36,25 @@ const TABS: { id: TabId; label: string; icon: IconName }[] = [
   { id: "money", label: "Money", icon: "wallet" },
   { id: "people", label: "People", icon: "users" },
 ];
+
+/**
+ * Only the tabs you can use in this step (D51). Step 1 "Add & claim": Receipts
+ * and Claim. Step 2: Pay. Done: Money (the record). Home and People always.
+ */
+export function tabsFor(phase: Phase): { id: TabId; label: string; icon: IconName }[] {
+  const ids: TabId[] = phase === "SETTLING" ? ["overview", "money", "receipts", "people"] : phase === "DONE" ? ["overview", "money", "receipts", "people"] : ["overview", "receipts", "claim", "people"];
+  return ids.map((id) => {
+    const t = TABS.find((x) => x.id === id)!;
+    return id === "money" && phase === "SETTLING" ? { ...t, label: "Pay" } : t;
+  });
+}
+
+/** Said once when the step changes under you (your own action or someone else's). */
+const STEP_NEWS: Partial<Record<Phase, string>> = {
+  SETTLING: "Everyone’s done — the bill is frozen. Time to pay.",
+  COLLECTING: "The organizer reopened the bill to fix it.",
+  DONE: "This hatian is closed. Everything was paid.",
+};
 
 export function EventApp({ eventId }: { eventId: string }) {
   return (
@@ -140,6 +160,17 @@ function EventLoader({ eventId }: { eventId: string }) {
 
   const ctx = useMemo(() => (view ? { view, reload, setTab, actAs, showPerson: setPersonFor } : null), [view, reload, setTab, actAs]);
 
+  // Tell people when the group moved on, e.g. the bill froze because the last person finished.
+  const toast = useToast();
+  const seenPhase = useRef<Phase | null>(null);
+  const phase = view?.event.phase ?? null;
+  useEffect(() => {
+    if (!phase) return;
+    const news = STEP_NEWS[phase];
+    if (seenPhase.current && seenPhase.current !== phase && news) toast(news);
+    seenPhase.current = phase;
+  }, [phase, toast]);
+
   if (error && !view) {
     return (
       <main className="safe-top mx-auto max-w-[520px] px-4 pt-16 text-center">
@@ -166,17 +197,20 @@ function EventLoader({ eventId }: { eventId: string }) {
     );
   }
 
+  // A tab that isn't part of this step (old link, or the step just changed) falls back to Home.
+  const shown: TabId = tabsFor(ctx.view.event.phase).some((t) => t.id === tab) ? tab : "overview";
+
   return (
     <EventContext.Provider value={ctx}>
       <Header view={ctx.view} onRefresh={reload} onStopActing={() => actAs(null)} onShow={() => setPersonFor(ctx.view.me.memberId)} />
       <main className="pb-tabbar mx-auto w-full max-w-[520px] px-4 pt-3">
-        {tab === "overview" && <OverviewTab />}
-        {tab === "receipts" && <ReceiptsTab />}
-        {tab === "claim" && <ClaimTab />}
-        {tab === "money" && <MoneyTab />}
-        {tab === "people" && <PeopleTab />}
+        {shown === "overview" && <OverviewTab />}
+        {shown === "receipts" && <ReceiptsTab />}
+        {shown === "claim" && <ClaimTab />}
+        {shown === "money" && <MoneyTab />}
+        {shown === "people" && <PeopleTab />}
       </main>
-      <TabBar tab={tab} setTab={setTab} view={ctx.view} />
+      <TabBar tab={shown} setTab={setTab} view={ctx.view} />
       {personFor && <PersonScreen memberId={personFor} onClose={() => setPersonFor(null)} />}
     </EventContext.Provider>
   );
@@ -184,8 +218,8 @@ function EventLoader({ eventId }: { eventId: string }) {
 
 /** Sticky header: title, phase progress and my balance — never covers content or buttons. */
 function Header({ view, onRefresh, onStopActing, onShow }: { view: View; onRefresh: () => Promise<void>; onStopActing: () => void; onShow: () => void }) {
-  const idx = PHASES.indexOf(view.event.phase);
-  const myNet = view.settlement?.positions.find((p) => p.memberId === view.me.memberId)?.remaining ?? (view.calculation.ok ? view.calculation.positions.find((p) => p.memberId === view.me.memberId)?.remaining : null);
+  const step = stepOf(view.event.phase);
+  const myNet = view.settlement?.positions.find((p) => p.memberId === view.me.memberId)?.remaining ?? (view.calculation.ok && everyoneAnswered(view) ? view.calculation.positions.find((p) => p.memberId === view.me.memberId)?.remaining : null);
   const frozen = Boolean(view.settlement);
   const net = myNet ? BigInt(myNet) : null;
   return (
@@ -197,10 +231,10 @@ function Header({ view, onRefresh, onStopActing, onShow }: { view: View; onRefre
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[17px] font-bold">{view.event.title}</h1>
           <p className="truncate text-[13px] text-muted">
-            {view.event.cancelled ? "Cancelled · unresolved amounts still count" : `Step ${idx + 1} of 5 · ${PHASE_LABEL[view.event.phase]}`}
+            {view.event.cancelled ? "Cancelled · unresolved amounts still count" : `Step ${step.index + 1} of ${STEPS.length} · ${step.label}`}
           </p>
         </div>
-        {net !== null && view.event.phase !== "COLLECTING" && (
+        {net !== null && (
           <div className="text-right" aria-label="My balance">
             <p className={`tnum text-[15px] font-bold ${net > 0n ? "text-receive" : net < 0n ? "text-pay" : ""}`}>
               {net > 0n ? "+" : net < 0n ? "−" : ""}
@@ -215,12 +249,12 @@ function Header({ view, onRefresh, onStopActing, onShow }: { view: View; onRefre
         </Button>
       </div>
       <ol className="mx-auto flex max-w-[520px] gap-1 px-4 pt-1 pb-2" aria-label="Event progress">
-        {PHASES.map((p, i) => (
-          <li key={p} className="flex-1" aria-current={i === idx ? "step" : undefined}>
-            <span className={`block h-1.5 rounded-full ${i < idx ? "bg-violet" : i === idx ? "bg-coral" : "bg-line"}`} />
+        {STEPS.map((label, i) => (
+          <li key={label} className="flex-1" aria-current={i === step.index ? "step" : undefined}>
+            <span className={`block h-1.5 rounded-full ${i < step.index || view.event.phase === "DONE" ? "bg-violet" : i === step.index ? "bg-coral" : "bg-line"}`} />
             <span className="sr-only">
-              {PHASE_LABEL[p]}
-              {i < idx ? " (done)" : i === idx ? " (current)" : ""}
+              {label}
+              {i < step.index ? " (done)" : i === step.index ? " (current)" : ""}
             </span>
           </li>
         ))}
@@ -252,17 +286,20 @@ function Header({ view, onRefresh, onStopActing, onShow }: { view: View; onRefre
 }
 
 function TabBar({ tab, setTab, view }: { tab: TabId; setTab: (t: TabId) => void; view: View }) {
+  const me = view.me.memberId;
+  const stepOne = view.event.phase === "COLLECTING" || view.event.phase === "ALLOCATING";
   const attention: Partial<Record<TabId, boolean>> = {
-    claim: view.event.phase === "ALLOCATING" && view.receipts.some((r) => !r.acks.find((a) => a.memberId === view.me.memberId && a.kind && !a.stale)),
+    claim: stepOne && view.receipts.some((r) => !r.acks.find((a) => a.memberId === me && a.kind && !a.stale)),
     money:
-      (view.event.phase === "REVIEWING" && !view.review.approvedByMe) ||
-      Boolean(view.settlement?.edges.some((e) => e.to === view.me.memberId && e.reports.some((r) => r.status === "REPORTED"))),
-    receipts: view.event.phase === "COLLECTING" && view.receipts.some((r) => r.payerId === view.me.memberId && !r.fundingAcknowledged),
+      view.event.phase === "SETTLING" &&
+      Boolean(view.settlement?.edges.some((e) => (e.to === me && e.reports.some((r) => r.status === "REPORTED")) || (e.from === me && !e.settled && e.pending === "0" && !e.disputed))),
+    receipts: stepOne && view.receipts.some((r) => r.payerId === me && !r.fundingAcknowledged),
   };
+  const tabs = tabsFor(view.event.phase);
   return (
     <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 backdrop-blur-md" aria-label="Event sections">
-      <ul className="mx-auto grid max-w-[520px] grid-cols-5" style={{ height: "var(--tabbar-h)" }}>
-        {TABS.map((t) => (
+      <ul className="mx-auto grid max-w-[520px]" style={{ height: "var(--tabbar-h)", gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+        {tabs.map((t) => (
           <li key={t.id}>
             <button
               type="button"

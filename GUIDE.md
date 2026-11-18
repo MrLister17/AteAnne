@@ -10,28 +10,28 @@ This one page explains what the app does, where everything lives, how to run and
 
 **AteAnne** (*hatian*: splitting a bill) splits shared expenses by **what each person actually had**, not total ÷ people, and tracks repayments that only the receiver can confirm. It's mobile-first (iPhone first) and installs as an app from Safari (Share → Add to Home Screen) or Chrome (Install app).
 
-**An event goes through 5 steps (phases):**
+**An event goes through 3 steps (since v0.7, D49–D51). Nobody waits for a button between them:**
 
-| Phase | What happens | Who moves it forward |
+| Step (phase) | What happens | How it moves on |
 | --- | --- | --- |
-| 1. Collecting | People join with a code. Whoever paid adds receipts by typing or **scanning a photo**. The payer confirms "I paid ₱X". Everyone ticks "I've entered every receipt I paid". | Organizer: **Lock roster & start claiming** |
-| 2. Allocating | Each person claims their own items ("I had some", or pieces with − / +), or taps "I got nothing from this receipt". | Organizer: **Start review** |
-| 3. Reviewing | Everyone sees their share line by line and taps "I agree with this split". | Organizer: **Freeze & start settling** |
-| 4. Settling | Transfers are frozen (e.g. "Juan → Mark ₱495"). Payers send money outside the app and tap "I sent money". Receivers tap "Received" or "Not received". | Organizer: **Mark as Done** |
-| 5. Done | Read-only record. | — |
+| 1. Add & claim (`COLLECTING`) | People join with a code. Whoever paid adds receipts by typing or **scanning a photo**; saving your own receipt counts as "I paid" (a receipt someone typed for you waits for your "I paid"). Everyone claims what they had **as soon as a receipt exists** ("I had some", pieces with − / +, or "I got nothing from this receipt") and ticks "I've entered every receipt I paid". The organizer taps **Everyone's here** once the group is complete (joining closes for good). | **Automatically**: the bill freezes the moment the roster is closed and everyone is done. Claiming is the agreement; there is no approval round (D50). |
+| 2. Pay (`SETTLING`) | Transfers are frozen (e.g. "Juan → Mark ₱495"). Payers send money outside the app and tap "I sent money". Receivers tap "Received" or "Not received". | **Automatically**: the daily job closes it a day after the last payment is confirmed (the day is the window to undo a mistaken "Received"). The organizer may tap **Close it now**. |
+| 3. Done (`DONE`) | Read-only record. | — |
+
+Events started before v0.7 may still be in `ALLOCATING`/`REVIEWING`; they show as step 1, claims still work in Allocating, and the organizer can **Freeze the bill now** or reopen receipts. The bottom tab bar shows only the tabs for the current step: Home · Receipts · Claim · People in step 1; Home · Pay · Receipts · People in step 2; Home · Money · Receipts · People when Done.
 
 **People without a phone ("guests"):** the organizer, or an **admin** the organizer appoints, adds them in People → *Add someone without a phone*, then taps **Act for Lola** to claim her items, approve and record her payments while showing her the screen (a coral "Acting for Lola" bar stays on top; **Done** goes back). **Show amount** opens a big-text screen (English + Tagalog) with what she owes or is owed and what she had. Nobody can act for someone who has their own phone, a manager can't confirm a payment they themselves made to the guest, and the Activity list shows "Mark saved claims **for Lola**". If Lola gets a phone later, *They got a phone? Give them access* makes a key she opens with "I have a recovery key".
 
 **Typing a receipt:** Qty × Price each fills the line total; the receipt total fills itself in (marked *Auto*) until you type the printed total, which switches to checking. Service charge and discounts can be a **percent** (service charge starts at 10%).
 
-**Sprint S7 shortcuts:** install AteAnne on the Home Screen **before** creating/joining (Safari requires its Share menu; other supported browsers show native confirmation). In the receipt editor, choose **Split this receipt equally among everyone**; each person accepts their own share in Claim. Home → Next step → **Copy reminder** refreshes, previews a group/person message, and copies it for you to paste into Messenger. It sends nothing automatically. Home → Next step → *Something wrong with the bill?* → **Correct the bill** starts a reasoned correction before Done, carrying confirmed payments into revised balances. People → **Reissue access** lets the organizer check a lost-key member in person and privately hand over a 15-minute key; this trusted-circle power can grant that person’s access, so identity checking matters.
+**Sprint S7 shortcuts:** install AteAnne on the Home Screen **before** creating/joining (Safari requires its Share menu; other supported browsers show native confirmation). In the receipt editor, choose **Split this receipt equally among everyone**; each person accepts their own share in Claim. Home → Next step → **Copy reminder** refreshes, previews a group/person message, and copies it for you to paste into Messenger. It sends nothing automatically. Home → Next step → *Something wrong with the bill?* → **Correct the bill** starts a reasoned correction before Done, carrying confirmed payments into revised balances; the organizer re-freezes it with **Freeze the corrected bill**. People → **Reissue access** lets the organizer check a lost-key member in person and privately hand over a 15-minute key; this trusted-circle power can grant that person’s access, so identity checking matters.
 
 **The two Home screens (v0.6.1, D48)** are laid out in reading order so people know where to look:
 - **Start screen** (`/`): your events first (if any) → **Start a hatian** / **Join with a code** → a lighter **I have a recovery key** row → the install card → *How it works* (open for newcomers, folded once you have events; the full walkthrough button lives inside it). Help is the **?** icon at the top.
-- **Event → Home tab:** your balance → **Your to-do** (including the *I’ve entered every receipt I paid* tick while Collecting) → the organizer’s note → **Next step** (what the group is waiting on, the organizer’s button to move on, **Copy reminder**) → **Invite people** (organizer, Collecting) → **People without a phone** (organizer/admins) → the auto-delete date as fine print (a warning at the top in the last 7 days).
-- Rarely needed controls are one tap away behind plainly worded rows, never removed: *Need to fix something? Go back a step*, *Something wrong with the bill?*, *More join options* (New code / Close joining), and each guest’s *N to do* list.
+- **Event → Home tab (v0.7):** your balance (estimates only once everyone has answered) → **Your to-do** (only what is left: confirm a receipt someone typed for you, claim each receipt, the *I’ve entered every receipt I paid* tick; "You’re done for now" when finished) → the organizer’s note → **Invite people** (organizer, while joining is open: code, Copy/Share, **Everyone’s here**) → **Next step** (what happens next, what the group is waiting on, **Copy reminder**) → **People without a phone** (organizer/admins) → the auto-delete date as fine print (a warning at the top in the last 7 days).
+- Rarely needed controls are one tap away behind plainly worded rows, never removed: *Something wrong with the bill?*, *More join options* (New code), each guest’s *N to do* list, and on Claim *Don’t agree with splitting this equally?* / *Change my answer*.
 
-**Other features:** first-visit "First time here?" prompt plus a 12-step tutorial (the **?** button); recovery key to move to a new phone (Home → **I have a recovery key**; pasting it into the join-code box also works); cash/QR payment instructions; private receipt photos; CSV/JSON export; events auto-delete **30 days after creation**; "preview mode" when no database is connected.
+**Other features:** first-visit "First time here?" prompt plus a 10-step tutorial (the **?** button); recovery key to move to a new phone (Home → **I have a recovery key**; pasting it into the join-code box also works); cash/QR payment instructions; private receipt photos; CSV/JSON export; events auto-delete **30 days after creation**; "preview mode" when no database is connected.
 
 ---
 
@@ -84,7 +84,7 @@ src/
     aggregate/EventAggregate.ts   loads one event; answers "is it ready for the next step?"
     services/                 one class per area; every change goes through these
       EventService.ts         create/join/phases/freeze/cancel/delete; add guest, admins, guest access key
-      ReceiptService.ts       receipts, funding confirm, claims, approvals
+      ReceiptService.ts       receipts, funding confirm (automatic for your own receipt), claims
       PaymentService.ts       payment instructions, reports, confirm/reject/reverse, disputes
       AssetService.ts         private photos (validate, re-encode, store, serve)
       ReceiptScanService.ts   photo → draft receipt (nothing saved)
@@ -163,7 +163,7 @@ Receipt scan flow: phone shrinks the photo (`src/ui/image.ts`) → `POST /api/ev
 - **Order:** items first → discounts (only on the items they apply to) → service charge and other charges in proportion to each person's spending after discounts. No spending means no service charge.
 - **Net = paid to stores − your share.** The transfer list is frozen when the organizer freezes the statement.
 - **Payments:** "reported" means pending and changes nothing. Only the **receiver** can confirm. A rejection opens a dispute that **both** sides must resolve. A receiver can undo a confirmation **once**, with a reason, before Done.
-- **Before Done, the organizer can correct a reported bill** after pending reports/disputes resolve. A reason, fresh approvals and a new statement are required. Confirmed money carries forward; overpayments become return transfers. Original history stays read-only; Done stays read-only.
+- **Before Done, the organizer can correct a reported bill** after pending reports/disputes resolve (Home → *Something wrong with the bill?*). It needs a reason and goes back to Add & claim; the organizer then taps **Freeze the corrected bill** (a corrected bill never re-freezes by itself). Confirmed money carries forward; overpayments become return transfers. Original history stays read-only; Done stays read-only.
 - Full detail: `docs/financial-rules.md`. The original spec is in `docs/spec/`.
 
 ---

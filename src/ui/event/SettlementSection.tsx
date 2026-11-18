@@ -365,7 +365,7 @@ function InstructionsEditor() {
                 <input type="checkbox" className="size-5 accent-[var(--violet)]" checked={removeQr} onChange={(e) => setRemoveQr(e.target.checked)} /> Remove my current QR
               </label>
             )}
-            <p className="text-[13px] text-muted">Changing these never changes the approved amounts. Earlier payment reports keep the version they used.</p>
+            <p className="text-[13px] text-muted">Changing these never changes the frozen amounts. Earlier payment reports keep the version they used.</p>
           </div>
         </Sheet>
       )}

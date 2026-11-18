@@ -139,9 +139,9 @@ export class EventViewBuilder {
         };
       }),
       gates: {
-        allocating: agg.allocationGate(),
-        reviewing: e.phase === "ALLOCATING" || e.phase === "REVIEWING" ? agg.reviewGate() : null,
-        settling: e.phase === "REVIEWING" ? agg.settlementGate() : null,
+        /** Add & claim → Pay. Freezes by itself unless a corrected bill is waiting for the organizer (autoFreeze false). */
+        freeze: e.phase === "COLLECTING" || e.phase === "ALLOCATING" || e.phase === "REVIEWING" ? agg.freezeGate() : null,
+        autoFreeze: e.snapshots.length === 0,
         done: e.phase === "SETTLING" ? agg.doneGate() : null,
         correcting: e.phase === "SETTLING" ? agg.correctionGate() : null,
       },

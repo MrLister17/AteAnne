@@ -5,7 +5,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import sharp from "sharp";
-import { eventWith, makeApp, newActor, pesos, resetDb, version, TEST_KEY } from "./helpers";
+import { eventWith, makeApp, newActor, pesos, resetDb, TEST_KEY } from "./helpers";
 import { AppContainer } from "@/server/container";
 import { DatabaseStorage } from "@/server/storage/PrivateStorage";
 
@@ -56,7 +56,7 @@ describe("event isolation and codes", () => {
   });
 });
 
-async function toAllocating(e: Awaited<ReturnType<typeof eventWith>>, lines: { label: string; amount: number; qty: number; mode: "SHARED" | "UNITS" }[], payer = Object.keys(e.people)[0]) {
+async function readyToClaim(e: Awaited<ReturnType<typeof eventWith>>, lines: { label: string; amount: number; qty: number; mode: "SHARED" | "UNITS" }[], payer = Object.keys(e.people)[0]) {
   const owner = Object.values(e.people)[0];
   const total = lines.reduce((a, l) => a + l.amount, 0);
   const { receiptId } = await app.receipts.create(owner.actorId, e.eventId, {
@@ -68,7 +68,7 @@ async function toAllocating(e: Awaited<ReturnType<typeof eventWith>>, lines: { l
   });
   await app.receipts.acknowledgeFunding(e.people[payer].actorId, receiptId, { receiptVersion: 1, amount: pesos(total) });
   for (const p of Object.values(e.people)) await app.events.updateMe(p.actorId, e.eventId, { entryComplete: true });
-  await app.events.transition(owner.actorId, e.eventId, { target: "ALLOCATING", expectedFinancialVersion: await version(app, e.eventId, owner.actorId) });
+  await app.events.lockRoster(owner.actorId, e.eventId); // "Everyone's here"; nobody has claimed, so nothing freezes
   const view = await app.queries.view(owner.actorId, e.eventId);
   return { receiptId, lines: view.receipts[0].lines };
 }
@@ -76,7 +76,7 @@ async function toAllocating(e: Awaited<ReturnType<typeof eventWith>>, lines: { l
 describe("claims", () => {
   it("concurrent unit claims can never over-allocate (409 for the loser)", async () => {
     const e = await eventWith(app, ["A", "B", "C", "D"]);
-    const { receiptId, lines } = await toAllocating(e, [{ label: "Rice", amount: 180, qty: 3, mode: "UNITS" }]);
+    const { receiptId, lines } = await readyToClaim(e, [{ label: "Rice", amount: 180, qty: 3, mode: "UNITS" }]);
     const results = await Promise.allSettled(
       ["A", "B", "C", "D"].map((n) => app.receipts.saveClaims(e.people[n].actorId, receiptId, { receiptVersion: 1, expectedClaimVersion: 1, status: "finish", claims: [{ lineId: lines[0].id, units: 1 }] })),
     );
@@ -90,7 +90,7 @@ describe("claims", () => {
 
   it("nobody can save claims for another member (claims are always the caller's own)", async () => {
     const e = await eventWith(app, ["Owner2", "Guest2"]);
-    const { receiptId, lines } = await toAllocating(e, [{ label: "Meal", amount: 100, qty: 1, mode: "SHARED" }]);
+    const { receiptId, lines } = await readyToClaim(e, [{ label: "Meal", amount: 100, qty: 1, mode: "SHARED" }]);
     await app.receipts.saveClaims(e.people.Owner2.actorId, receiptId, { receiptVersion: 1, expectedClaimVersion: 1, status: "finish", claims: [{ lineId: lines[0].id, units: 1 }] });
     const claims = await db.claim.findMany({ where: { lineId: lines[0].id } });
     expect(claims.map((c) => c.memberId)).toEqual([e.people.Owner2.memberId]);

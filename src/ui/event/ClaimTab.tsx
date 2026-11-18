@@ -3,10 +3,11 @@
 import { useMemo, useState } from "react";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
-import { Avatar, Badge, Button, Card, Notice } from "../components/ui";
+import { Avatar, Badge, Button, Card, Disclosure, Notice } from "../components/ui";
 import { php } from "../format";
 import { ReceiptView, useAction, useEvent } from "./EventContext";
 import { EqualReceiptSplit } from "@/domain/receipt/EqualReceiptSplit";
+import { everyoneAnswered } from "./todo";
 
 /**
  * Allocation wizard: one receipt at a time, the person claims only their
@@ -20,12 +21,7 @@ export function ClaimTab() {
     return first >= 0 ? first : 0;
   });
 
-  if (event.phase === "COLLECTING") {
-    return (
-      <EmptyState title="Claiming starts after receipts are in" text="Once everyone has entered what they paid, the organizer locks the roster and you’ll pick what you had here." />
-    );
-  }
-  if (!view.receipts.length) return <EmptyState title="No receipts" text="Nothing to claim." />;
+  if (!view.receipts.length) return <EmptyState title="No receipts yet" text="As soon as someone adds a receipt, you’ll pick what you had here. No need to wait for the others." />;
 
   const r = view.receipts[Math.min(index, view.receipts.length - 1)];
   const done = view.receipts.filter((x) => myAck(x, me.memberId)).length;
@@ -55,7 +51,7 @@ export function ClaimTab() {
           );
         })}
       </nav>
-      <ReceiptClaimer key={`${r.id}-${r.version}-${view.me.claimVersion}`} receipt={r} readOnly={event.phase !== "ALLOCATING" || event.cancelled} onNext={() => setIndex((i) => Math.min(view.receipts.length - 1, i + 1))} />
+      <ReceiptClaimer key={`${r.id}-${r.version}-${view.me.claimVersion}`} receipt={r} readOnly={!(event.phase === "COLLECTING" || event.phase === "ALLOCATING") || event.cancelled} onNext={() => setIndex((i) => Math.min(view.receipts.length - 1, i + 1))} />
     </div>
   );
 }
@@ -66,7 +62,7 @@ function myAck(r: ReceiptView, memberId: string) {
 }
 
 function ReceiptClaimer({ receipt: r, readOnly, onNext }: { receipt: ReceiptView; readOnly: boolean; onNext: () => void }) {
-  const { view, me, name, seq } = useEvent();
+  const { view, me, event, name, seq } = useEvent();
   const act = useAction();
   const initial = useMemo(() => {
     const m: Record<string, number> = {};
@@ -83,7 +79,7 @@ function ReceiptClaimer({ receipt: r, readOnly, onNext }: { receipt: ReceiptView
   const ack = myAck(r, me.memberId);
   const staleDraft = r.lines.some((l) => l.claims.some((c) => c.memberId === me.memberId && c.stale));
   const dirty = JSON.stringify(draft) !== JSON.stringify(Object.fromEntries(Object.entries(initial).filter(([, v]) => v > 0)));
-  const share = view.calculation.ok ? view.calculation.receipts.find((x) => x.receiptId === r.id)?.shares.find((s) => s.memberId === me.memberId) : null;
+  const share = view.calculation.ok && everyoneAnswered(view, r.id) ? view.calculation.receipts.find((x) => x.receiptId === r.id)?.shares.find((s) => s.memberId === me.memberId) : null;
 
   const save = async (status: "finish" | "none" | "draft") => {
     setBusy(status);
@@ -118,7 +114,7 @@ function ReceiptClaimer({ receipt: r, readOnly, onNext }: { receipt: ReceiptView
           <p>The whole receipt, including discounts and charges, is divided among all {view.members.filter((m) => m.active).length} people. Confirm only your own share below.</p>
           <p className="font-semibold">Your share: {php(new EqualReceiptSplit().totals(BigInt(r.payable), view.members.filter((m) => m.active).map((m) => m.id)).get(me.memberId) ?? 0n)}</p>
           <p>{r.acks.filter((a) => a.kind === "FINISHED" && !a.stale && view.members.some((m) => m.id === a.memberId && m.active)).length} of {view.members.filter((m) => m.active).length} people confirmed. Final totals can differ by one centavo.</p>
-          {ack === "NONE" && <p className="font-semibold">You disagreed. Tell the organizer what needs changing; review stays blocked until everyone agrees or the receipt is changed.</p>}
+          {ack === "NONE" && <p className="font-semibold">You disagreed. Tell the organizer what needs changing; the bill can’t freeze until everyone agrees or the receipt is changed.</p>}
         </Notice>
       )}
 
@@ -201,22 +197,42 @@ function ReceiptClaimer({ receipt: r, readOnly, onNext }: { receipt: ReceiptView
         </Card>
       )}
 
-      {!readOnly && (
+      {!readOnly && r.equalSplit && (
         <div className="space-y-2 pt-1">
-          <Button full busy={busy === "finish"} disabled={!r.equalSplit && !Object.values(draft).some((u) => u > 0)} onClick={() => void save("finish")}>
-            {r.equalSplit ? "Confirm my equal share" : `Save my items${ack ? "" : " & next"}`}
+          {ack === "FINISHED" ? (
+            <Notice tone="receive" title="You confirmed your share">Nothing else to do on this receipt.</Notice>
+          ) : (
+            <Button full busy={busy === "finish"} onClick={() => void save("finish")}>
+              Confirm my equal share
+            </Button>
+          )}
+          <Disclosure summary={ack === "FINISHED" ? "Change my answer" : "Don’t agree with splitting this equally?"} className="px-1">
+            {ack === "FINISHED" && <p className="text-[14px] text-muted">If you didn’t share this receipt, tell the organizer so they can change it to item-by-item.</p>}
+            {ack !== "NONE" && (
+              <Button full variant="secondary" busy={busy === "none"} onClick={() => void save("none")}>
+                I disagree — ask organizer to change it
+              </Button>
+            )}
+          </Disclosure>
+        </div>
+      )}
+      {!readOnly && !r.equalSplit && (
+        <div className="space-y-2 pt-1">
+          {ack && !dirty && <Notice tone="receive" title={ack === "NONE" ? "Saved: you had nothing from this receipt" : "Saved: your items are claimed"}>Change your picks and save again if you need to.</Notice>}
+          <Button full busy={busy === "finish"} disabled={!Object.values(draft).some((u) => u > 0)} onClick={() => void save("finish")}>
+            {`Save my items${ack ? "" : " & next"}`}
           </Button>
           <Button full variant="secondary" busy={busy === "none"} onClick={() => void save("none")}>
-            {r.equalSplit ? "I disagree — ask organizer to change it" : "I got nothing from this receipt"}
+            I got nothing from this receipt
           </Button>
-          {dirty && !r.equalSplit && (
+          {dirty && (
             <Button full variant="tonal" busy={busy === "draft"} onClick={() => void save("draft")}>
               Save as draft (not finished)
             </Button>
           )}
         </div>
       )}
-      {readOnly && <Notice tone="info">Claims are locked in this step.</Notice>}
+      {readOnly && <Notice tone="info">{event.cancelled ? "This event was cancelled; claims are closed." : "Claims are frozen with the bill."}</Notice>}
     </div>
   );
 }

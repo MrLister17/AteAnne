@@ -19,14 +19,13 @@ test("corrects a reported bill and shows a return transfer with original payment
   const joined = await post<{ memberId: string }>(juan, "/api/events/join", { code: created.joinCode, displayName: "Juan" });
   const eventPath = `/api/events/${created.eventId}`;
   const view = async (ctx = mark): Promise<EventView> => (await ctx.request.get(eventPath)).json();
-  const move = async (target: string) => post(mark, `${eventPath}/phase`, { target, expectedFinancialVersion: (await view()).event.financialVersion });
   const receipt = await post<{ receiptId: string }>(mark, `${eventPath}/receipts`, { label: "Dinner", payerMemberId: created.memberId, payable: "10000", lines: [{ label: "Shared meal", quantity: 1, amount: "10000", mode: "SHARED" }], adjustments: [] });
-  await post(mark, `/api/receipts/${receipt.receiptId}/funding`, { receiptVersion: 1, amount: "10000" });
+  void receipt; // Mark saved it as the payer: that already counts as "I paid"
   for (const ctx of [mark, juan]) {
     const response = await ctx.request.patch(`${eventPath}/me`, { headers: { origin }, data: { entryComplete: true } });
     expect(response.ok()).toBe(true);
   }
-  await move("ALLOCATING");
+  await post(mark, `${eventPath}/lock`, {}); // "Everyone's here"
   const claims = async (ctx: BrowserContext, none = false) => {
     const v = await view(ctx);
     const r = v.receipts[0];
@@ -34,16 +33,13 @@ test("corrects a reported bill and shows a return transfer with original payment
     expect(response.ok(), await response.text()).toBe(true);
   };
   await claims(mark);
-  await claims(juan);
-  await move("REVIEWING");
-  for (const ctx of [mark, juan]) await post(ctx, `${eventPath}/review`, { financialVersion: (await view()).event.financialVersion });
-  await move("SETTLING");
+  await claims(juan); // the last answer freezes the bill by itself
+  expect((await view()).event.phase).toBe("SETTLING");
   const initial = (await view()).settlement!;
   const report = await post<{ reportId: string }>(juan, `/api/edges/${initial.edges[0].id}/reports`, { amount: "5000", method: "CASH", idempotencyKey: "e2e-correction-paid" });
   await post(mark, `/api/payments/${report.reportId}/verify`, {});
 
   const markPage = await mark.newPage();
-  const juanPage = await juan.newPage();
   await markPage.goto(`/e/${created.eventId}`);
   // Rarely needed: one tap behind a plainly worded row on Home (D48).
   await expect(markPage.getByRole("button", { name: "Correct the bill" })).toBeHidden();
@@ -51,36 +47,23 @@ test("corrects a reported bill and shows a return transfer with original payment
   await expect(markPage.getByRole("button", { name: "Correct the bill" })).toBeVisible();
   markPage.once("dialog", (dialog) => dialog.accept("Juan did not eat this meal"));
   await markPage.getByRole("button", { name: "Correct the bill" }).click();
-  await expect(markPage.getByText("Step 3 of 5 · Reviewing")).toBeVisible();
-  await expect(markPage.getByRole("button", { name: "Freeze & start settling" })).toBeDisabled();
-  await markPage.getByText("Need to fix something? Go back a step", { exact: true }).click();
-  await markPage.getByRole("button", { name: "Back to claims", exact: true }).click();
-  await expect(markPage.getByText("Step 2 of 5 · Allocating")).toBeVisible();
+  // Back to "Add & claim"; a corrected bill waits for the organizer instead of re-freezing by itself.
+  await expect(markPage.getByText("Step 1 of 3 · Add & claim")).toBeVisible();
+  await expect(markPage.getByText("Fix the bill, then freeze it again")).toBeVisible();
   await claims(juan, true);
   await markPage.reload();
-  await markPage.getByRole("button", { name: "Start review", exact: true }).click();
-  await expect(markPage.getByText("Step 3 of 5 · Reviewing")).toBeVisible();
-  await tab(markPage, "Money");
-  await expect(markPage.getByText("Earlier payments are included")).toBeVisible();
-  await markPage.getByText("Payment history from prior statements", { exact: true }).click();
-  await expect(markPage.getByText("Confirmed received — included in this bill", { exact: false })).toBeVisible();
-  await markPage.getByRole("button", { name: "I agree with this split" }).click();
-  await expect(markPage.getByText("You approved this version.")).toBeVisible();
-  await juanPage.goto(`/e/${created.eventId}`);
-  await tab(juanPage, "Money");
-  await juanPage.getByRole("button", { name: "I agree with this split" }).click();
-  await expect(juanPage.getByText("You approved this version.")).toBeVisible();
-  await tab(markPage, "Home");
-  await markPage.reload();
-  await markPage.getByRole("button", { name: "Freeze & start settling" }).click();
-  await expect(markPage.getByText("Step 4 of 5 · Settling")).toBeVisible();
+  await expect(markPage.getByText("Step 1 of 3 · Add & claim")).toBeVisible();
+  await markPage.getByRole("button", { name: "Freeze the corrected bill", exact: true }).click();
+  await expect(markPage.getByText("Step 2 of 3 · Pay")).toBeVisible();
   const corrected = (await view()).settlement!;
   expect(corrected.edges).toHaveLength(1);
   expect(corrected.edges[0]).toMatchObject({ from: created.memberId, to: joined.memberId, amount: "5000" });
-  await tab(markPage, "Money");
+  await tab(markPage, "Pay");
+  await expect(markPage.getByText("Earlier payments are included")).toBeVisible();
+  await markPage.getByText("Payment history from prior statements", { exact: true }).click();
+  await expect(markPage.getByText("Confirmed received — included in this bill", { exact: false })).toBeVisible();
   await expect(markPage.getByText("You pay", { exact: true })).toBeVisible();
   await expect(markPage.getByRole("button", { name: "I sent money", exact: true })).toBeVisible();
-  await expect(markPage.getByText("Earlier payments are included")).toBeVisible();
   await mark.close();
   await juan.close();
 });

@@ -50,18 +50,18 @@ test("organizer acts for a guest without a phone and shows her the amount", asyn
   await expect(sheet.getByLabel("Total paid to the merchant")).toHaveValue("120");
   await sheet.getByRole("button", { name: "Save receipt" }).click();
   await expect(page.getByText("Bakery")).toBeVisible();
+  // Saved by its payer, so it already counts as paid.
   await page.getByRole("button", { name: /Bakery/ }).click();
-  await page.getByRole("button", { name: "I paid PHP 120.00 for this" }).click();
+  await expect(page.getByRole("button", { name: /I paid PHP 120.00/ })).toHaveCount(0);
   await page.getByRole("dialog", { name: "Bakery" }).getByRole("button", { name: "Close" }).click();
 
   await tab(page, "Home");
   await page.getByLabel("I’ve entered every receipt I paid").check();
   await expect(page.getByLabel("I’ve entered every receipt I paid")).toBeChecked();
   await page.reload();
-  await page.getByRole("button", { name: "Lock roster & start claiming" }).click();
-  await expect(page.getByText("Step 2 of 5 · Allocating")).toBeVisible();
+  await expect(page.getByText("Step 1 of 3 · Add & claim")).toBeVisible();
 
-  // ---------------------------------------------------------------- claims: mine, then Lola's
+  // ---------------------------------------------------------------- claims straight away: mine, then Lola's
   await tab(page, "Claim");
   await page.getByRole("switch", { name: "I had some Ensaymada" }).click();
   await page.getByRole("button", { name: /Save my items/ }).click();

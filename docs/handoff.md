@@ -4,7 +4,8 @@ _Last updated: 2026-11-18_
 
 ## Current state
 
-- **v0.6.1 "Simpler Home"** (D48), UI only: fast-forwarded into `main` with the owner’s approval; pushing `main` triggers the Vercel production build (not verifiable from this container). It reorganizes the start screen and the event Home tab so each has one clear primary action; every control is kept, rare ones one tap away. See [CHANGELOG.md](../CHANGELOG.md) and the v0.6.1 section of [test-report.md](test-report.md).
+- **v0.7.0 "Fewer waits"** (D49–D51): three steps (Add & claim → Pay → Done), claims allowed while receipts are being collected, payer’s own receipt auto-confirms funding, the organizer’s only step-1 action is **Everyone’s here**, the bill **freezes by itself** once everyone is done, no approval round (owner decision), a paid event **closes by itself a day after its last payment activity** (daily cleanup), tabs per step. No database migration. On branch `claude/bold-mayer-xb2jcw`; the owner asked to merge and redeploy once the full local chain is green; see the v0.7.0 sections of [CHANGELOG.md](../CHANGELOG.md) and [test-report.md](test-report.md). The live deployment cannot be checked from this container.
+- **v0.6.1 "Simpler Home"** (D48), UI only: fast-forwarded into `main` with the owner’s approval; GitHub CI run 44370348564 passed on `main`; pushing `main` triggers the Vercel production build (not verifiable from this container). It reorganizes the start screen and the event Home tab so each has one clear primary action; every control is kept, rare ones one tap away. See [CHANGELOG.md](../CHANGELOG.md) and the v0.6.1 section of [test-report.md](test-report.md).
 - Remote `main`: **v0.6.0**, code commit `8a24cc0`, merged with owner approval after full green GitHub CI (run 44328507489).
 - **Production:** https://ateanne.vercel.app, Vercel deployment `dpl_DKFndt2NyoP1C3pmRzi73dhwRNQL`, READY. Health returned `ok: true`, version `8a24cc0`, scanner `groq`. Sprint S7 implements all five requested improvements. See [CHANGELOG.md](../CHANGELOG.md), [implementation-plan.md](implementation-plan.md), decisions D43–D47 and [test-report.md](test-report.md).
 - New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false. Applied by the production Vercel build and verified independently in Supabase at 14:53:08 UTC on 2026-11-18: boolean, NOT NULL, default false.
@@ -27,6 +28,8 @@ Use README setup, an isolated PostgreSQL test database and Node 22. Commands: re
 
 ## Remaining human checks
 
+- v0.7.0: run one real hatian with relatives. Do people claim right away without waiting, does the organizer find **Everyone’s here**, and is the automatic freeze understood ("Everyone’s done — time to pay")? The daily close relies on the existing Vercel cron (03:17 Manila); check that a fully paid test event closes the next day.
+- v0.7.0 trade-off to watch (D50): with no approval round, mistakes are caught by each person’s own claims and by *Something wrong with the bill?*. If groups freeze wrong bills often, revisit.
 - v0.6.1: watch a relative who has never used AteAnne open the start screen and an event's Home tab. Can they find the entry tick, the join code, *Go back a step* and *Correct the bill* without help?
 - Real iPhone Safari installation and reopening, including joining from a Messenger link. Chromium emulation does not test the OS Share sheet or actual Safari storage behavior.
 - Try the access hand-over and big-text screen with a relative; verify identity in person and send keys privately.

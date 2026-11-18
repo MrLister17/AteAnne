@@ -78,16 +78,12 @@ classDiagram
 ```mermaid
 stateDiagram-v2
   [*] --> Collecting: create event (owner + join code)
-  Collecting --> Allocating: owner · every member entry-complete · receipts reconcile · payers confirmed · roster LOCKED
-  Allocating --> Reviewing: owner · everyone answered every receipt · all lines fully claimed · calculation OK
-  Allocating --> Collecting: owner (fix a receipt) · approvals reset
-  Reviewing --> Settling: owner · all members approved current financial version · FREEZE snapshot + edges
-  Reviewing --> Allocating: owner · approvals reset
-  Reviewing --> Collecting: owner · approvals reset
-  Settling --> Reviewing: owner · ONLY if no payment report ever existed · old snapshot SUPERSEDED
-  Settling --> Done: owner · every edge fully recipient-confirmed · no pending · no open dispute
+  note right of Collecting: "Add & claim" (v0.7, D49). Receipts AND claims.\n"Everyone's here" (owner) sets rosterLockedAt.\n"Cancelled" is an overlay flag, not a phase;\nit never forgives money.
+  Collecting --> Settling: AUTOMATIC (advanceIfReady) the first time freezeGate passes · roster locked · everyone entry-complete · receipts reconcile · payers confirmed · everyone answered every receipt · calculation OK · no approvals (D50) · FREEZE snapshot + edges
+  Collecting --> Settling: owner by hand after a correction (or legacy Allocating/Reviewing) · same freezeGate
+  Settling --> Collecting: owner correction · reason · no pending report or open dispute · old snapshot SUPERSEDED
+  Settling --> Done: AUTOMATIC (daily cleanup) 24 h after the last payment activity once doneGate passes · or owner "Close it now"
   Done --> [*]: read-only
-  note right of Collecting: "Cancelled" is an overlay flag, not a phase.\nIt never forgives money.
 ```
 
 ## Payment report state machine
