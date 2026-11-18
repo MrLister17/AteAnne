@@ -57,6 +57,8 @@ What the new or rewritten tests prove:
 
 The known `pg` concurrent-query deprecation warning appeared on stderr during integration and E2E; nothing failed because of it.
 
+After the merge, GitHub CI [run 44374349260](https://github.com/MrLister17/AteAnne/actions/runs/44374349260) on `main` (commit `42da456`) completed with **success** (2026-11-18 18:57 UTC).
+
 Not verified: real iPhone Safari; the live Vercel deployment and the production daily cron closing a real event (this container cannot reach the site); real groups using the new flow.
 
 ---
