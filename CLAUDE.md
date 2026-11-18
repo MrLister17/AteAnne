@@ -1,5 +1,7 @@
 # AteAnne — notes for coding agents
 
+- **Start with [CHANGELOG.md](CHANGELOG.md)**: version history and exactly where the last session stopped. Add an entry for every change you ship.
+
 - Standalone project. Never merge with the portfolio, Kulayan or the Lucena commute guide.
 - Mobile-first (iPhone first): keep inputs ≥16px, touch targets ≥44px, respect safe-area insets, test at 360px and iPhone 15 (`npm run test:e2e`).
 - Money is `bigint` centavos; JSON uses decimal strings; never use floats. Business rules live in `src/domain` as pure classes. Do not put rules in React components or route handlers.
