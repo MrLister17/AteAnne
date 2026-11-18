@@ -12,14 +12,14 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 **State of the code**
 
-- `main` (commit `4262594`) = **v0.4.0**, live on Vercel + Supabase, with receipt scanning on.
-- Branch **`cousins-feedback`** = **v0.5.0**. It is **not merged** and the owner hasn't approved it yet. GitHub Actions CI passes on it: lint, typecheck, 70 unit tests, 41 integration tests, build and 31 E2E tests (run 44318660752).
-- Merging `cousins-feedback` into `main` deploys to production and applies migration `20261118140000_guests_and_admins`. The migration only adds two columns with defaults (`Member.managed`, `Member.isAdmin`) and two check constraints. Existing data isn't affected.
-- Compare: https://github.com/MrLister17/AteAnne/compare/main...cousins-feedback
+- `main` = **v0.5.0**. The owner approved it, and branch `cousins-feedback` was fast-forwarded into `main` on 2026-11-18. The branch can be deleted.
+- GitHub Actions CI passed on the merged commits: lint, typecheck, 70 unit tests, 41 integration tests, build and 31 E2E tests (last branch run 44320383957).
+- Pushing `main` triggers the Vercel production deploy. Migration `20261118140000_guests_and_admins` runs during that deploy. It only adds two columns with defaults (`Member.managed`, `Member.isAdmin`) and two check constraints.
+- **Not confirmed from this session:** that the Vercel deploy and migration finished. The session can't reach Vercel. Check `/api/health` on the live site: `version` should be the newest `main` commit.
 
 **Open next steps (owner's choice)**
 
-1. Merge `cousins-feedback` → `main` after the owner says yes. Then check `/api/health` on the live site shows the new commit.
+1. Confirm the production deploy: open `/api/health` on the live site, and check that the version matches `main`. If the build failed, look at the Vercel deployment log; the migration runs in `scripts/vercel-build.mjs`.
 2. Test the guest flow with a real relative on a real iPhone. CI only uses Chromium with iPhone emulation, and the big-text screen hasn't been looked at by eye or in dark mode.
 3. Suggested improvements, in priority order. None of these is started.
    - **Home Screen first, then join.** Nudge people to add AteAnne to the Home Screen right after they join in Safari. On iPhone the Home Screen app keeps a separate sign-in, so joining in Safari forces a recovery-key trip later.
@@ -41,7 +41,7 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ---
 
-## v0.5.0: Cousins pilot fixes (2026-11-18) · branch `cousins-feedback`, unreleased
+## v0.5.0: Cousins pilot fixes (2026-11-18) · merged to `main`
 
 The owner tested with cousins. They reported three problems and asked what else to improve. Decisions **D37–D42**.
 
@@ -137,11 +137,12 @@ The owner tested with cousins. They reported three problems and asked what else 
 | `2fbfdfc` | Lint fix (no ref read during render in `EventApp`); guide and handoff docs (CI: all green) |
 | `210c230` | Leaving the event ends acting mode (CI: all green) |
 | `80ca6ce` | Test report with CI results |
-| *(this commit)* | `CHANGELOG.md`, version bumped to 0.5.0 |
+| `6b7d2c1`, `680e417` | `CHANGELOG.md`, version bumped to 0.5.0 (CI: all green) |
+| *(merge)* | Fast-forwarded into `main` with the owner's approval; this changelog marked released |
 
 ---
 
-## v0.4.0: Scan UX, buttons, scan accuracy (2026-11-16) · `main` @ `4262594`, live
+## v0.4.0: Scan UX, buttons, scan accuracy (2026-11-16) · `4262594`
 
 - `a0e494b`: Scan block always shows **Take photo** and **Upload photo**, with progress, Cancel, and errors that stay on screen.
   - The organizer sees "Photo scanning is off · Why?" when no reader is configured. `/api/health` explains why, using setting names only.
