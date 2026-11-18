@@ -1,6 +1,7 @@
 import type { Db } from "../db";
 import { EventRepository } from "../aggregate/EventRepository";
 import { EventViewBuilder } from "../readmodels/EventViewBuilder";
+import { Caller, callerParts } from "./BaseService";
 
 /** Read side: authorised event view and authenticated statement export. */
 export class QueryService {
@@ -10,10 +11,13 @@ export class QueryService {
     private readonly repo = new EventRepository(),
   ) {}
 
-  async view(actorId: string, eventId: string) {
+  /** The event as `me` sees it; a manager acting for a guest sees it as the guest. */
+  async view(caller: Caller, eventId: string) {
+    const { actorId, asMemberId } = callerParts(caller);
     const agg = await this.repo.load(this.db, eventId);
-    const me = agg.memberForActor(actorId); // 404 for non-members: no existence leak
-    return this.views.build(agg, me);
+    const by = agg.memberForActor(actorId); // 404 for non-members: no existence leak
+    const me = agg.subjectFor(by, asMemberId);
+    return this.views.build(agg, me, by);
   }
 
   /** Manual-record export (JSON or CSV). Excludes credentials, images and asset URLs. */

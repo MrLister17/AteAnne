@@ -7,7 +7,7 @@ export const maxDuration = 60;
 
 /** Multipart: file. Returns a receipt DRAFT (nothing is saved). */
 export const POST = route<{ eventId: string }>(async (ctx) => {
-  const actorId = await ctx.actor();
+  const actorId = await ctx.caller();
   const length = Number(ctx.req.headers.get("content-length") ?? 0);
   if (length > MAX_UPLOAD_BYTES + 64 * 1024) throw new HttpError(413, "file_too_large", "Images must be 8 MB or smaller");
   let form: FormData;

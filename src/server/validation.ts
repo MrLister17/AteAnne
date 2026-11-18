@@ -31,7 +31,24 @@ export const createEventSchema = z.object({
 
 export const joinSchema = z.object({ code: z.string().min(1).max(20), displayName, intent: intent.default("WILL_PAY_ONLY") });
 
-export const recoverSchema = z.object({ key: z.string().min(20).max(80) });
+/**
+ * Recovery keys are copied from Notes, chats and screenshots, so be forgiving:
+ * spaces, line breaks and zero-width characters picked up on the way are
+ * removed (the key itself never contains them). A missing "AA-" is restored.
+ */
+export const recoverSchema = z.object({
+  key: z
+    .string()
+    .max(200)
+    .transform((s) => {
+      const k = s.replace(/[\s\u200b-\u200d\ufeff]+/g, "").replace(/^[“"'`]+|[”"'`.,]+$/g, "");
+      return /^aa-/i.test(k) ? `AA-${k.slice(3)}` : `AA-${k}`;
+    })
+    .pipe(z.string().min(20, "That doesn’t look like a whole recovery key. It starts with AA- and is about 46 characters long.").max(80)),
+});
+
+export const addGuestSchema = z.object({ displayName, intent: intent.default("WILL_PAY_ONLY") });
+export const setAdminSchema = z.object({ isAdmin: z.boolean() });
 
 export const updateMeSchema = z.object({
   displayName: displayName.optional(),

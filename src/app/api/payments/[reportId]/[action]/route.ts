@@ -3,7 +3,7 @@ import { NotFoundError } from "@/server/http/HttpError";
 
 /** POST /api/payments/:id/{verify|reject|cancel|reverse} */
 export const POST = route<{ reportId: string; action: string }>(async (ctx) => {
-  const actorId = await ctx.actor();
+  const actorId = await ctx.caller();
   const { reportId, action } = ctx.params;
   const body = await ctx.json<Record<string, unknown>>();
   switch (action) {

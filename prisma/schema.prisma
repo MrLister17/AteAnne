@@ -141,6 +141,14 @@ model Member {
   entryComplete      Boolean   @default(false)
   /// Per-member claim version: optimistic concurrency for this member's own claims.
   claimVersion       Int       @default(1)
+  /// A "guest": someone without a phone (or not comfortable with apps). Has no
+  /// browser binding; the organizer or an admin acts for them, and every such
+  /// action is audited with both names. Becomes false if the guest later
+  /// takes over with their own phone via a handed-over recovery key.
+  managed            Boolean   @default(false)
+  /// Appointed by the organizer. Admins can add guests and act for them; they
+  /// do not get any other organizer power (phases, deleting, cancelling).
+  isAdmin            Boolean   @default(false)
   recoveryHash       String    @unique
   recoveryExpiresAt  DateTime
   joinedAt           DateTime  @default(now())

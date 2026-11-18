@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PHASES, PHASE_LABEL } from "@/domain/event/PhaseMachine";
 import { api, ApiError } from "../api";
 import { Icon, IconName } from "../components/Icon";
@@ -14,6 +14,16 @@ import { ClaimTab } from "./ClaimTab";
 import { MoneyTab } from "./MoneyTab";
 import { PeopleTab } from "./PeopleTab";
 import { TutorialButton } from "../tutorial/TutorialProvider";
+import { PersonScreen } from "./PersonScreen";
+
+const actingKey = (eventId: string) => `ateanne:acting:${eventId}`;
+function readActing(eventId: string): string | null {
+  try {
+    return typeof window === "undefined" ? null : sessionStorage.getItem(actingKey(eventId));
+  } catch {
+    return null;
+  }
+}
 
 const TABS: { id: TabId; label: string; icon: IconName }[] = [
   { id: "overview", label: "Home", icon: "home" },
@@ -35,15 +45,57 @@ function EventLoader({ eventId }: { eventId: string }) {
   const [view, setView] = useState<View | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const [tab, setTabState] = useState<TabId>("overview");
+  // Acting for a guest survives a refresh of this tab, but not closing it.
+  const [actingAs, setActingAs] = useState<string | null>(() => readActing(eventId));
+  const [personFor, setPersonFor] = useState<string | null>(null);
+  const latest = useRef(0);
+
+  // Set before any request below runs (effects run in order).
+  useEffect(() => {
+    api.setActingAs(actingAs);
+    return () => api.setActingAs(null);
+  }, [actingAs]);
 
   const reload = useCallback(async () => {
+    const mine = ++latest.current;
     try {
-      setView(await api.get<View>(`/api/events/${eventId}`));
+      const next = await api.get<View>(`/api/events/${eventId}`);
+      if (mine !== latest.current) return; // a newer request (e.g. after switching who you act for) wins
+      setView(next);
       setError(null);
     } catch (e) {
+      if (mine !== latest.current) return;
+      if (actingAs && e instanceof ApiError && [400, 403, 404].includes(e.status)) {
+        // The guest took over with their own phone, or was removed: go back to being yourself.
+        try {
+          sessionStorage.removeItem(actingKey(eventId));
+        } catch {
+          /* private mode */
+        }
+        setActingAs(null);
+        return;
+      }
       if (e instanceof ApiError) setError(e);
     }
-  }, [eventId]);
+  }, [eventId, actingAs]);
+
+  const actAs = useCallback(
+    (memberId: string | null) => {
+      try {
+        if (memberId) sessionStorage.setItem(actingKey(eventId), memberId);
+        else sessionStorage.removeItem(actingKey(eventId));
+      } catch {
+        /* private mode: acting still works until the page reloads */
+      }
+      api.setActingAs(memberId);
+      setView(null); // never show one person's screen while switching to another
+      setActingAs(memberId);
+      setTabState("overview");
+      history.replaceState(null, "", "#overview");
+      window.scrollTo({ top: 0 });
+    },
+    [eventId],
+  );
 
   // Restore tab from the URL hash so refresh / back keeps your place.
   useEffect(() => {
@@ -72,7 +124,7 @@ function EventLoader({ eventId }: { eventId: string }) {
     };
   }, [reload]);
 
-  const ctx = useMemo(() => (view ? { view, reload, setTab } : null), [view, reload, setTab]);
+  const ctx = useMemo(() => (view ? { view, reload, setTab, actAs, showPerson: setPersonFor } : null), [view, reload, setTab, actAs]);
 
   if (error && !view) {
     return (
@@ -85,7 +137,7 @@ function EventLoader({ eventId }: { eventId: string }) {
             Join with a code
           </Link>
           <Link href="/recover" className="min-h-12 rounded-2xl border border-line px-5 py-3 font-semibold">
-            Recover access
+            I have a recovery key
           </Link>
         </div>
       </main>
@@ -102,7 +154,7 @@ function EventLoader({ eventId }: { eventId: string }) {
 
   return (
     <EventContext.Provider value={ctx}>
-      <Header view={ctx.view} onRefresh={reload} />
+      <Header view={ctx.view} onRefresh={reload} onStopActing={() => actAs(null)} onShow={() => setPersonFor(ctx.view.me.memberId)} />
       <main className="pb-tabbar mx-auto w-full max-w-[520px] px-4 pt-3">
         {tab === "overview" && <OverviewTab />}
         {tab === "receipts" && <ReceiptsTab />}
@@ -111,12 +163,13 @@ function EventLoader({ eventId }: { eventId: string }) {
         {tab === "people" && <PeopleTab />}
       </main>
       <TabBar tab={tab} setTab={setTab} view={ctx.view} />
+      {personFor && <PersonScreen memberId={personFor} onClose={() => setPersonFor(null)} />}
     </EventContext.Provider>
   );
 }
 
 /** Sticky header: title, phase progress and my balance — never covers content or buttons. */
-function Header({ view, onRefresh }: { view: View; onRefresh: () => Promise<void> }) {
+function Header({ view, onRefresh, onStopActing, onShow }: { view: View; onRefresh: () => Promise<void>; onStopActing: () => void; onShow: () => void }) {
   const idx = PHASES.indexOf(view.event.phase);
   const myNet = view.settlement?.positions.find((p) => p.memberId === view.me.memberId)?.remaining ?? (view.calculation.ok ? view.calculation.positions.find((p) => p.memberId === view.me.memberId)?.net : null);
   const frozen = Boolean(view.settlement);
@@ -161,6 +214,23 @@ function Header({ view, onRefresh }: { view: View; onRefresh: () => Promise<void
       {view.event.cancelled && (
         <div className="mx-auto max-w-[520px] px-4 pb-2">
           <Badge tone="warn">Cancelled — not settled</Badge>
+        </div>
+      )}
+      {view.actingFor && (
+        <div className="bg-coral text-white dark:text-black" role="status" data-testid="acting-banner">
+          <div className="mx-auto flex max-w-[520px] items-center gap-2 px-3 py-1.5">
+            <Icon name="users" size={20} className="shrink-0" />
+            <p className="min-w-0 flex-1 text-[14px] leading-tight">
+              <b className="block truncate">Acting for {view.me.displayName}</b>
+              <span className="block truncate opacity-90">You ({view.actingFor.byName}) choose for them</span>
+            </p>
+            <button type="button" onClick={onShow} className="min-h-11 shrink-0 rounded-xl bg-white/20 px-3 text-[14px] font-semibold active:bg-white/30">
+              Show
+            </button>
+            <button type="button" onClick={onStopActing} className="min-h-11 shrink-0 rounded-xl bg-white px-3 text-[14px] font-semibold text-black active:opacity-90">
+              Done
+            </button>
+          </div>
         </div>
       )}
     </header>

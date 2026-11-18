@@ -14,6 +14,10 @@ export interface EventCtx {
   view: View;
   reload: () => Promise<void>;
   setTab: (tab: TabId) => void;
+  /** Organizer/admin: act for a guest (null = back to yourself). */
+  actAs: (memberId: string | null) => void;
+  /** Open the big, simple "show this to them" screen for one person. */
+  showPerson: (memberId: string) => void;
 }
 
 export type TabId = "overview" | "receipts" | "claim" | "money" | "people";

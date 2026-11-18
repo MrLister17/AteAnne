@@ -6,7 +6,7 @@ import { NotFoundError } from "../http/HttpError";
 import type { EventAggregate } from "../aggregate/EventAggregate";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import { decisionSchema, disputeChoiceSchema, instructionsSchema, rejectSchema, reportSchema, reverseSchema } from "../validation";
-import { BaseService } from "./BaseService";
+import { BaseService, Caller } from "./BaseService";
 
 /**
  * Settlement phase: payment instructions, sender reports, recipient-only
@@ -60,9 +60,9 @@ export class PaymentService extends BaseService {
   }
 
   /** New instruction version; old versions stay attached to earlier reports. QR changes never touch approvals. */
-  async setInstructions(actorId: string, eventId: string, input: z.input<typeof instructionsSchema>, newQrAssetId?: string | null): Promise<{ version: number }> {
+  async setInstructions(caller: Caller, eventId: string, input: z.input<typeof instructionsSchema>, newQrAssetId?: string | null): Promise<{ version: number }> {
     const data = instructionsSchema.parse(input);
-    return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       if (agg.phase === "DONE") throw new ConflictError("event_done", "Done events are read-only");
       const current = await tx.paymentInstruction.findFirst({ where: { memberId: me.id, current: true } });
       const qrAssetId = newQrAssetId ?? (data.keepQr ? (current?.qrAssetId ?? null) : null);
@@ -82,10 +82,10 @@ export class PaymentService extends BaseService {
     });
   }
 
-  async report(actorId: string, edgeId: string, input: z.input<typeof reportSchema>): Promise<{ reportId: string; replayed: boolean }> {
+  async report(caller: Caller, edgeId: string, input: z.input<typeof reportSchema>): Promise<{ reportId: string; replayed: boolean }> {
     const data = reportSchema.parse(input);
     const eventId = await this.eventIdForEdge(edgeId);
-    return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       await this.limiter.hit(RATE_RULES.financialSavesPerMember, me.id);
       // Idempotent replay: same sender + key returns the original record.
       const prior = await tx.paymentReport.findUnique({ where: { senderMemberId_idempotencyKey: { senderMemberId: me.id, idempotencyKey: data.idempotencyKey } } });
@@ -131,9 +131,9 @@ export class PaymentService extends BaseService {
     });
   }
 
-  async cancel(actorId: string, reportId: string): Promise<void> {
+  async cancel(caller: Caller, reportId: string): Promise<void> {
     const eventId = await this.eventIdForReport(reportId);
-    await this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    await this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       const { report } = this.findReport(agg, reportId);
       if (report.senderMemberId !== me.id) throw new PermissionError("not_sender", "Only the sender can cancel their report");
       if (report.status === "CANCELLED") return;
@@ -143,12 +143,13 @@ export class PaymentService extends BaseService {
     });
   }
 
-  async verify(actorId: string, reportId: string, input: z.input<typeof decisionSchema> = {}): Promise<{ status: string }> {
+  async verify(caller: Caller, reportId: string, input: z.input<typeof decisionSchema> = {}): Promise<{ status: string }> {
     const data = decisionSchema.parse(input);
     const eventId = await this.eventIdForReport(reportId);
-    return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    return this.inEvent(caller, eventId, async ({ tx, agg, me, by }) => {
       const { snap, edge, report } = this.findReport(agg, reportId);
       if (report.recipientMemberId !== me.id) throw new PermissionError("not_recipient", "Only the named recipient can confirm this payment");
+      agg.guests.assertNoConflict(by, me, report.senderMemberId);
       if (report.status === "VERIFIED") return { status: "VERIFIED" }; // idempotent double-click
       agg.machine.assertIn("SETTLING");
       if (snap.status !== "ACTIVE") throw new ConflictError("superseded", "This settlement was superseded");
@@ -164,10 +165,10 @@ export class PaymentService extends BaseService {
     });
   }
 
-  async reject(actorId: string, reportId: string, input: z.input<typeof rejectSchema>): Promise<{ disputeId: string }> {
+  async reject(caller: Caller, reportId: string, input: z.input<typeof rejectSchema>): Promise<{ disputeId: string }> {
     const data = rejectSchema.parse(input);
     const eventId = await this.eventIdForReport(reportId);
-    return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       agg.machine.assertIn("SETTLING");
       const { edge, report } = this.findReport(agg, reportId);
       if (report.status === "REJECTED" && report.recipientMemberId === me.id) {
@@ -188,10 +189,10 @@ export class PaymentService extends BaseService {
   }
 
   /** Recipient corrects their own mistaken confirmation, once, with a reason, before Done. */
-  async reverse(actorId: string, reportId: string, input: z.input<typeof reverseSchema>): Promise<void> {
+  async reverse(caller: Caller, reportId: string, input: z.input<typeof reverseSchema>): Promise<void> {
     const data = reverseSchema.parse(input);
     const eventId = await this.eventIdForReport(reportId);
-    await this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    await this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       const { report } = this.findReport(agg, reportId);
       PaymentLedger.assertCanReverse({ recipientId: report.recipientMemberId, status: report.status, reversed: Boolean(report.reversal) }, me.id, agg.phase === "DONE", data.reason);
       await tx.paymentReversal.create({ data: { reportId, actorMemberId: me.id, reason: data.reason } });
@@ -200,16 +201,17 @@ export class PaymentService extends BaseService {
   }
 
   /** Each counterparty picks a resolution; it takes effect only when both pick the same. */
-  async chooseResolution(actorId: string, disputeId: string, input: z.input<typeof disputeChoiceSchema>): Promise<{ status: string }> {
+  async chooseResolution(caller: Caller, disputeId: string, input: z.input<typeof disputeChoiceSchema>): Promise<{ status: string }> {
     const data = disputeChoiceSchema.parse(input);
     const eventId = await this.eventIdForDispute(disputeId);
-    return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    return this.inEvent(caller, eventId, async ({ tx, agg, me, by }) => {
       agg.machine.assertIn("SETTLING");
       const dispute = agg.record.snapshots.flatMap((s) => s.edges).flatMap((e) => e.disputes.map((d) => ({ d, e }))).find((x) => x.d.id === disputeId);
       if (!dispute) throw new NotFoundError("Dispute not found");
       const { d, e } = dispute;
       const side = e.fromMemberId === me.id ? "senderChoice" : e.toMemberId === me.id ? "recipientChoice" : null;
       if (!side) throw new PermissionError("not_counterparty", "Only the sender and recipient can resolve this");
+      agg.guests.assertNoConflict(by, me, side === "senderChoice" ? e.toMemberId : e.fromMemberId);
       if (d.status !== "OPEN") throw new ConflictError("dispute_closed", "This dispute is no longer open");
       if (d.version !== data.expectedVersion) throw new ConflictError("stale_dispute", "The other person changed their answer. Reload and check.");
       const next = { senderChoice: d.senderChoice, recipientChoice: d.recipientChoice, [side]: data.choice };

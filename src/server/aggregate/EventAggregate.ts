@@ -5,6 +5,7 @@ import { LedgerDispute, LedgerReport, PaymentLedger } from "@/domain/payments/Pa
 import { ReconciliationResult, ReceiptReconciler } from "@/domain/receipt/ReceiptReconciler";
 import type { ReceiptInput } from "@/domain/receipt/types";
 import { PermissionError } from "@/domain/errors";
+import { GuestPolicy } from "@/domain/event/GuestPolicy";
 import { NotFoundError } from "../http/HttpError";
 import type { EVENT_INCLUDE } from "./EventRepository";
 
@@ -70,6 +71,27 @@ export class EventAggregate {
 
   isOwner(memberId: string): boolean {
     return this.record.ownerMemberId === memberId;
+  }
+
+  get guests(): GuestPolicy {
+    return new GuestPolicy(this.record.ownerMemberId);
+  }
+
+  /** Organizer, or an admin: may add guests and act for them. */
+  canManageGuests(memberId: string): boolean {
+    return this.guests.canManageGuests(this.member(memberId));
+  }
+
+  /**
+   * The member a request acts as. Normally the caller; a manager may name a
+   * guest instead. Throws unless that is allowed (see GuestPolicy).
+   */
+  subjectFor(by: MemberRecord, asMemberId: string | undefined): MemberRecord {
+    if (!asMemberId || asMemberId === by.id) return by;
+    const subject = this.record.members.find((x) => x.id === asMemberId);
+    if (!subject) throw new NotFoundError("Member not found");
+    this.guests.assertCanActFor(by, subject);
+    return subject;
   }
 
   assertOwner(memberId: string): void {

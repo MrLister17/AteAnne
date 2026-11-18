@@ -19,9 +19,11 @@ export class EventViewBuilder {
     private readonly features: { receiptScan: boolean } = { receiptScan: false },
   ) {}
 
-  async build(agg: EventAggregate, me: MemberRecord) {
+  /** `me` is whose view this is; `by` is the signed-in person (differs only when acting for a guest). */
+  async build(agg: EventAggregate, me: MemberRecord, by: MemberRecord = me) {
     const e = agg.record;
     const isOwner = agg.isOwner(me.id);
+    const acting = by.id !== me.id;
     const order = new Map(agg.memberOrder().map((id, i) => [id, i]));
     const activeSnap = agg.activeSnapshot();
 
@@ -35,7 +37,20 @@ export class EventViewBuilder {
 
     return {
       features: this.features,
-      me: { memberId: me.id, isOwner, displayName: me.displayName, intent: me.intent, entryComplete: me.entryComplete, claimVersion: me.claimVersion },
+      me: {
+        memberId: me.id,
+        isOwner,
+        isAdmin: me.isAdmin,
+        isGuest: me.managed,
+        /** Organizer or admin, and not currently acting for someone. */
+        canManageGuests: !acting && agg.canManageGuests(me.id),
+        displayName: me.displayName,
+        intent: me.intent,
+        entryComplete: me.entryComplete,
+        claimVersion: me.claimVersion,
+      },
+      /** Set while a manager is acting for a guest: who is really holding the phone. */
+      actingFor: acting ? { byMemberId: by.id, byName: by.displayName } : null,
       event: {
         id: e.id,
         title: e.title,
@@ -62,6 +77,9 @@ export class EventViewBuilder {
         active: m.active,
         entryComplete: m.entryComplete,
         isOwner: agg.isOwner(m.id),
+        isAdmin: m.isAdmin,
+        /** Added without a phone; the organizer or an admin acts for them. */
+        isGuest: m.managed,
         isMe: m.id === me.id,
         referenced: agg.memberReferenced(m.id),
       })),
@@ -156,7 +174,18 @@ export class EventViewBuilder {
           { id: i.id, version: i.version, acceptsCash: i.acceptsCash, cashNote: i.cashNote, qrLabel: i.qrLabel, hasQr: Boolean(i.qrAssetId), qrAssetId: i.qrAssetId && qrVisibleFor(i.memberId) ? i.qrAssetId : null },
         ]),
       ),
-      audit: audit.map((a) => ({ id: a.id, type: a.type, actorMemberId: a.actorMemberId, createdAt: a.createdAt.toISOString(), detail: a.detail })),
+      audit: audit.map((a) => {
+        const d = a.detail && typeof a.detail === "object" && !Array.isArray(a.detail) ? (a.detail as Record<string, unknown>) : {};
+        return {
+          id: a.id,
+          type: a.type,
+          actorMemberId: a.actorMemberId,
+          /** Set when a manager did this for a guest (someone without a phone). */
+          onBehalfOf: typeof d.onBehalfOf === "string" ? d.onBehalfOf : null,
+          createdAt: a.createdAt.toISOString(),
+          detail: a.detail,
+        };
+      }),
     };
   }
 

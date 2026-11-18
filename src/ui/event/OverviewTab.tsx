@@ -8,6 +8,7 @@ import { Icon } from "../components/Icon";
 import { BalanceBanner, Blockers, Button, Card, Notice, SectionTitle } from "../components/ui";
 import { php } from "../format";
 import { TabId, useAction, useEvent } from "./EventContext";
+import { pendingFor } from "./todo";
 
 export function OverviewTab() {
   const { view, me, event, setTab } = useEvent();
@@ -23,7 +24,15 @@ export function OverviewTab() {
         <BalanceBanner net={estimate.net} estimate caption={`Paid ${php(estimate.funding)} · your share so far ${php(estimate.cost)}`} />
       ) : null}
 
+      {view.actingFor && (
+        <Notice tone="warn" title={`You’re choosing for ${me.displayName}`}>
+          Everything you do now is saved as {me.displayName}’s choice, and the history shows you did it for them. Show them the screen as you go, then tap <b>Done</b> at the top.
+        </Notice>
+      )}
+
       <MyTodo phase={phase} onGo={setTab} />
+
+      {me.canManageGuests && <GuestsPanel />}
 
       <DeletionNotice />
 
@@ -36,9 +45,9 @@ export function OverviewTab() {
 
       {me.isOwner && <OrganizerPanel />}
 
-      {!me.isOwner && phase !== "DONE" && (
+      {!me.isOwner && !view.actingFor && phase !== "DONE" && (
         <Notice tone="info">
-          The organizer moves the group to the next step once everyone is ready. Organizers can’t claim items or confirm payments for you.
+          The organizer moves the group to the next step once everyone is ready. Nobody can claim items or confirm payments for you; that is only done for people added without a phone.
         </Notice>
       )}
 
@@ -253,6 +262,57 @@ function OrganizerPanel() {
           {!reopenAllowed && view.settlement?.hasReports && <p className="text-[13px] text-muted">A payment was reported, so the bill is frozen. Mistakes after this point are a documented v1 limitation.</p>}
         </Card>
       )}
+    </>
+  );
+}
+
+/** Organizer/admin: everyone added without a phone, what they're waiting on, and a one-tap way to act for them. */
+function GuestsPanel() {
+  const { view, actAs, showPerson, setTab } = useEvent();
+  const guests = view.members.filter((m) => m.isGuest && m.active);
+  if (guests.length === 0) {
+    if (view.event.phase !== "COLLECTING") return null;
+    return (
+      <Card className="flex items-center gap-3">
+        <Icon name="user" className="text-violet" />
+        <p className="flex-1 text-[15px]">Someone at the table has no phone or no data?</p>
+        <Button variant="secondary" onClick={() => setTab("people")}>
+          Add them
+        </Button>
+      </Card>
+    );
+  }
+  return (
+    <>
+      <SectionTitle>People without a phone</SectionTitle>
+      <ul className="card divide-y divide-line p-0" data-testid="guests-panel">
+        {guests.map((g) => {
+          const todo = pendingFor(view, g.id);
+          return (
+            <li key={g.id} className="space-y-2 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <p className="min-w-0 flex-1 truncate font-semibold">{g.displayName}</p>
+                {todo.length === 0 ? <span className="text-[13px] font-semibold text-receive">✓ nothing to do</span> : <span className="text-[13px] font-semibold text-coral">{todo.length} to do</span>}
+              </div>
+              {todo.length > 0 && (
+                <ul className="list-disc space-y-0.5 pl-5 text-[14px] text-muted">
+                  {todo.slice(0, 3).map((t, i) => (
+                    <li key={i}>{t}</li>
+                  ))}
+                </ul>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="tonal" icon="eye" onClick={() => showPerson(g.id)}>
+                  Show amount
+                </Button>
+                <Button variant={todo.length ? "primary" : "secondary"} icon="hand" disabled={view.event.phase === "DONE"} onClick={() => actAs(g.id)}>
+                  Act for {g.displayName.split(" ")[0]}
+                </Button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </>
   );
 }

@@ -5,7 +5,7 @@ import { NotFoundError } from "../http/HttpError";
 import { EventAggregate, MAX_LINES, MAX_RECEIPTS, MemberRecord } from "../aggregate/EventAggregate";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import { claimsSchema, fundingAckSchema, receiptSchema, updateReceiptSchema } from "../validation";
-import { BaseService } from "./BaseService";
+import { BaseService, Caller } from "./BaseService";
 
 type ReceiptPayload = z.output<typeof receiptSchema>;
 
@@ -50,9 +50,9 @@ export class ReceiptService extends BaseService {
     }
   }
 
-  async create(actorId: string, eventId: string, input: z.input<typeof receiptSchema>): Promise<{ receiptId: string }> {
+  async create(caller: Caller, eventId: string, input: z.input<typeof receiptSchema>): Promise<{ receiptId: string }> {
     const data = receiptSchema.parse(input);
-    return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       await this.limiter.hit(RATE_RULES.financialSavesPerMember, me.id);
       this.assertCanEdit(agg, me);
       if (agg.record.receipts.length >= MAX_RECEIPTS) throw new ConflictError("too_many_receipts", `At most ${MAX_RECEIPTS} receipts per event`);
@@ -68,10 +68,10 @@ export class ReceiptService extends BaseService {
     });
   }
 
-  async update(actorId: string, receiptId: string, input: z.input<typeof updateReceiptSchema>): Promise<{ version: number }> {
+  async update(caller: Caller, receiptId: string, input: z.input<typeof updateReceiptSchema>): Promise<{ version: number }> {
     const data = updateReceiptSchema.parse(input);
     const eventId = await this.eventIdForReceipt(receiptId);
-    return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       await this.limiter.hit(RATE_RULES.financialSavesPerMember, me.id);
       this.assertCanEdit(agg, me);
       const receipt = agg.receipt(receiptId);
@@ -120,9 +120,9 @@ export class ReceiptService extends BaseService {
     }
   }
 
-  async remove(actorId: string, receiptId: string): Promise<void> {
+  async remove(caller: Caller, receiptId: string): Promise<void> {
     const eventId = await this.eventIdForReceipt(receiptId);
-    await this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    await this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       this.assertCanEdit(agg, me);
       const receipt = agg.receipt(receiptId);
       if (receipt.authorMemberId !== me.id && !agg.isOwner(me.id)) throw new PermissionError("not_author", "Only the author or organizer can delete this receipt");
@@ -133,10 +133,10 @@ export class ReceiptService extends BaseService {
   }
 
   /** The named payer signs that they paid exactly this amount for this receipt version. */
-  async acknowledgeFunding(actorId: string, receiptId: string, input: z.input<typeof fundingAckSchema>): Promise<void> {
+  async acknowledgeFunding(caller: Caller, receiptId: string, input: z.input<typeof fundingAckSchema>): Promise<void> {
     const data = fundingAckSchema.parse(input);
     const eventId = await this.eventIdForReceipt(receiptId);
-    await this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    await this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       agg.machine.assertIn("COLLECTING");
       agg.assertNotCancelled();
       const receipt = agg.receipt(receiptId);
@@ -156,10 +156,10 @@ export class ReceiptService extends BaseService {
    * rejected with 409 inside the event lock, so concurrent saves can never
    * allocate more units than exist.
    */
-  async saveClaims(actorId: string, receiptId: string, input: z.input<typeof claimsSchema>): Promise<{ claimVersion: number }> {
+  async saveClaims(caller: Caller, receiptId: string, input: z.input<typeof claimsSchema>): Promise<{ claimVersion: number }> {
     const data = claimsSchema.parse(input);
     const eventId = await this.eventIdForReceipt(receiptId);
-    return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       await this.limiter.hit(RATE_RULES.financialSavesPerMember, me.id);
       agg.machine.assertIn("ALLOCATING");
       agg.assertNotCancelled();
@@ -209,9 +209,9 @@ export class ReceiptService extends BaseService {
     });
   }
 
-  /** Self-only approval of the exact current financial version. */
-  async approveReview(actorId: string, eventId: string, financialVersion: number): Promise<void> {
-    await this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+  /** Self-only approval of the exact current financial version (a manager may approve for a guest they showed it to). */
+  async approveReview(caller: Caller, eventId: string, financialVersion: number): Promise<void> {
+    await this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       agg.machine.assertIn("REVIEWING");
       agg.assertNotCancelled();
       if (agg.record.financialVersion !== financialVersion) throw new ConflictError("stale_version", "The split changed. Review the new version before approving.");

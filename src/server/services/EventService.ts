@@ -6,8 +6,8 @@ import { GoneError, NotFoundError } from "../http/HttpError";
 import { JoinCodeCodec, SecretGenerator } from "../security/Crypto";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import { MAX_MEMBERS, POLICY_VERSION } from "../aggregate/EventAggregate";
-import { createEventSchema, joinSchema, transitionSchema, updateMeSchema } from "../validation";
-import { BaseService } from "./BaseService";
+import { addGuestSchema, createEventSchema, joinSchema, setAdminSchema, transitionSchema, updateMeSchema } from "../validation";
+import { BaseService, Caller } from "./BaseService";
 
 export const JOIN_CODE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const RECOVERY_TTL_MS = 180 * 24 * 60 * 60 * 1000;
@@ -121,9 +121,10 @@ export class EventService extends BaseService {
     });
   }
 
-  async updateMe(actorId: string, eventId: string, input: z.input<typeof updateMeSchema>): Promise<void> {
+  /** Update my own (or, for a manager acting for a guest, the guest's) name, intent or entry status. */
+  async updateMe(caller: Caller, eventId: string, input: z.input<typeof updateMeSchema>): Promise<void> {
     const data = updateMeSchema.parse(input);
-    await this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+    await this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       if (agg.phase === "DONE") throw new ConflictError("event_done", "Done events are read-only");
       if (data.entryComplete !== undefined) {
         agg.machine.assertIn("COLLECTING");
@@ -133,15 +134,93 @@ export class EventService extends BaseService {
       if (data.entryComplete !== undefined && data.entryComplete !== me.entryComplete) {
         await this.audit(tx, eventId, me.id, data.entryComplete ? "entry.completed" : "entry.reopened");
       }
+      if (data.displayName !== undefined && data.displayName !== me.displayName) {
+        await this.audit(tx, eventId, me.id, "member.renamed", { from: me.displayName, to: data.displayName });
+      }
     });
   }
 
-  /** Owner removes an unreferenced roster entry (e.g. a duplicate browser) while collecting. */
+  /**
+   * Add a guest: a person at the table without a phone (or who'd rather not
+   * use one). They get a normal stable member identity with no browser; the
+   * organizer or an admin acts for them. Only while collecting, like joining.
+   */
+  async addGuest(actorId: string, eventId: string, input: z.input<typeof addGuestSchema>): Promise<{ memberId: string }> {
+    const data = addGuestSchema.parse(input);
+    return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+      agg.guests.assertCanManageGuests(me);
+      agg.machine.assertIn("COLLECTING");
+      agg.assertNotCancelled();
+      if (agg.activeMembers().length >= MAX_MEMBERS) throw new ConflictError("event_full", `This event already has ${MAX_MEMBERS} people`);
+      // The recovery hash is required and unique; a random one nobody knows means "no key yet".
+      // A real key is only created when a manager hands the guest their own access.
+      const placeholder = this.newRecoveryKey();
+      const member = await tx.member.create({
+        data: {
+          eventId,
+          seq: agg.record.nextMemberSeq,
+          actorId: null,
+          managed: true,
+          displayName: data.displayName,
+          intent: data.intent,
+          // Managers usually add guests after the receipts are known; the payer
+          // confirmation still gates anything a guest paid for.
+          entryComplete: true,
+          recoveryHash: placeholder.hash,
+          recoveryExpiresAt: placeholder.expiresAt,
+        },
+      });
+      await tx.event.update({ where: { id: eventId }, data: { nextMemberSeq: { increment: 1 } } });
+      await this.bumpFinancial(tx, eventId, true);
+      await this.audit(tx, eventId, me.id, "member.guest_added", { memberId: member.id, displayName: data.displayName });
+      return { memberId: member.id };
+    });
+  }
+
+  /** Organizer appoints or removes an admin (someone who can manage guests). */
+  async setAdmin(actorId: string, eventId: string, memberId: string, input: z.input<typeof setAdminSchema>): Promise<void> {
+    const { isAdmin } = setAdminSchema.parse(input);
+    await this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+      if (agg.phase === "DONE") throw new ConflictError("event_done", "Done events are read-only");
+      const target = agg.member(memberId);
+      agg.guests.assertCanSetAdmin(me, target);
+      if (target.isAdmin === isAdmin) return;
+      await tx.member.update({ where: { id: target.id }, data: { isAdmin } });
+      await this.audit(tx, eventId, me.id, isAdmin ? "member.admin_added" : "member.admin_removed", { memberId: target.id, displayName: target.displayName });
+    });
+  }
+
+  /**
+   * Give a guest their own access: a one-time recovery key the guest opens on
+   * their own phone (Home → "I have a recovery key"). Redeeming it turns the
+   * guest into a normal member with the same receipts, claims and payments.
+   * Making a new key invalidates any earlier one.
+   */
+  async guestAccessKey(actorId: string, eventId: string, memberId: string): Promise<{ recoveryKey: string }> {
+    return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+      agg.guests.assertCanManageGuests(me);
+      if (agg.phase === "DONE") throw new ConflictError("event_done", "Done events are read-only");
+      const target = agg.member(memberId);
+      if (!target.managed || !target.active) throw new ConflictError("not_guest", `${target.displayName} already uses their own phone`);
+      const key = this.newRecoveryKey();
+      await tx.member.update({ where: { id: target.id }, data: { recoveryHash: key.hash, recoveryExpiresAt: key.expiresAt } });
+      await this.audit(tx, eventId, me.id, "member.guest_key_issued", { memberId: target.id, displayName: target.displayName });
+      return { recoveryKey: key.key };
+    });
+  }
+
+  /**
+   * Owner removes an unreferenced roster entry (e.g. a duplicate browser) while
+   * collecting. Admins may remove guests (e.g. one added by mistake).
+   */
   async removeMember(actorId: string, eventId: string, memberId: string): Promise<void> {
     await this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
-      agg.assertOwner(me.id);
-      agg.machine.assertIn("COLLECTING");
       const target = agg.member(memberId);
+      if (!agg.isOwner(me.id)) {
+        agg.guests.assertCanManageGuests(me);
+        if (!target.managed) throw new PermissionError("owner_only", "Only the organizer can remove someone who uses their own phone");
+      }
+      agg.machine.assertIn("COLLECTING");
       if (agg.isOwner(target.id)) throw new ConflictError("cannot_remove_owner", "The organizer cannot be removed");
       if (agg.memberReferenced(target.id)) {
         throw new ConflictError("member_referenced", `${target.displayName} is referenced by receipts or claims and cannot be removed. Edit those first.`);
@@ -295,6 +374,7 @@ export class EventService extends BaseService {
       phase: m.event.phase,
       cancelled: m.event.cancelled,
       isOwner: m.event.ownerMemberId === m.id,
+      isAdmin: m.isAdmin,
       displayName: m.displayName,
       updatedAt: m.event.updatedAt.toISOString(),
     }));

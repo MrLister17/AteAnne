@@ -9,14 +9,23 @@ import { HttpError, UnauthenticatedError, statusFor } from "./HttpError";
 
 const MAX_JSON_BYTES = 64 * 1024;
 
+/** Sent by the app while the organizer or an admin is acting for a guest (someone without a phone). */
+export const ACT_AS_HEADER = "x-ateanne-act-as";
+
 export interface RouteContext<P> {
   req: NextRequest;
   params: P;
   app: AppContainer;
   requestId: string;
   ipHash: string;
-  /** Current actor or throws 401. */
+  /** Current actor or throws 401. Refuses requests that ask to act for a guest. */
   actor(): Promise<string>;
+  /**
+   * Current actor plus the guest they are acting for, if any. Only routes for
+   * a participant's own actions (claims, approvals, payments…) use this; the
+   * service checks the caller may act for that guest.
+   */
+  caller(): Promise<{ actorId: string; asMemberId?: string }>;
   /** Current actor, creating a new browser identity + session if needed. */
   actorOrCreate(): Promise<string>;
   json<T = unknown>(): Promise<T>;
@@ -68,6 +77,9 @@ export function route<P = Record<string, string>>(handler: Handler<P>) {
       assertSameOrigin(req);
       const app = container();
       const cookieToken = req.cookies.get(SESSION_COOKIE)?.value;
+      const rawActAs = req.headers.get(ACT_AS_HEADER)?.trim() || null;
+      if (rawActAs && !/^[a-z0-9]{1,40}$/i.test(rawActAs)) throw new HttpError(400, "bad_act_as", "Unknown person");
+      const actAs = rawActAs;
       let actorCache: string | null | undefined;
       const resolveActor = async () => {
         if (actorCache === undefined) actorCache = await app.sessions.resolve(cookieToken);
@@ -80,9 +92,15 @@ export function route<P = Record<string, string>>(handler: Handler<P>) {
         requestId,
         ipHash: clientIpHash(req),
         async actor() {
+          if (actAs) throw new HttpError(400, "acting_not_supported", "Stop acting for this person first, then try again as yourself.");
           const a = await resolveActor();
           if (!a) throw new UnauthenticatedError();
           return a;
+        },
+        async caller() {
+          const a = await resolveActor();
+          if (!a) throw new UnauthenticatedError();
+          return actAs ? { actorId: a, asMemberId: actAs } : { actorId: a };
         },
         async actorOrCreate() {
           const a = await resolveActor();

@@ -36,8 +36,22 @@ function fallbackMessage(status: number): string {
   return "Something went wrong";
 }
 
+/** Must match ACT_AS_HEADER on the server. */
+const ACT_AS_HEADER = "x-ateanne-act-as";
+
 /** Small typed client: JSON in/out, same-origin cookies, no caching. */
 export class ApiClient {
+  /**
+   * While the organizer or an admin is acting for a guest (someone without a
+   * phone), every request says so. The server checks it is allowed, and
+   * refuses it on anything that isn't one of the guest's own actions.
+   */
+  private actingAs: string | null = null;
+
+  setActingAs(memberId: string | null) {
+    this.actingAs = memberId;
+  }
+
   async request<T>(method: string, path: string, body?: unknown, opts: { signal?: AbortSignal; quiet?: boolean } = {}): Promise<T> {
     let res: Response;
     if (!opts.quiet) track(1);
@@ -48,7 +62,10 @@ export class ApiClient {
           credentials: "same-origin",
           cache: "no-store",
           signal: opts.signal,
-          headers: body instanceof FormData ? undefined : body !== undefined ? { "content-type": "application/json" } : undefined,
+          headers: {
+            ...(body !== undefined && !(body instanceof FormData) ? { "content-type": "application/json" } : {}),
+            ...(this.actingAs ? { [ACT_AS_HEADER]: this.actingAs } : {}),
+          },
           body: body instanceof FormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
         });
       } catch {

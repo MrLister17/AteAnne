@@ -7,6 +7,7 @@ import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import { ReceiptReadError, type ReceiptReader } from "../scan/ReceiptReader";
 import { prepareForReader } from "../scan/receiptImage";
 import type { AssetService } from "./AssetService";
+import { type Caller, callerParts } from "./BaseService";
 
 /**
  * Photo → receipt DRAFT. Nothing is saved: the draft opens in the normal
@@ -33,7 +34,9 @@ export class ReceiptScanService {
     return this.reader !== null;
   }
 
-  async scan(actorId: string, eventId: string, file: Buffer) {
+  /** Nothing is saved, so acting for a guest needs no extra check: the draft is just shown to the caller. */
+  async scan(caller: Caller, eventId: string, file: Buffer) {
+    const { actorId } = callerParts(caller);
     if (!this.reader) throw new HttpError(503, "scan_not_configured", "Receipt scanning isn’t switched on for this app.");
     const member = await this.db.member.findFirst({ where: { eventId, actorId, active: true }, include: { event: true } });
     if (!member) throw new NotFoundError("Event not found");

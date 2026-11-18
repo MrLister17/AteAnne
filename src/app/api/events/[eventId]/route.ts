@@ -2,7 +2,7 @@ import { route } from "@/server/http/route";
 
 type P = { eventId: string };
 
-export const GET = route<P>(async (ctx) => ctx.app.queries.view(await ctx.actor(), ctx.params.eventId));
+export const GET = route<P>(async (ctx) => ctx.app.queries.view(await ctx.caller(), ctx.params.eventId));
 
 export const DELETE = route<P>(async (ctx) => {
   const { confirmTitle } = await ctx.json<{ confirmTitle?: string }>();

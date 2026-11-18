@@ -4,19 +4,23 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/ui/api";
 import { Brand, PageShell } from "@/ui/components/Shell";
-import { Badge, SectionTitle } from "@/ui/components/ui";
+import { Badge, Notice, SectionTitle } from "@/ui/components/ui";
 import { Icon } from "@/ui/components/Icon";
 import { InstallPrompt } from "@/ui/pwa/InstallPrompt";
 import { TutorialButton } from "@/ui/tutorial/TutorialProvider";
 import { timeAgo } from "@/ui/format";
 import { PHASE_LABEL, type Phase } from "@/domain/event/PhaseMachine";
+import { isInstalledApp } from "@/ui/recovery";
 
 type MyEvent = { eventId: string; title: string; phase: Phase; cancelled: boolean; isOwner: boolean; displayName: string; updatedAt: string };
 
 export default function Home() {
   const [events, setEvents] = useState<MyEvent[] | null>(null);
+  const [installed, setInstalled] = useState(false);
   useEffect(() => {
     api.get<{ events: MyEvent[] }>("/api/me").then((r) => setEvents(r.events)).catch(() => setEvents([]));
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- browser-only value read after hydration
+    setInstalled(isInstalledApp());
   }, []);
 
   return (
@@ -35,7 +39,18 @@ export default function Home() {
         <Link href="/join" className="card flex min-h-14 items-center gap-3 px-5 text-[17px] font-semibold active:bg-surface-2">
           <Icon name="users" className="text-violet" /> Join with a code
         </Link>
+        <Link href="/recover" className="card flex min-h-14 items-center gap-3 px-5 text-[17px] font-semibold active:bg-surface-2">
+          <Icon name="key" className="text-coral" /> I have a recovery key
+        </Link>
       </div>
+
+      {installed && events !== null && events.length === 0 && (
+        <div className="mt-4">
+          <Notice tone="info" title="Joined in Safari before adding AteAnne to your Home Screen?">
+            The Home Screen app keeps its own sign-in. Tap <b>I have a recovery key</b> and paste the key you saved, once per event, to bring your events here.
+          </Notice>
+        </div>
+      )}
 
       <div className="mt-3">
         <TutorialButton />
@@ -91,9 +106,9 @@ export default function Home() {
       </ol>
 
       <p className="mt-6 text-center text-[14px] text-muted">
-        Lost your phone?{" "}
+        Lost your phone or your event is missing?{" "}
         <Link href="/recover" className="font-semibold text-violet underline-offset-2 hover:underline">
-          Recover access
+          Use your recovery key
         </Link>
       </p>
       <p className="mt-3 text-center text-[13px] text-muted">No bank logins. No payment processing. Money moves outside the app.</p>

@@ -11,7 +11,9 @@ import { RECOVERY_TTL_MS } from "./EventService";
  * Lost-device recovery. A personal recovery key re-binds the SAME stable
  * member (same ID, funding, claims, instructions, payments) to the current
  * browser, rotates the key and revokes the previous browser's access to that
- * event. Nothing financial is erased or reassigned.
+ * event. Nothing financial is erased or reassigned. The same path lets a
+ * guest (added without a phone) take over their own identity from a key a
+ * manager handed them.
  */
 export class RecoveryService {
   constructor(
@@ -23,7 +25,7 @@ export class RecoveryService {
   async redeem(actorId: string, input: z.input<typeof recoverSchema>, ipHash: string): Promise<{ eventId: string; memberId: string; recoveryKey: string }> {
     const { key } = recoverSchema.parse(input);
     await this.limiter.check(RATE_RULES.recoveryPerIp, ipHash);
-    const hash = this.secrets.sha256(key.trim());
+    const hash = this.secrets.sha256(key);
     return this.db.$transaction(async (tx) => {
       // Lock the member row: two simultaneous redemptions cannot both win.
       const rows = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "Member" WHERE "recoveryHash" = ${hash} FOR UPDATE`;
@@ -41,9 +43,12 @@ export class RecoveryService {
       const recoveryKey = `AA-${this.secrets.token()}`;
       await tx.member.update({
         where: { id: member.id },
-        data: { actorId, recoveryHash: this.secrets.sha256(recoveryKey), recoveryExpiresAt: new Date(Date.now() + RECOVERY_TTL_MS) },
+        // A guest who redeems the key a manager handed them now has their own phone.
+        data: { actorId, managed: false, recoveryHash: this.secrets.sha256(recoveryKey), recoveryExpiresAt: new Date(Date.now() + RECOVERY_TTL_MS) },
       });
-      await tx.auditEvent.create({ data: { eventId: member.eventId, actorMemberId: member.id, type: "member.recovered", detail: { sameActor: member.actorId === actorId } } });
+      await tx.auditEvent.create({
+        data: { eventId: member.eventId, actorMemberId: member.id, type: member.managed ? "member.guest_took_over" : "member.recovered", detail: { sameActor: member.actorId === actorId } },
+      });
       return { eventId: member.eventId, memberId: member.id, recoveryKey };
     });
   }

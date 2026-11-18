@@ -4,7 +4,7 @@ import type { Db } from "../db";
 import { HttpError, NotFoundError } from "../http/HttpError";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import type { PrivateStorage } from "../storage/PrivateStorage";
-import { BaseService } from "./BaseService";
+import { BaseService, Caller, callerParts } from "./BaseService";
 
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 export const MAX_PIXELS = 20_000_000;
@@ -58,15 +58,16 @@ export class AssetService extends BaseService {
   }
 
   /** Upload and attach. RECEIPT → receipt image (author/payer/organizer); QR → caller's own instructions. */
-  async upload(actorId: string, eventId: string, kind: "RECEIPT" | "QR", file: Buffer, receiptId?: string): Promise<{ assetId: string }> {
-    // Authorise before doing expensive decoding.
+  async upload(caller: Caller, eventId: string, kind: "RECEIPT" | "QR", file: Buffer, receiptId?: string): Promise<{ assetId: string }> {
+    // Authorise before doing expensive decoding (acting for a guest is re-checked inside the event lock).
+    const { actorId } = callerParts(caller);
     const member = await this.db.member.findFirst({ where: { eventId, actorId, active: true } });
     if (!member) throw new NotFoundError("Event not found");
     await this.limiter.hit(RATE_RULES.uploadsPerMember, member.id);
     const image = await this.process(file, kind);
     const key = await this.storage.put(image.bytes, image.extension);
     try {
-      return await this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+      return await this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
         if (agg.phase === "DONE") throw new ConflictError("event_done", "Done events are read-only");
         let replaced: string | null = null;
         if (kind === "RECEIPT") {
@@ -96,10 +97,10 @@ export class AssetService extends BaseService {
     }
   }
 
-  async removeReceiptImage(actorId: string, receiptId: string): Promise<void> {
+  async removeReceiptImage(caller: Caller, receiptId: string): Promise<void> {
     const r = await this.db.receipt.findUnique({ where: { id: receiptId }, select: { eventId: true } });
     if (!r) throw new NotFoundError("Receipt not found");
-    const key = await this.inEvent(actorId, r.eventId, async ({ tx, agg, me }) => {
+    const key = await this.inEvent(caller, r.eventId, async ({ tx, agg, me }) => {
       const receipt = agg.receipt(receiptId);
       if (receipt.authorMemberId !== me.id && receipt.payerMemberId !== me.id && !agg.isOwner(me.id)) throw new PermissionError("not_author", "Not allowed");
       if (!receipt.imageAssetId) return null;
@@ -122,8 +123,13 @@ export class AssetService extends BaseService {
     const me = await this.db.member.findFirst({ where: { eventId: asset.eventId, actorId, active: true } });
     if (!me) throw new NotFoundError();
     if (asset.kind === "QR" && asset.ownerMemberId !== me.id) {
+      // Payers see the QR of whoever they owe. A manager also sees it when a guest
+      // they act for owes that person (they pay on the guest's behalf).
+      const event = await this.db.event.findUnique({ where: { id: asset.eventId }, select: { ownerMemberId: true } });
+      const manager = event?.ownerMemberId === me.id || me.isAdmin;
+      const payers = manager ? [me.id, ...(await this.db.member.findMany({ where: { eventId: asset.eventId, managed: true, active: true }, select: { id: true } })).map((m) => m.id)] : [me.id];
       const owes = await this.db.settlementEdge.findFirst({
-        where: { fromMemberId: me.id, toMemberId: asset.ownerMemberId, snapshot: { status: "ACTIVE", eventId: asset.eventId } },
+        where: { fromMemberId: { in: payers }, toMemberId: asset.ownerMemberId, snapshot: { status: "ACTIVE", eventId: asset.eventId } },
       });
       if (!owes) throw new NotFoundError();
     }

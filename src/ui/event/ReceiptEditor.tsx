@@ -8,26 +8,93 @@ import { php, toCentavos, toInput } from "../format";
 import { ReceiptView, useAction, useEvent } from "./EventContext";
 import type { ScannedDraft } from "@/server/services/ReceiptScanService";
 import { uploadName } from "../image";
+import { EntryMath } from "@/domain/receipt/EntryMath";
 import { ScanPanel } from "./ScanPanel";
 import { useReceiptScanner } from "./useReceiptScanner";
 
-type LineDraft = { id?: string; label: string; quantity: string; amount: string; unitPrice: string; mode: "SHARED" | "UNITS" };
-type AdjDraft = { kind: "DISCOUNT" | "SERVICE" | "CHARGE"; label: string; amount: string; scope: "ALL" | number[] };
+/**
+ * `autoTotal`: the line total follows quantity × price each until the person
+ * types a total themselves (clearing it switches back to automatic).
+ */
+type LineDraft = { id?: string; label: string; quantity: string; amount: string; unitPrice: string; mode: "SHARED" | "UNITS"; autoTotal: boolean };
+/** `byPercent`: the amount is `percent` % of the items it applies to (e.g. a 10% service charge). */
+type AdjDraft = { kind: "DISCOUNT" | "SERVICE" | "CHARGE"; label: string; amount: string; byPercent: boolean; percent: string; scope: "ALL" | number[] };
 
 const KIND_LABEL = { DISCOUNT: "Discount", SERVICE: "Service charge", CHARGE: "Other charge" } as const;
 
-type Draft = { label: string; payerMemberId: string; payable: string; lines: LineDraft[]; adjustments: AdjDraft[] };
+/** `payableAuto`: the total paid follows items − discounts + charges until the person types the printed total. */
+type Draft = { label: string; payerMemberId: string; payable: string; payableAuto: boolean; lines: LineDraft[]; adjustments: AdjDraft[] };
+
+const cv = (s: string): bigint | null => {
+  const c = s.trim() === "" ? null : toCentavos(s);
+  return c === null ? null : BigInt(c);
+};
+const qty = (s: string) => Math.max(0, Math.floor(Number(s) || 0));
+/** A stored line is "automatic" only if its total really is quantity × price each. */
+const consistent = (unitPrice: string | null, quantity: number, amount: string) => unitPrice !== null && BigInt(unitPrice) * BigInt(quantity) === BigInt(amount);
+const emptyLine = (): LineDraft => ({ label: "", quantity: "1", amount: "", unitPrice: "", mode: "SHARED", autoTotal: true });
+
+/**
+ * The numbers the form actually shows and saves: automatic line totals,
+ * percentage charges and the automatic receipt total filled in. Pure and
+ * exact (bigint centavos); the server recomputes everything again on save.
+ */
+function resolveDraft(d: Draft) {
+  const lineAmounts = d.lines.map((l) => {
+    if (l.autoTotal) {
+      const t = EntryMath.lineTotal(cv(l.unitPrice), qty(l.quantity));
+      if (t !== null) return toInput(t.toString());
+    }
+    return l.amount;
+  });
+  const lineCv = lineAmounts.map(cv);
+  const adjAmounts = d.adjustments.map((a) => {
+    if (!a.byPercent) return a.amount;
+    if (!a.percent.trim()) return "";
+    const idx = a.scope === "ALL" ? d.lines.map((_, i) => i) : a.scope;
+    const base = idx.reduce((sum, i) => sum + (lineCv[i] ?? 0n), 0n);
+    const v = EntryMath.percentOf(base, a.percent);
+    return v === null ? "x" : toInput(v.toString()); // "x" = shown as invalid until the % is fixed
+  });
+  let gross = 0n;
+  let disc = 0n;
+  let chg = 0n;
+  for (const v of lineCv) if (v !== null) gross += v;
+  d.adjustments.forEach((a, i) => {
+    const v = cv(adjAmounts[i]);
+    if (v === null) return;
+    if (a.kind === "DISCOUNT") disc += v;
+    else chg += v;
+  });
+  const computed = gross - disc + chg;
+  // Blank fields are "not finished yet"; only typed non-amounts are errors.
+  const itemFields = [...lineAmounts, ...adjAmounts];
+  const itemsEmpty = itemFields.some((f) => f.trim() === "");
+  const payable = d.payableAuto ? (itemsEmpty || computed < 0n ? "" : toInput(computed.toString())) : d.payable;
+  const fields = [...itemFields, payable];
+  const empty = fields.some((f) => f.trim() === "");
+  const invalid = fields.some((f) => f.trim() !== "" && toCentavos(f) === null);
+  const payableCv = cv(payable);
+  return {
+    lineAmounts,
+    adjAmounts,
+    payable,
+    calc: { gross, disc, chg, computed, payable: payableCv, auto: d.payableAuto, bad: invalid || empty, invalid, empty, diff: payableCv === null ? null : payableCv - computed },
+  };
+}
 
 /** A scan result becomes an ordinary editable draft; nothing about it is trusted until saved. */
 function fromScan(s: ScannedDraft, myId: string): Draft {
   return {
     label: s.label,
     payerMemberId: myId,
+    // The printed total stays as read, so a misread line shows up as a mismatch.
     payable: toInput(s.payable),
+    payableAuto: false,
     lines: s.lines.length
-      ? s.lines.map((l) => ({ label: l.label, quantity: String(l.quantity), amount: toInput(l.amount), unitPrice: l.unitPrice ? toInput(l.unitPrice) : "", mode: "SHARED" as const }))
-      : [{ label: "", quantity: "1", amount: "", unitPrice: "", mode: "SHARED" as const }],
-    adjustments: s.adjustments.map((a) => ({ kind: a.kind, label: a.label, amount: toInput(a.amount), scope: "ALL" as const })),
+      ? s.lines.map((l) => ({ label: l.label, quantity: String(l.quantity), amount: toInput(l.amount), unitPrice: l.unitPrice ? toInput(l.unitPrice) : "", mode: "SHARED" as const, autoTotal: consistent(l.unitPrice, l.quantity, l.amount) }))
+      : [emptyLine()],
+    adjustments: s.adjustments.map((a) => ({ kind: a.kind, label: a.label, amount: toInput(a.amount), byPercent: false, percent: "", scope: "ALL" as const })),
   };
 }
 
@@ -37,7 +104,8 @@ function fromReceipt(r: ReceiptView | null, myId: string): Draft {
       label: "",
       payerMemberId: myId,
       payable: "",
-      lines: [{ label: "", quantity: "1", amount: "", unitPrice: "", mode: "SHARED" }],
+      payableAuto: true,
+      lines: [emptyLine()],
       adjustments: [],
     };
   }
@@ -45,11 +113,14 @@ function fromReceipt(r: ReceiptView | null, myId: string): Draft {
     label: r.label,
     payerMemberId: r.payerId,
     payable: toInput(r.payable),
-    lines: r.lines.map((l) => ({ id: l.id, label: l.label, quantity: String(l.quantity), amount: toInput(l.amount), unitPrice: l.unitPrice ? toInput(l.unitPrice) : "", mode: l.mode })),
+    payableAuto: r.payable === r.reconciliation.computedPayable,
+    lines: r.lines.map((l) => ({ id: l.id, label: l.label, quantity: String(l.quantity), amount: toInput(l.amount), unitPrice: l.unitPrice ? toInput(l.unitPrice) : "", mode: l.mode, autoTotal: consistent(l.unitPrice, l.quantity, l.amount) })),
     adjustments: r.adjustments.map((a) => ({
       kind: a.kind,
       label: a.label,
       amount: toInput(a.amount),
+      byPercent: false,
+      percent: "",
       scope: a.scopeAll ? ("ALL" as const) : a.eligibleLineIds.map((id) => r.lines.findIndex((l) => l.id === id)).filter((i) => i >= 0),
     })),
   };
@@ -101,46 +172,10 @@ export function ReceiptEditor({
     onClose();
   };
 
-  const calc = useMemo(() => {
-    const c = (s: string) => (s.trim() === "" ? null : toCentavos(s));
-    let gross = 0n;
-    let disc = 0n;
-    let chg = 0n;
-    // Blank fields are "not finished yet"; only typed non-amounts are errors.
-    const fields = [...d.lines.map((l) => l.amount), ...d.adjustments.map((a) => a.amount), d.payable];
-    const empty = fields.some((f) => f.trim() === "");
-    const bad = fields.some((f) => f.trim() !== "" && toCentavos(f) === null);
-    for (const l of d.lines) {
-      const v = c(l.amount);
-      if (v !== null) gross += BigInt(v);
-    }
-    for (const a of d.adjustments) {
-      const v = c(a.amount);
-      if (v === null) continue;
-      if (a.kind === "DISCOUNT") disc += BigInt(v);
-      else chg += BigInt(v);
-    }
-    const computed = gross - disc + chg;
-    const payable = c(d.payable);
-    return { gross, disc, chg, computed, payable, bad: bad || empty, invalid: bad, empty, diff: payable === null ? null : BigInt(payable) - computed };
-  }, [d]);
+  const resolved = useMemo(() => resolveDraft(d), [d]);
+  const calc = resolved.calc;
 
-  const setLine = (i: number, patch: Partial<LineDraft>) =>
-    setD((x) => {
-      const lines = x.lines.map((l, j) => {
-        if (j !== i) return l;
-        const next = { ...l, ...patch };
-        // Convenience: unit price × qty fills the line total when the total is empty or was derived.
-        if ((patch.unitPrice !== undefined || patch.quantity !== undefined) && next.unitPrice && toCentavos(next.unitPrice) && Number(next.quantity) > 0) {
-          const total = BigInt(toCentavos(next.unitPrice)!) * BigInt(Math.floor(Number(next.quantity)));
-          if (!l.amount || (l.unitPrice && toCentavos(l.unitPrice) && BigInt(toCentavos(l.amount) ?? -1) === BigInt(toCentavos(l.unitPrice)!) * BigInt(Math.floor(Number(l.quantity) || 0)))) {
-            next.amount = toInput(total.toString());
-          }
-        }
-        return next;
-      });
-      return { ...x, lines };
-    });
+  const setLine = (i: number, patch: Partial<LineDraft>) => setD((x) => ({ ...x, lines: x.lines.map((l, j) => (j === i ? { ...l, ...patch } : l)) }));
   const setAdj = (i: number, patch: Partial<AdjDraft>) => setD((x) => ({ ...x, adjustments: x.adjustments.map((a, j) => (j === i ? { ...a, ...patch } : a)) }));
 
   const submit = async () => {
@@ -164,16 +199,21 @@ export function ReceiptEditor({
     const body = {
       label: d.label,
       payerMemberId: d.payerMemberId,
-      payable: calc.payable,
-      lines: d.lines.map((l) => ({
+      payable: calc.payable.toString(),
+      lines: d.lines.map((l, i) => ({
         ...(l.id ? { id: l.id } : {}),
         label: l.label,
         quantity: Math.max(1, Math.floor(Number(l.quantity) || 1)),
-        amount: toCentavos(l.amount)!,
+        amount: toCentavos(resolved.lineAmounts[i])!,
         unitPrice: l.unitPrice ? toCentavos(l.unitPrice) : null,
         mode: l.mode,
       })),
-      adjustments: d.adjustments.map((a) => ({ kind: a.kind, label: a.label || KIND_LABEL[a.kind], amount: toCentavos(a.amount)!, eligibleLineIndexes: a.scope === "ALL" ? null : a.scope })),
+      adjustments: d.adjustments.map((a, i) => ({
+        kind: a.kind,
+        label: a.label || (a.byPercent ? `${KIND_LABEL[a.kind]} ${a.percent.trim().replace(/%$/, "")}%` : KIND_LABEL[a.kind]),
+        amount: toCentavos(resolved.adjAmounts[i])!,
+        eligibleLineIndexes: a.scope === "ALL" ? null : a.scope,
+      })),
     };
     setBusy(true);
     const ok = await act(
@@ -201,7 +241,7 @@ export function ReceiptEditor({
       title={receipt ? `Edit “${receipt.label}”` : "Add a receipt"}
       footer={
         <div className="space-y-2">
-          <Reconciliation calc={calc} onUse={() => setD((x) => ({ ...x, payable: toInput(calc.computed.toString()) }))} />
+          <Reconciliation calc={calc} onUse={() => setD((x) => ({ ...x, payable: "", payableAuto: true }))} />
           <Button full busy={busy} disabled={scanner.scanning} onClick={() => void submit()}>
             {busy ? "Saving…" : receipt ? "Save changes" : "Save receipt"}
           </Button>
@@ -286,27 +326,13 @@ export function ReceiptEditor({
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-[72px_1fr] gap-2">
-                  <label className="text-[13px] text-muted">
-                    Qty
-                    <input className="field tnum mt-1 text-center" inputMode="numeric" value={l.quantity} onChange={(e) => setLine(i, { quantity: e.target.value.replace(/\D/g, "").slice(0, 4) })} />
-                  </label>
-                  <label className="text-[13px] text-muted">
-                    Line total (as printed)
-                    <div className="mt-1">
-                      <MoneyInput value={l.amount} onChange={(e) => setLine(i, { amount: e.target.value })} aria-invalid={err(l.amount) ? true : undefined} />
-                    </div>
-                  </label>
-                </div>
-                <label className="block text-[13px] text-muted">
-                  Unit price (optional)
-                  <div className="mt-1">
-                    <MoneyInput value={l.unitPrice} onChange={(e) => setLine(i, { unitPrice: e.target.value })} />
-                  </div>
-                </label>
-                {l.unitPrice && toCentavos(l.unitPrice) && toCentavos(l.amount) && BigInt(toCentavos(l.unitPrice)!) * BigInt(Number(l.quantity) || 0) !== BigInt(toCentavos(l.amount)!) && (
-                  <p className="text-[13px] text-warn">Qty × unit price ≠ line total. The line total is used.</p>
-                )}
+                <LineAmounts
+                  index={i}
+                  line={l}
+                  shownTotal={resolved.lineAmounts[i]}
+                  invalid={!!err(resolved.lineAmounts[i])}
+                  onChange={(patch) => setLine(i, patch)}
+                />
                 <fieldset>
                   <legend className="text-[13px] text-muted">How will people claim it?</legend>
                   <div className="segmented mt-1">
@@ -321,7 +347,7 @@ export function ReceiptEditor({
               </li>
             ))}
           </ol>
-          <Button variant="add" icon="plus" className="mt-3" disabled={d.lines.length >= 50} onClick={() => setD({ ...d, lines: [...d.lines, { label: "", quantity: "1", amount: "", unitPrice: "", mode: "SHARED" }] })}>
+          <Button variant="add" icon="plus" className="mt-3" disabled={d.lines.length >= 50} onClick={() => setD({ ...d, lines: [...d.lines, emptyLine()] })}>
             Add item
           </Button>
         </div>
@@ -343,7 +369,42 @@ export function ReceiptEditor({
                   </button>
                 </div>
                 <input aria-label="Label" className="field" maxLength={80} value={a.label} onChange={(e) => setAdj(i, { label: e.target.value })} placeholder={KIND_LABEL[a.kind]} />
-                <MoneyInput aria-label="Amount" value={a.amount} onChange={(e) => setAdj(i, { amount: e.target.value })} aria-invalid={err(a.amount) ? true : undefined} />
+                <div className="segmented" role="group" aria-label="Enter as">
+                  <button type="button" aria-pressed={!a.byPercent} onClick={() => a.byPercent && setAdj(i, { byPercent: false, amount: resolved.adjAmounts[i] === "x" ? "" : resolved.adjAmounts[i] })}>
+                    Peso amount
+                  </button>
+                  <button type="button" aria-pressed={a.byPercent} onClick={() => !a.byPercent && setAdj(i, { byPercent: true, percent: a.percent || (a.kind === "SERVICE" ? "10" : "") })}>
+                    Percent %
+                  </button>
+                </div>
+                {a.byPercent ? (
+                  <div className="grid grid-cols-[110px_1fr] items-center gap-2">
+                    <div className="relative">
+                      <input
+                        aria-label="Percent"
+                        className="field tnum pr-8 text-right"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        placeholder="10"
+                        value={a.percent}
+                        aria-invalid={resolved.adjAmounts[i] === "x" || (tried && !a.percent.trim()) ? true : undefined}
+                        onChange={(e) => setAdj(i, { percent: e.target.value.replace(/[^\d.]/g, "").slice(0, 6) })}
+                      />
+                      <span className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-muted">%</span>
+                    </div>
+                    <p className="tnum text-[15px]" aria-live="polite">
+                      {resolved.adjAmounts[i] === "x" || !a.percent.trim() ? (
+                        <span className="text-[14px] text-muted">Type a % like 10 or 12.5</span>
+                      ) : (
+                        <>
+                          = <b>₱{resolved.adjAmounts[i]}</b> <span className="text-[13px] text-muted">of {a.scope === "ALL" ? "all items" : "the ticked items"}</span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                ) : (
+                  <MoneyInput aria-label="Amount" value={a.amount} onChange={(e) => setAdj(i, { amount: e.target.value })} aria-invalid={err(a.amount) ? true : undefined} />
+                )}
                 <fieldset>
                   <legend className="text-[13px] text-muted">{a.kind === "DISCOUNT" ? "Which items does it apply to?" : "Proportional to spending on"}</legend>
                   <label className="mt-1 flex min-h-11 items-center gap-2 text-[15px]">
@@ -367,26 +428,52 @@ export function ReceiptEditor({
             ))}
           </ol>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <Button variant="tonal" icon="plus" className="!px-2 !text-[15px] whitespace-nowrap" onClick={() => setD({ ...d, adjustments: [...d.adjustments, { kind: "SERVICE", label: "Service charge", amount: "", scope: "ALL" }] })}>
+            <Button variant="tonal" icon="plus" className="!px-2 !text-[15px] whitespace-nowrap" onClick={() => setD({ ...d, adjustments: [...d.adjustments, { kind: "SERVICE", label: "", amount: "", byPercent: true, percent: "10", scope: "ALL" }] })}>
               Service charge
             </Button>
-            <Button variant="tonal" icon="plus" className="!px-2 !text-[15px] whitespace-nowrap" onClick={() => setD({ ...d, adjustments: [...d.adjustments, { kind: "DISCOUNT", label: "Discount", amount: "", scope: "ALL" }] })}>
+            <Button variant="tonal" icon="plus" className="!px-2 !text-[15px] whitespace-nowrap" onClick={() => setD({ ...d, adjustments: [...d.adjustments, { kind: "DISCOUNT", label: "", amount: "", byPercent: false, percent: "", scope: "ALL" }] })}>
               Discount
             </Button>
           </div>
         </div>
 
-        <Field label="Total paid to the merchant" hint="The exact final amount on the receipt." error={err(d.payable)}>
-          {(p) => <MoneyInput {...p} value={d.payable} onChange={(e) => setD({ ...d, payable: e.target.value })} />}
+        <Field
+          label="Total paid to the merchant"
+          hint={
+            d.payableAuto
+              ? "Filled in for you: items − discounts + charges. If there’s a printed receipt, type its total here to double-check."
+              : "The exact final amount on the receipt. Clear it to fill it in automatically."
+          }
+          error={err(resolved.payable)}
+        >
+          {(p) => (
+            <div className="relative">
+              <MoneyInput {...p} value={resolved.payable} className={d.payableAuto ? "pr-20" : ""} onChange={(e) => setD({ ...d, payable: e.target.value, payableAuto: e.target.value.trim() === "" })} />
+              {d.payableAuto && resolved.payable && <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-violet-soft px-2 py-0.5 text-[12px] font-semibold text-violet">Auto</span>}
+            </div>
+          )}
         </Field>
       </div>
     </Sheet>
   );
 }
 
-function Reconciliation({ calc, onUse }: { calc: { gross: bigint; disc: bigint; chg: bigint; computed: bigint; diff: bigint | null; bad: boolean; invalid: boolean; empty: boolean }; onUse: () => void }) {
+function Reconciliation({ calc, onUse }: { calc: { gross: bigint; disc: bigint; chg: bigint; computed: bigint; diff: bigint | null; auto: boolean; bad: boolean; invalid: boolean; empty: boolean }; onUse: () => void }) {
   if (calc.invalid) return <p className="text-[14px] text-warn">Some amounts aren’t valid peso values. Use numbers like 120 or 120.50.</p>;
-  if (calc.empty) return <p className="text-[14px] text-muted">Enter each item’s total and the receipt total. We’ll check they add up.</p>;
+  if (calc.empty) return <p className="text-[14px] text-muted">Enter each item’s price. We’ll add everything up for you.</p>;
+  if (calc.computed < 0n) return <p className="text-[14px] text-warn">Discounts are bigger than the items. Check the discount amounts.</p>;
+  if (calc.auto) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl bg-violet-soft px-3 py-2 text-[14px] text-violet" role="status" aria-live="polite">
+        <Icon name="check" size={18} />
+        <span className="tnum flex-1">
+          Items {php(calc.gross)}
+          {calc.disc > 0n && ` − ${php(calc.disc)}`}
+          {calc.chg > 0n && ` + ${php(calc.chg)}`} = <b>{php(calc.computed)}</b> total
+        </span>
+      </div>
+    );
+  }
   const ok = calc.diff === 0n;
   return (
     <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-[14px] ${ok ? "bg-receive-soft text-receive" : "bg-warn-soft text-warn"}`} role="status" aria-live="polite">
@@ -402,6 +489,68 @@ function Reconciliation({ calc, onUse }: { calc: { gross: bigint; disc: bigint; 
           Use this
         </button>
       )}
+    </div>
+  );
+}
+
+/**
+ * Qty × Price each = Line total. The total fills itself in from quantity and
+ * price; typing a different total (as printed) takes over, and a one-tap
+ * button puts the automatic total back.
+ */
+function LineAmounts({ index, line, shownTotal, invalid, onChange }: { index: number; line: LineDraft; shownTotal: string; invalid: boolean; onChange: (patch: Partial<LineDraft>) => void }) {
+  const unit = cv(line.unitPrice);
+  const q = qty(line.quantity);
+  const product = EntryMath.lineTotal(unit, q);
+  const typed = cv(line.amount);
+  const derived = line.autoTotal && product !== null;
+  const mismatch = !line.autoTotal && product !== null && typed !== null && typed !== product;
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-[60px_1fr_1fr] items-end gap-2">
+        <label className="text-[13px] text-muted">
+          Qty
+          <input
+            aria-label={`Item ${index + 1} quantity`}
+            className="field tnum mt-1 !px-2 text-center"
+            inputMode="numeric"
+            value={line.quantity}
+            onChange={(e) => onChange({ quantity: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+          />
+        </label>
+        <label className="text-[13px] text-muted">
+          Price each
+          <div className="mt-1">
+            <MoneyInput aria-label={`Item ${index + 1} price each`} value={line.unitPrice} onChange={(e) => onChange({ unitPrice: e.target.value })} />
+          </div>
+        </label>
+        <label className="text-[13px] text-muted">
+          <span className="flex items-center gap-1">
+            Line total
+            {derived && <span className="rounded-full bg-violet-soft px-1.5 text-[11px] font-semibold text-violet">auto</span>}
+          </span>
+          <div className="mt-1">
+            <MoneyInput
+              aria-label={`Item ${index + 1} line total`}
+              value={shownTotal}
+              aria-invalid={invalid ? true : undefined}
+              // Typing a total over a known price means "this is what's printed": stop following qty × price.
+              onChange={(e) => onChange({ amount: e.target.value, autoTotal: e.target.value.trim() === "" || unit === null })}
+            />
+          </div>
+        </label>
+      </div>
+      {mismatch && (
+        <div className="flex items-center gap-2 rounded-xl bg-warn-soft px-3 py-2 text-[13px] text-warn">
+          <span className="tnum flex-1">
+            {q} × {php(unit!)} = {php(product!)}, but the line total says {php(typed!)}. The line total is used.
+          </span>
+          <button type="button" className="btn btn-secondary !min-h-11 shrink-0 !rounded-xl !px-3 !text-[14px]" onClick={() => onChange({ amount: "", autoTotal: true })}>
+            Use {php(product!)}
+          </button>
+        </div>
+      )}
+      {!derived && !mismatch && unit === null && <p className="text-[12px] text-muted">Type the price each and we’ll multiply, or type the line total as printed.</p>}
     </div>
   );
 }

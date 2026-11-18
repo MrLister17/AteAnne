@@ -15,6 +15,12 @@ const AUDIT_TEXT: Record<string, string> = {
   "member.joined": "joined",
   "member.removed": "removed a duplicate member",
   "member.recovered": "recovered access on a new device",
+  "member.renamed": "changed a name",
+  "member.guest_added": "added someone without a phone",
+  "member.guest_key_issued": "made a key so a guest can use their own phone",
+  "member.guest_took_over": "started using their own phone",
+  "member.admin_added": "made someone an admin",
+  "member.admin_removed": "removed an admin",
   "member.recovery_rotated": "rotated their recovery key",
   "code.rotated": "made a new join code",
   "code.closed": "closed joining",
@@ -24,6 +30,7 @@ const AUDIT_TEXT: Record<string, string> = {
   "receipt.updated": "edited a receipt",
   "receipt.organizer_correction": "corrected a receipt (organizer)",
   "receipt.deleted": "deleted a receipt",
+  "receipt.scanned": "scanned a receipt photo",
   "funding.acknowledged": "confirmed paying a receipt",
   "claims.saved": "saved claims",
   "review.approved": "approved the split",
@@ -44,8 +51,10 @@ const AUDIT_TEXT: Record<string, string> = {
 
 export function PeopleTab() {
   const router = useRouter();
-  const { view, me, event, name } = useEvent();
+  const { view, me, event, name, actAs, showPerson } = useEvent();
   const act = useAction();
+  const acting = Boolean(view.actingFor);
+  const [guestKey, setGuestKey] = useState<{ name: string; key: string } | null>(null);
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState(me.displayName);
   const [newKey, setNewKey] = useState<string | null>(null);
@@ -64,7 +73,8 @@ export function PeopleTab() {
       <Card className="p-0">
         <ul className="divide-y divide-line">
           {view.members.map((m) => (
-            <li key={m.id} className="flex min-h-16 items-center gap-3 px-4 py-3">
+            <li key={m.id} className="px-4 py-3">
+              <div className="flex min-h-10 items-center gap-3">
               <Avatar name={m.displayName} seq={m.seq} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">
@@ -73,21 +83,65 @@ export function PeopleTab() {
                 </p>
                 <div className="mt-0.5 flex flex-wrap gap-1">
                   {m.isOwner && <Badge tone="violet">Organizer</Badge>}
+                  {m.isAdmin && <Badge tone="violet">Admin</Badge>}
+                  {m.isGuest && <Badge tone="coral">No phone</Badge>}
                   {event.phase === "COLLECTING" && (m.entryComplete ? <Badge tone="receive">✓ Entry done</Badge> : <Badge>Still entering</Badge>)}
                   <Badge>{m.intent === "PAID_EXPENSE" ? "Paid something" : "Pays share"}</Badge>
                 </div>
               </div>
-              {me.isOwner && !m.isOwner && event.phase === "COLLECTING" && !m.referenced && (
-                <Button variant="ghost" className="!px-2" aria-label={`Remove ${m.displayName}`} onClick={() => confirm(`Remove ${m.displayName}? Use this for duplicates or people who joined by mistake.`) && void act(() => api.del(`/api/events/${event.id}/members/${m.id}`), "Removed")}>
+              {(me.isOwner || (me.canManageGuests && m.isGuest)) && !acting && !m.isOwner && event.phase === "COLLECTING" && !m.referenced && (
+                <Button variant="ghost" className="!px-2" aria-label={`Remove ${m.displayName}`} onClick={() => confirm(`Remove ${m.displayName}? Use this for duplicates or people added by mistake.`) && void act(() => api.del(`/api/events/${event.id}/members/${m.id}`), "Removed")}>
                   <Icon name="trash" size={20} />
                 </Button>
+              )}
+              </div>
+              {me.canManageGuests && m.isGuest && m.active && (
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <Button variant="tonal" icon="eye" onClick={() => showPerson(m.id)}>
+                    Show amount
+                  </Button>
+                  <Button variant="secondary" icon="hand" disabled={event.phase === "DONE"} onClick={() => actAs(m.id)}>
+                    Act for them
+                  </Button>
+                  {event.phase !== "DONE" && (
+                    <Button
+                      variant="ghost"
+                      icon="key"
+                      className="col-span-2 !text-[15px]"
+                      onClick={async () => {
+                        if (!confirm(`Give ${m.displayName} their own access? You’ll get a key for them to open on their own phone. After that, only they can make their choices.`)) return;
+                        const r = await act(() => api.post<{ recoveryKey: string }>(`/api/events/${event.id}/members/${m.id}/access-key`));
+                        if (r) setGuestKey({ name: m.displayName, key: r.recoveryKey });
+                      }}
+                    >
+                      They got a phone? Give them access
+                    </Button>
+                  )}
+                </div>
+              )}
+              {me.isOwner && !acting && !m.isOwner && !m.isGuest && m.active && event.phase !== "DONE" && (
+                <div className="mt-2">
+                  <Button
+                    variant="ghost"
+                    icon="shield"
+                    className="!text-[15px]"
+                    onClick={() => act(() => api.post(`/api/events/${event.id}/members/${m.id}/admin`, { isAdmin: !m.isAdmin }), m.isAdmin ? `${m.displayName} is no longer an admin` : `${m.displayName} can now help with people without a phone`)}
+                  >
+                    {m.isAdmin ? "Remove admin" : "Make admin"}
+                  </Button>
+                </div>
               )}
             </li>
           ))}
         </ul>
       </Card>
 
-      <SectionTitle>You</SectionTitle>
+      {me.canManageGuests && event.phase === "COLLECTING" && !event.cancelled && <AddGuest />}
+      {me.canManageGuests && event.phase !== "COLLECTING" && (
+        <p className="px-1 text-[13px] text-muted">People without a phone can only be added while receipts are being collected (before the roster is locked).</p>
+      )}
+
+      <SectionTitle>{acting ? me.displayName : "You"}</SectionTitle>
       <Card className="space-y-3">
         {editing ? (
           <form
@@ -117,6 +171,7 @@ export function PeopleTab() {
             )}
           </div>
         )}
+        {!acting && (
         <Button
           full
           variant="secondary"
@@ -129,6 +184,8 @@ export function PeopleTab() {
         >
           New recovery key
         </Button>
+        )}
+        {!acting && (
         <div className="grid grid-cols-2 gap-2">
           <a href={`/api/events/${event.id}/export?format=csv`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-line bg-surface font-semibold">
             <Icon name="download" size={18} /> CSV
@@ -137,10 +194,16 @@ export function PeopleTab() {
             <Icon name="download" size={18} /> JSON
           </a>
         </div>
-        <p className="text-[13px] text-muted">Exports are AteAnne’s manual record — not a bank statement. They contain no images or keys.</p>
+        )}
+        {!acting && <p className="text-[13px] text-muted">Exports are AteAnne’s manual record — not a bank statement. They contain no images or keys.</p>}
+        {!acting && (
+          <Button full variant="tonal" icon="eye" onClick={() => showPerson(me.memberId)}>
+            Show my amount in big text
+          </Button>
+        )}
       </Card>
 
-      {me.isOwner && event.phase !== "DONE" && (
+      {me.isOwner && !acting && event.phase !== "DONE" && (
         <>
           <SectionTitle>Organizer</SectionTitle>
           <Card className="space-y-3">
@@ -167,7 +230,8 @@ export function PeopleTab() {
           <li>No accounts: this browser is you. A join code only lets people join while receipts are being collected.</li>
           <li>Anyone with a forwarded code can join, so the organizer checks names before locking the roster. Names can repeat.</li>
           <li>A second browser or private window would join as a new person — the organizer removes duplicates before locking.</li>
-          <li>Your recovery key moves you to a new phone without changing what you paid or owe. Without it, access can’t be restored in v1.</li>
+          <li>Your recovery key moves you to a new phone without changing what you paid or owe. To use it, tap “I have a recovery key” on the first screen.</li>
+          <li>People without a phone are added by the organizer or an admin, who makes their choices for them while showing them the screen. The history records who did it. Nobody can act for someone who has their own phone.</li>
           <li>Payments happen outside AteAnne. Only the person receiving money can confirm it.</li>
           <li>Once any payment is reported, the bill can’t be edited (v1). After Done, the record is read-only.</li>
           <li>Every event — finished or not — is deleted {event.retentionDays} days after it was created. Export first if you want a copy.</li>
@@ -181,6 +245,7 @@ export function PeopleTab() {
             <li key={a.id} className="flex gap-2 px-4 py-2.5">
               <span className="min-w-0 flex-1">
                 <b>{a.actorMemberId ? name(a.actorMemberId) : "System"}</b> {AUDIT_TEXT[a.type] ?? a.type}
+                {a.onBehalfOf && <span className="text-muted"> for {name(a.onBehalfOf)}</span>}
               </span>
               <span className="shrink-0 text-muted">{timeAgo(a.createdAt)}</span>
             </li>
@@ -188,6 +253,16 @@ export function PeopleTab() {
         </ul>
       </Card>
 
+      {guestKey && (
+        <Sheet open onClose={() => setGuestKey(null)} title={`Access for ${guestKey.name}`}>
+          <div className="space-y-4">
+            <Notice tone="info" title={`On ${guestKey.name}’s phone`}>
+              Open AteAnne, tap <b>I have a recovery key</b>, and paste this key. From then on {guestKey.name} makes their own choices, with the same items and payments.
+            </Notice>
+            <CredentialReveal recoveryKey={guestKey.key} onDone={() => setGuestKey(null)} doneLabel="Done" />
+          </div>
+        </Sheet>
+      )}
       {newKey && (
         <Sheet open onClose={() => setNewKey(null)} title="New recovery key">
           <CredentialReveal recoveryKey={newKey} onDone={() => setNewKey(null)} doneLabel="Done" />
@@ -212,5 +287,35 @@ export function PeopleTab() {
         </Sheet>
       )}
     </div>
+  );
+}
+
+/** Organizer/admin: add someone who has no phone (or would rather not use one). */
+function AddGuest() {
+  const { event, view } = useEvent();
+  const act = useAction();
+  const [name, setName] = useState("");
+  const full = view.members.filter((m) => m.active).length >= 20;
+  return (
+    <Card className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Icon name="user" className="text-violet" />
+        <p className="font-semibold">Add someone without a phone</p>
+      </div>
+      <p className="text-[14px] text-muted">For a lola, a kid, or anyone with no phone or data. You (or an admin) claim their items and record their payments for them, then show them their amount in big text.</p>
+      <form
+        className="flex gap-2"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!name.trim()) return;
+          if (await act(() => api.post(`/api/events/${event.id}/guests`, { displayName: name.trim() }), `${name.trim()} added`)) setName("");
+        }}
+      >
+        <input aria-label="Name of person without a phone" className="field flex-1" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} placeholder="Lola Nena" disabled={full} />
+        <Button type="submit" icon="plus" disabled={full || !name.trim()}>
+          Add
+        </Button>
+      </form>
+    </Card>
   );
 }

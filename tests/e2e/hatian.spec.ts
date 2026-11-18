@@ -80,17 +80,23 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
   const sheet = mark.page.getByRole("dialog", { name: "Add a receipt" });
   await sheet.getByLabel("Store or label").fill("Kusina");
   await sheet.getByLabel("Item 1 name").fill("Shared platter");
-  await sheet.getByLabel("Line total (as printed)").first().fill("600");
+  await sheet.getByLabel("Item 1 line total").fill("600");
   await sheet.getByRole("button", { name: "Add item" }).click();
   await sheet.getByLabel("Item 2 name").fill("Rice");
-  await sheet.getByLabel("Qty").nth(1).fill("3");
-  await sheet.getByLabel("Line total (as printed)").nth(1).fill("180");
+  await sheet.getByLabel("Item 2 quantity").fill("3");
+  await sheet.getByLabel("Item 2 line total").fill("180");
   await sheet.getByRole("button", { name: "By piece" }).nth(1).click();
   await sheet.getByRole("button", { name: "Add item" }).click();
   await sheet.getByLabel("Item 3 name").fill("Juan pasta");
-  await sheet.getByLabel("Line total (as printed)").nth(2).fill("250");
+  await sheet.getByLabel("Item 3 line total").fill("250");
+  // Service charge defaults to 10% of the items: 10% of 1,030 = 103, and the total fills itself in.
   await sheet.getByRole("button", { name: "Service charge" }).click();
-  await sheet.getByLabel("Amount").fill("103");
+  await expect(sheet.getByLabel("Percent")).toHaveValue("10");
+  await expect(sheet.getByLabel("Total paid to the merchant")).toHaveValue("1133");
+  await expect(sheet.getByRole("status")).toContainText("PHP 1,133.00");
+  // Typing the printed total switches to checking it against the items.
+  await sheet.getByLabel("Total paid to the merchant").fill("1130");
+  await expect(sheet.getByRole("status")).toContainText("off by PHP 3.00");
   await sheet.getByLabel("Total paid to the merchant").fill("1133");
   await expect(sheet.getByRole("status")).toContainText("matches");
   await shot(mark.page, "03-receipt-editor");
@@ -103,8 +109,11 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
   await sheet2.getByLabel("Store or label").fill("Drinks");
   await sheet2.getByLabel("Who actually paid the merchant?").selectOption({ label: "Paolo" });
   await sheet2.getByLabel("Item 1 name").fill("Iced tea pitcher");
-  await sheet2.getByLabel("Line total (as printed)").fill("150");
-  await sheet2.getByLabel("Total paid to the merchant").fill("150");
+  // Manual entry: quantity × price each fills the line total and the receipt total.
+  await sheet2.getByLabel("Item 1 quantity").fill("2");
+  await sheet2.getByLabel("Item 1 price each").fill("75");
+  await expect(sheet2.getByLabel("Item 1 line total")).toHaveValue("150");
+  await expect(sheet2.getByLabel("Total paid to the merchant")).toHaveValue("150");
   await sheet2.getByRole("button", { name: "Save receipt" }).click();
   await expect(mark.page.getByText("Drinks")).toBeVisible();
 

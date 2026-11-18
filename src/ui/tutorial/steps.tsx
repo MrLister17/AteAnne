@@ -120,6 +120,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     points: [
       "Right after you create or join, AteAnne shows a personal recovery key once.",
       "Copy it into Notes or a password manager. If you lose your phone, it brings back the same you — your receipts, claims and payments.",
+      "To use it: on the first screen tap “I have a recovery key” and paste it.",
       "Keep it private; don’t post it in the group chat.",
     ],
     art: (
@@ -269,7 +270,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     points: [
       "When every transfer is confirmed by the people who received it, the organizer taps “Mark as Done”.",
       "The event becomes a read-only record. Every event is deleted 30 days after it was created — finished or not — so export a CSV/JSON copy from People if you want one.",
-      "Lost your phone later? Use “Recover access” with your recovery key.",
+      "Lost your phone, or opened AteAnne from your Home Screen and your event is missing? Tap “I have a recovery key” on the first screen.",
     ],
     art: (
       <div aria-hidden className="space-y-3">
