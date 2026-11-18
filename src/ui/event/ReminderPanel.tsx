@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, CopyButton, SectionTitle, Sheet, useToast } from "../components/ui";
+import { Button, CopyButton, Sheet, useToast } from "../components/ui";
 import { useEvent } from "./EventContext";
 import { reminderMessage, remindersFor } from "./reminders";
 
-/** Copy only: the person chooses where to paste it; no Messenger account is connected. */
-export function ReminderPanel() {
+/**
+ * "Copy reminder" button for the Home tab's next-step card, plus its sheet.
+ * Copy only: the person chooses where to paste it; no Messenger account is connected.
+ */
+export function ReminderButton() {
   const { view, reload } = useEvent();
   const toast = useToast();
   const [open, setOpen] = useState(false);
@@ -18,21 +21,18 @@ export function ReminderPanel() {
   const text = reminderMessage(view, selected, eventUrl);
   return (
     <>
-      <SectionTitle>Remind the group</SectionTitle>
-      <Card className="space-y-3">
-        <p className="text-[14px] text-muted">Waiting for someone? Copy their next steps and paste them into Messenger. AteAnne refreshes while it is open; it does not send background reminders.</p>
-        <Button full variant="secondary" icon="copy" onClick={async () => {
-          try {
-            await reload();
-            setMemberId("");
-            setOpen(true);
-          } catch {
-            toast("Couldn’t refresh. Try again before copying a reminder.", "error");
-          }
-        }}>Copy reminder</Button>
-      </Card>
+      <Button full variant="secondary" icon="copy" onClick={async () => {
+        try {
+          await reload();
+          setMemberId("");
+          setOpen(true);
+        } catch {
+          toast("Couldn’t refresh. Try again before copying a reminder.", "error");
+        }
+      }}>Copy reminder</Button>
       <Sheet open={open} onClose={() => setOpen(false)} title="Copy reminder for Messenger">
         <div className="space-y-4">
+          <p className="text-[14px] text-muted">Waiting for someone? Copy their next steps and paste them into your group or private chat. AteAnne doesn’t send reminders by itself.</p>
           <label className="block space-y-2 text-[15px] font-semibold">
             <span>Who is this for?</span>
             <select className="field" value={memberId} onChange={(e) => setMemberId(e.target.value)}>
@@ -40,7 +40,7 @@ export function ReminderPanel() {
               {reminders.map((r) => <option key={r.memberId} value={r.memberId}>{r.name}</option>)}
             </select>
           </label>
-          <p className="text-[14px] text-muted">Review the message, copy it, then paste it into your group or private chat. Recipients need their existing event access.</p>
+          <p className="text-[14px] text-muted">Review the message, then copy it. Recipients need their existing event access.</p>
           {selected.length ? (
             <>
               <pre className="whitespace-pre-wrap break-words rounded-xl bg-surface-2 p-3 font-sans text-[14px]" data-testid="reminder-preview">{text}</pre>

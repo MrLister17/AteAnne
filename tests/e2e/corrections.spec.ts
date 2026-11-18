@@ -45,11 +45,15 @@ test("corrects a reported bill and shows a return transfer with original payment
   const markPage = await mark.newPage();
   const juanPage = await juan.newPage();
   await markPage.goto(`/e/${created.eventId}`);
+  // Rarely needed: one tap behind a plainly worded row on Home (D48).
+  await expect(markPage.getByRole("button", { name: "Correct the bill" })).toBeHidden();
+  await markPage.getByText("Something wrong with the bill?", { exact: true }).click();
   await expect(markPage.getByRole("button", { name: "Correct the bill" })).toBeVisible();
   markPage.once("dialog", (dialog) => dialog.accept("Juan did not eat this meal"));
   await markPage.getByRole("button", { name: "Correct the bill" }).click();
   await expect(markPage.getByText("Step 3 of 5 · Reviewing")).toBeVisible();
   await expect(markPage.getByRole("button", { name: "Freeze & start settling" })).toBeDisabled();
+  await markPage.getByText("Need to fix something? Go back a step", { exact: true }).click();
   await markPage.getByRole("button", { name: "Back to claims", exact: true }).click();
   await expect(markPage.getByText("Step 2 of 5 · Allocating")).toBeVisible();
   await claims(juan, true);

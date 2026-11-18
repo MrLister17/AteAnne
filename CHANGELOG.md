@@ -10,12 +10,53 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ## Where we left off (2026-11-18)
 
+- **v0.6.1 "Simpler Home"** is on branch `claude/bold-mayer-xb2jcw`: UI only, full check chain green locally (51 browser tests). **Not merged to `main` and not deployed.** Next: the owner reviews the before/after screenshots, then decides whether to merge and deploy. After that, watch a relative use the new Home without help.
 - Remote `main` now includes **v0.6.0**, code commit `8a24cc0`, fast-forwarded after green CI with the owner’s approval.
 - **v0.6.0 is live:** https://ateanne.vercel.app. Production deployment `dpl_DKFndt2NyoP1C3pmRzi73dhwRNQL` reached READY; `/api/health` returned `ok: true`, version `8a24cc0`, scanner `groq`.
 - Sprint S7 covers the owner’s five requested improvements. See [`docs/implementation-plan.md`](docs/implementation-plan.md) for acceptance criteria and [`docs/test-report.md`](docs/test-report.md) for actual verification.
 - New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false, preserving existing receipt behavior. Applied and independently verified in production on 2026-11-18 at 14:53:08 UTC (boolean, NOT NULL, default false).
 - Next human checks: real iPhone Safari installation before joining, organizer recovery hand-over with a relative, and correction explanations with a real group. Automated mobile tests use Chromium emulation, not iOS Safari.
 - Still deferred: more real scanned receipt photos, the pilot study, referenced-member deactivation (FR-18/AT-19), multi-funder receipts, push notifications, and changes after Done.
+
+---
+
+## v0.6.1: Simpler Home (2026-11-18) · branch `claude/bold-mayer-xb2jcw`, not merged or deployed
+
+The owner said Home was information overload, so people couldn't tell where to focus. Decision **D48**. UI only: no rule, route, migration or money change, and every control is kept with its label unchanged.
+
+### Changed: event Home tab (`src/ui/event/OverviewTab.tsx`)
+
+- **Reading order: you → the group → organizer tools → fine print.** The organizer’s Collecting screen went from 7 stacked boxes to 4 cards plus a footer line.
+- **Your to-do** now holds the **“I’ve entered every receipt I paid”** tick. It used to sit at the very bottom, under the organizer's controls. The old to-do row that only opened Receipts is gone.
+- **Next step**: one card for everyone.
+  - It shows what the group is waiting on, from the server's gates, in a calm grey list: the first 3, then *Show all*.
+  - The organizer gets the button that moves the group on.
+  - **Copy reminder** lives here. Its explanation moved into the reminder sheet.
+  - Members see "Mark, the organizer, moves everyone on when it's ready" instead of a generic paragraph.
+- **One tap away, behind plainly worded rows:**
+  - *Need to fix something? Go back a step* (Back to receipts / Back to claims)
+  - *Something wrong with the bill?* (Correct the bill, with its explanation and blockers)
+  - *More join options* (New code / Close joining)
+  - each guest's *N to do* list
+- **Invite people** (organizer, Collecting): join code, Copy, Share, people count, and "Someone without a phone? Add them in People".
+- **Auto-delete date** is a one-line footer with *Export a copy*. The warning box at the top only appears in the last 7 days.
+- The acting-for notice is shortened to one sentence; the coral bar already explains it.
+
+### Changed: start screen (`src/app/page.tsx`)
+
+- **Returning people see their events first**, above *Start a hatian* / *Join with a code*.
+- **I have a recovery key** is a lighter row right under the two big buttons. It now appears once; before, it appeared 3 times (button, notice, footer link).
+- **How it works** holds the full-walkthrough button (*Watch the full walkthrough · 1 min*). It is open for newcomers and folded once you have events. The big tutorial card is gone from this screen; the **?** icon stays.
+- **Install card** is shorter (one line instead of two paragraphs). Its button is secondary on the start screen so it no longer competes with *Start a hatian*. The /new and /join install pause (D43) is unchanged.
+
+### Added
+
+- `Disclosure` (labelled `<details>` row, ≥44px) and a `limit` / `quiet` option on `Blockers` in `src/ui/components/ui.tsx`; an `inline` variant of `TutorialButton`; `ReminderButton` replaces `ReminderPanel`'s card.
+- `tests/e2e/home.spec.ts`, run at iPhone 15 and 360px: section order, the entry tick without scrolling, rare controls one tap away, member view, start screen for newcomers vs returning, no sideways scroll, ≥44px targets.
+
+### Verification
+
+Reference, lint, typecheck, 87 unit, 47 PostgreSQL integration, production build and **51 browser tests** all passed locally. See [`docs/test-report.md`](docs/test-report.md). Real iPhone Safari and real-relative usability are not verified.
 
 ---
 

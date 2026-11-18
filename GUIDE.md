@@ -24,7 +24,12 @@ This one page explains what the app does, where everything lives, how to run and
 
 **Typing a receipt:** Qty × Price each fills the line total; the receipt total fills itself in (marked *Auto*) until you type the printed total, which switches to checking. Service charge and discounts can be a **percent** (service charge starts at 10%).
 
-**Sprint S7 shortcuts:** install AteAnne on the Home Screen **before** creating/joining (Safari requires its Share menu; other supported browsers show native confirmation). In the receipt editor, choose **Split this receipt equally among everyone**; each person accepts their own share in Claim. Home → **Copy reminder** refreshes, previews a group/person message, and copies it for you to paste into Messenger. It sends nothing automatically. Organizer → **Correct the bill** starts a reasoned correction before Done, carrying confirmed payments into revised balances. People → **Reissue access** lets the organizer check a lost-key member in person and privately hand over a 15-minute key; this trusted-circle power can grant that person’s access, so identity checking matters.
+**Sprint S7 shortcuts:** install AteAnne on the Home Screen **before** creating/joining (Safari requires its Share menu; other supported browsers show native confirmation). In the receipt editor, choose **Split this receipt equally among everyone**; each person accepts their own share in Claim. Home → Next step → **Copy reminder** refreshes, previews a group/person message, and copies it for you to paste into Messenger. It sends nothing automatically. Home → Next step → *Something wrong with the bill?* → **Correct the bill** starts a reasoned correction before Done, carrying confirmed payments into revised balances. People → **Reissue access** lets the organizer check a lost-key member in person and privately hand over a 15-minute key; this trusted-circle power can grant that person’s access, so identity checking matters.
+
+**The two Home screens (v0.6.1, D48)** are laid out in reading order so people know where to look:
+- **Start screen** (`/`): your events first (if any) → **Start a hatian** / **Join with a code** → a lighter **I have a recovery key** row → the install card → *How it works* (open for newcomers, folded once you have events; the full walkthrough button lives inside it). Help is the **?** icon at the top.
+- **Event → Home tab:** your balance → **Your to-do** (including the *I’ve entered every receipt I paid* tick while Collecting) → the organizer’s note → **Next step** (what the group is waiting on, the organizer’s button to move on, **Copy reminder**) → **Invite people** (organizer, Collecting) → **People without a phone** (organizer/admins) → the auto-delete date as fine print (a warning at the top in the last 7 days).
+- Rarely needed controls are one tap away behind plainly worded rows, never removed: *Need to fix something? Go back a step*, *Something wrong with the bill?*, *More join options* (New code / Close joining), and each guest’s *N to do* list.
 
 **Other features:** first-visit "First time here?" prompt plus a 12-step tutorial (the **?** button); recovery key to move to a new phone (Home → **I have a recovery key**; pasting it into the join-code box also works); cash/QR payment instructions; private receipt photos; CSV/JSON export; events auto-delete **30 days after creation**; "preview mode" when no database is connected.
 
@@ -98,7 +103,7 @@ src/
     storage/PrivateStorage.ts photos stored in the database (or on disk)
     validation.ts             Zod schemas for every API input
   app/              ← PAGES & API ROUTES (Next.js)
-    page.tsx                  home screen
+    page.tsx                  start screen: your events, Start / Join, recovery row, install card, How it works
     new/ join/ recover/ offline/   entry screens
     e/[eventId]/page.tsx      the event screen (renders src/ui/event/EventApp.tsx)
     api/**/route.ts           27 API endpoints (thin: they call a service)
@@ -107,7 +112,8 @@ src/
     components/ui.tsx         Button, Field, Card, Sheet (pop-up), Notice, BalanceBanner…
     components/Icon.tsx       all icons (inline SVG)
     event/EventApp.tsx        header, phase bar, bottom tab bar
-    event/OverviewTab.tsx     "Home" tab: to-do list, organizer buttons, deletion notice
+    event/OverviewTab.tsx     "Home" tab: to-do (+ entry tick), Next step card, Invite people, guests, deletion line
+    event/ReminderPanel.tsx   "Copy reminder" button + sheet (inside the Next step card)
     event/ReceiptsTab.tsx     receipt list + Scan button
     event/ReceiptEditor.tsx   add/edit receipt form (+ "Fill in from a photo"; auto totals, % charges)
     event/PersonScreen.tsx    big-text "show this to them" screen (amount owed/owed to, items)

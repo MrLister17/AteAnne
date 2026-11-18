@@ -1,5 +1,40 @@
 # Test report
 
+## v0.6.1 "Simpler Home" (2026-11-18, branch `claude/bold-mayer-xb2jcw`, not merged or deployed)
+
+UI-only change (D48): the start screen and the event Home tab were reordered and decluttered. No server, domain, route, migration or money code changed. Local Linux run: Node 22.23.5, PostgreSQL 16.15 (local cluster, isolated `ateanne_test` database), pre-installed Playwright Chromium. Synthetic data only.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run test:reference` | PASS (reconciliation, allocations, conservation, transfers, reports, rounding) |
+| `npm run lint` | Passed, exit 0 |
+| `npm run typecheck` | Passed (Prisma generate + `tsc --noEmit`) |
+| `npm run test:unit` | **10 files, 87 tests passed** |
+| `npm run test:integration` | **8 files, 47 tests passed** on real PostgreSQL |
+| `npm run build` | Passed, production build |
+| `npm run test:e2e` | **51 passed** in one full run (1.1 min): the 47 existing scenarios plus 4 new ones (`home.spec.ts` × iPhone 15 and 360px) |
+
+What the new and changed browser tests prove:
+- **`home.spec.ts` (new):**
+  - Organizer Home reads *Your to-do* → *Next step* → *Invite people*.
+  - The "I’ve entered every receipt I paid" tick is visible without scrolling, for the organizer and for a member.
+  - *New code* / *Close joining* are hidden until *More join options* is tapped.
+  - The auto-delete date sits at the bottom.
+  - A member sees "Waiting on" and "Mark, the organizer, moves everyone on…", with no organizer buttons or join code.
+  - Start screen, first visit: the walkthrough is inside *How it works* and the recovery-key link appears exactly once, on screen.
+  - Start screen, returning: *Your events* is above *Start a hatian* and *How it works* is folded but opens with one tap.
+  - Every Home and start-screen check also confirms no sideways scroll and that visible buttons, links and disclosure rows are at least 44px tall.
+- **`corrections.spec.ts` (updated):** *Correct the bill* is hidden until *Something wrong with the bill?* is opened, and *Back to claims* is reached through *Need to fix something? Go back a step*. The full correction flow then passes as before.
+- All other specs (`hatian`, `guests`, `reminders`, `equal-receipt`, `install`, `tutorial`, `layout`, `recovery`, `scan`) passed unchanged; button labels were kept on purpose.
+
+Before/after screenshots were taken by driving both the previous build (`515a9d7`) and this one through identical synthetic steps on a local database.
+
+The known `pg` concurrent-query deprecation warning appeared on stderr during integration and E2E runs; nothing failed because of it. The `package.json` version bump to 0.6.1 and the doc edits were made after this run; no application code changed after it.
+
+Not verified: real iPhone Safari, and whether real relatives find the moved controls (*Go back a step*, *Correct the bill*, *More join options*) without help. That needs a person.
+
+---
+
 ## Authorized production release (2026-11-18)
 
 - Source commit: `8a24cc06cecad6031808b1a5440f7f1dacd69f34`, fast-forwarded into `main` after owner approval.

@@ -72,7 +72,7 @@ These override the original spec’s no-reset and post-report freeze limitations
 | S7-01 | Home Screen guidance before mobile identity creation; native prompt where supported; honest Safari steps; explicit browser fallback | `InstallProvider`, `InstallFirst`, `InstallPrompt`; `e2e/install.spec.ts` |
 | S7-02 | Organizer-attested, expiring single-use recovery; stable financial identity and revoked old access; admin/nonmember denial and redemption races | `RecoveryPolicy`, `RecoveryService`; `integration/recovery-reissue.test.ts`, `e2e/recovery.spec.ts` |
 | S7-03 | Equal whole receipt; everyone accepts own share; exact conservation and ≤1c difference; disagreement blocks review | `EqualReceiptSplit`, `ReceiptService`; `unit/equal-receipt.test.ts`, `integration/equal-receipt.test.ts`, `e2e/equal-receipt.spec.ts` |
-| S7-04 | Preview and copy person/group reminders for Messenger; current next steps, no credentials, no duplicate-transfer nudges | `reminders.ts`, `ReminderPanel`; `unit/reminders.test.ts`, `e2e/reminders.spec.ts` |
+| S7-04 | Preview and copy person/group reminders for Messenger; current next steps, no credentials, no duplicate-transfer nudges | `reminders.ts`, `ReminderButton` (`ReminderPanel.tsx`); `unit/reminders.test.ts`, `e2e/reminders.spec.ts` |
 | S7-05 | Reasoned correction before Done, pending/dispute gate, immutable history, stable roster, fresh approval and confirmed-payment carry-forward | `CorrectionLedger`, `EventAggregate`, `EventService`, `PaymentService`; `unit/correction-ledger.test.ts`, `integration/corrections.test.ts`, `e2e/corrections.spec.ts` |
 
 See `test-report.md` for actual command outcomes; presence of a test file alone is not a claim that it passed.
