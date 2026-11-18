@@ -1,5 +1,66 @@
 # Test report
 
+## v0.7.0 "Fewer waits" (2026-11-18, commit `50cec76`, merged into `main` on owner instruction)
+
+Rules and UI changed (D49–D51): Add & claim in one step, payer's own receipt auto-confirms funding, "Everyone's here", automatic freeze with no approval round, corrections back to Add & claim with a manual re-freeze, paid events closed by the daily job a day after their last payment activity, tabs per step. No migration. Local Linux run: Node 22.23.5, PostgreSQL 16.15 (isolated `ateanne_test`), pre-installed Playwright Chromium. Synthetic data only.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run test:reference` | PASS (no fixture diff) |
+| `npm run lint` | Passed, exit 0 |
+| `npm run typecheck` | Passed |
+| `npm run test:unit` | **10 files, 92 tests passed** |
+| `npm run test:integration` | **9 files, 49 tests passed** on real PostgreSQL |
+| `npm run build` | Passed, production build |
+| `npm run test:e2e` | **51 passed** in one full run (59.3 s), 0 failed, 0 flaky |
+
+What the new or rewritten tests prove:
+
+**Unit**
+- `AutoAdvance` freezes only when the roster is closed, everyone is done and the event isn't cancelled.
+- It never re-freezes after a correction.
+- It closes a paid event only 24 h after the last payment activity.
+- `stepOf` maps the old phases into 3 steps.
+- The new transitions are guarded.
+- Reminders never ask anyone to approve.
+
+**Integration**
+- `workflow`:
+  - The reference event (Mark +800, Juan +200, Paolo −1,000) gives **identical nets and transfers** with claims made while receipts are still being collected.
+  - The payer's own receipt is auto-confirmed; one entered by someone else is not.
+  - Only the organizer can lock.
+  - The bill freezes on the last entry tick, with the app (null actor) recorded as the actor.
+  - A correction waits for a manual re-freeze.
+  - Full settlement is followed by the event closing a day later.
+- `corrections`: a lock with everyone done freezes at once. Statements, payments, return transfers and the export are preserved across two correction rounds.
+- `guests`: the last guest claim (made by a manager) freezes the bill; the audit has no `onBehalfOf`.
+- `equal-receipt`: shares stay 33.34/33.33/33.33 after the freeze.
+- New `auto-advance`:
+  - A receipt edit makes claims stale and holds the freeze.
+  - A cancelled event never freezes.
+  - A reversal restarts the close clock.
+  - `cleanup.run` reports `closedEvents: 1`.
+
+**E2E**
+- `hatian`, three phones, same amounts as before (+706 / −495 / −211):
+  - claims happen before "Everyone's here"
+  - the bill freezes on that tap
+  - Pay has no Claim tab and no approval button
+  - "Close it now" appears only when everyone is paid
+- `corrections`: back to "Step 1 of 3 · Add & claim", then "Freeze the corrected bill", with payment history shown in Pay.
+- `equal-receipt`: "You confirmed your share" replaces the Confirm button.
+- `home`:
+  - section order
+  - only step-1 tabs
+  - no estimate before everyone has answered
+  - ≥44 px targets and no sideways scroll at both widths
+
+The known `pg` concurrent-query deprecation warning appeared on stderr during integration and E2E; nothing failed because of it.
+
+Not verified: real iPhone Safari; the live Vercel deployment and the production daily cron closing a real event (this container cannot reach the site); real groups using the new flow.
+
+---
+
 ## v0.6.1 "Simpler Home" (2026-11-18, branch `claude/bold-mayer-xb2jcw`, fast-forwarded into `main` with owner approval)
 
 UI-only change (D48): the start screen and the event Home tab were reordered and decluttered. No server, domain, route, migration or money code changed. Local Linux run: Node 22.23.5, PostgreSQL 16.15 (local cluster, isolated `ateanne_test` database), pre-installed Playwright Chromium. Synthetic data only.

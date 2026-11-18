@@ -10,6 +10,7 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ## Where we left off (2026-11-18)
 
+- **v0.7.0 "Fewer waits"** (D49–D51) was merged to `main` on the owner’s instruction after the full local chain passed (51 browser tests). Pushing `main` triggers the Vercel production build; no database migration is needed. This container cannot reach the live site, so check the deployment in Vercel. Next: one real hatian with relatives; confirm a fully paid event closes the next day through the daily cron.
 - **v0.6.1 "Simpler Home"** (UI only, full check chain green locally, 51 browser tests) was **fast-forwarded into `main` with the owner’s approval** on 2026-11-18. Pushing `main` triggers the Vercel production build; this container cannot reach the live site, so check the deployment in Vercel or GitHub. Next: watch a relative use the new Home without help.
 - Remote `main` now includes **v0.6.0**, code commit `8a24cc0`, fast-forwarded after green CI with the owner’s approval.
 - **v0.6.0 is live:** https://ateanne.vercel.app. Production deployment `dpl_DKFndt2NyoP1C3pmRzi73dhwRNQL` reached READY; `/api/health` returned `ok: true`, version `8a24cc0`, scanner `groq`.
@@ -17,6 +18,73 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 - New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false, preserving existing receipt behavior. Applied and independently verified in production on 2026-11-18 at 14:53:08 UTC (boolean, NOT NULL, default false).
 - Next human checks: real iPhone Safari installation before joining, organizer recovery hand-over with a relative, and correction explanations with a real group. Automated mobile tests use Chromium emulation, not iOS Safari.
 - Still deferred: more real scanned receipt photos, the pilot study, referenced-member deactivation (FR-18/AT-19), multi-funder receipts, push notifications, and changes after Done.
+
+---
+
+## v0.7.0: Fewer waits (2026-11-18) · merged to `main` (owner instruction)
+
+The owner tested start to finish and found it confusing. They wrote: "you can't progress until the end without each other", "hide things that we don't need yet", and "there should be clear communication of what needs to be done now". Decisions **D49–D51**. The owner chose the options: fewer rounds with auto-advance, no approval round, and tabs per step.
+
+### Changed: 3 steps, and the app moves on by itself (D49)
+
+- **Before:** the group waited for everyone 4 times, and the organizer pressed a button after each wait:
+  - entry ticks, then **Lock roster**
+  - claims, then **Start review**
+  - approvals, then **Freeze**
+  - payments, then **Mark as Done**
+- **Now there are 2 waits:** everyone done claiming, and everyone paid. Nobody presses a button to move on.
+  1. **Add & claim.**
+     - You can claim from a receipt as soon as it exists.
+     - Saving a receipt you paid counts as "I paid". A receipt someone typed for you still waits for your confirmation.
+     - You tick "I've entered every receipt I paid".
+     - The organizer taps **Everyone's here** once the group is complete. This closes joining for good.
+     - When the roster is closed and everyone is done, **the bill freezes by itself** (`AutoAdvance`, `BaseService.advanceIfReady`, `freezeGate`).
+  2. **Pay.** Same as before: payers report, receivers confirm.
+     - A fully paid event **closes by itself a day after the last payment activity** (daily cleanup job).
+     - The organizer can tap **Close it now**.
+  3. **Done.**
+- **Changed from the plan:** the plan said "Done automatically" the instant the last payment was confirmed. Done is read-only, so that would make a mistaken "Received" on the last payment impossible to undo. The one-day close keeps that safety, and nobody waits: everyone sees "You're all set" / "Everyone is paid ✓" at once.
+- **Corrections** now go back to Add & claim (reason required, as before). The organizer then taps **Freeze the corrected bill**: a corrected bill never re-freezes by itself. Earlier statements and confirmed money are kept, and overpayments become return transfers.
+- **No database migration.** Events started before v0.7 that are in Allocating or Reviewing show as step 1. Claims still work for them, and the organizer can **Freeze the bill now** or reopen receipts.
+
+### Changed: no approval round (D50)
+
+- Claiming is the agreement. "I agree with this split" is gone from the screens. The approval route stays for compatibility, but no step requires it.
+- This supersedes FR-12/AT-12. **Trade-off:** nobody sees the final numbers before they freeze. The safety nets are:
+  - your own per-receipt claim
+  - the line-by-line breakdown in Pay
+  - a reasoned correction before Done
+
+### Changed: show only what's needed now (D51)
+
+- **Bottom tabs per step:**
+  - Add & claim: Home · Receipts · Claim · People
+  - Pay: Home · **Pay** · Receipts · People
+  - Done: Home · Money · Receipts · People
+  - An old link to a hidden tab opens Home.
+- **Header:** "Step 1 of 3 · Add & claim" / "Step 2 of 3 · Pay" / "Step 3 of 3 · Done". A short message appears when the step changes under you, for example "Everyone's done — the bill is frozen. Time to pay."
+- **Home:**
+  - *Your to-do* lists only what is left. Finished items disappear, and "You're done for now" says what happens next.
+  - The organizer's *Invite people* card holds **Everyone's here**.
+  - *Next step* explains the automatic freeze and close, with a calm "Waiting on" list.
+- **Estimates** appear only once everyone has answered every receipt. Before this, the first person to claim a shared dish briefly showed "you owe all of it".
+- **Claim tab** (from the owner's screenshot): after confirming an equal share, it now says **"You confirmed your share"** instead of still offering "Confirm my equal share". "I disagree" moved behind a plainly worded row.
+- Tutorial: 12 → 10 steps. "How it works" on the start screen: 4 → 3 steps. The receipt editor tells a payer that saving confirms they paid. Activity shows automatic moves as "AteAnne".
+
+### Tests
+
+- **Unit:** `AutoAdvance` (freeze rules, never after a correction, close only after a day), `stepOf`, the new transitions, reminders without approvals.
+- **Integration**, real PostgreSQL:
+  - `workflow`, `corrections`, `guests`, `equal-receipt`, `security`, `recovery-reissue`, `retention` and `scan` rewritten for the new flow, with identical money results.
+  - New `auto-advance.test.ts`: a receipt edit holds the freeze, a cancelled event never freezes, and the day-later close (a reversal restarts the clock) through the real cleanup job.
+- **E2E:**
+  - `hatian`, `guests`, `equal-receipt`, `corrections` and `home` rewritten for 3 steps.
+  - Checks that Claim is hidden in Pay, no approval button exists, the equal-share confirmed state shows, tabs match the step, and no estimate appears before everyone has answered.
+
+### Verification
+
+Full local chain, run on commit `50cec76`: reference fixtures PASS, lint, typecheck, **92 unit**, **49 PostgreSQL integration**, production build, **51 browser tests** (iPhone 15 and 360px) — all passed with no failures. See [`docs/test-report.md`](docs/test-report.md). Not verified: real iPhone Safari, the live deployment (this container cannot reach it), and real groups using the new flow.
+
 
 ---
 
