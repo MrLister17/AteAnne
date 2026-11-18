@@ -1,5 +1,31 @@
 # Test report
 
+## Cousins pilot fixes (2026-11-18, branch `cousins-feedback`)
+
+This session's container could not install npm packages (network policy), so **nothing was run locally**. The full chain was run by GitHub Actions (`.github/workflows/ci.yml`, real PostgreSQL 16 service, Chromium) on the branch. Results below are copied from the job logs of run 44318660752 (commit `210c230`; run 44318003068 on `2fbfdfc` was identical):
+
+| Command | Result |
+| --- | --- |
+| `npm run test:reference` | passed |
+| `npm run lint` | exit 0 (the first push, `a9035b4`, failed lint: a ref read during render in `EventApp.tsx`; fixed in `2fbfdfc`) |
+| `npm run typecheck` | exit 0 |
+| `npm run test:unit` | **7 files, 70 tests passed** (new: `guest-policy`, `entry-math`) |
+| `npm run test:integration` | **5 files, 41 tests passed** (new: `guests.test.ts`, 11 tests) |
+| `npm run build` | Compiled successfully |
+| `npm run test:e2e` | **31 passed** (new: `guests.spec.ts`; `hatian.spec.ts` updated for auto totals) |
+
+What the new tests prove:
+- **Guests:** only the organizer/admins add guests or act for them; nobody can act for a person with their own phone; a non-manager can't act at all; the view while acting is the guest's (no organizer data); a guest can be a receipt's payer and a manager confirms the funding; managers claim and approve for guests through Freeze; every acting audit entry names the real person with `onBehalfOf` the guest; an admin who paid Lola is refused when confirming it for her, another manager can; the event reaches "ready for Done"; a hand-over key works (pasted with a line break), can't be redeemed on a manager's own phone, and ends guest status.
+- **Auto-compute (browser):** 2 × ₱75 fills the line total and the receipt total; a default 10% service charge on ₱1,030 gives ₱103; typing ₱1,130 shows "off by PHP 3.00", ₱1,133 shows "matches".
+- **Recovery (browser):** a key pasted (with a line break) into the join-code box is recognised and redeemed on a second phone; Home shows "I have a recovery key".
+- **Big-text screen (browser):** shows "Your share so far" PHP 60.00 and the item at iPhone 15 width with no sideways scroll.
+
+**Not verified:** a real iPhone (CI uses Chromium with iPhone emulation), the person screen in dark mode or by eye (CI screenshots aren't kept as artifacts), the Paste button (clipboard permission), and the iPhone Home Screen notice (needs a real installed app). The production deploy and migration have not been run.
+
+---
+
+## Earlier run (2026-11-16)
+
 **Run:** 2026-11-16 · Linux container · Node 22 · PostgreSQL (local, isolated `ateanne_test` database) · Chromium for Playwright.
 The results below are copied from the actual run log of this session.
 
