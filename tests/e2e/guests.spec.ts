@@ -34,9 +34,10 @@ test("organizer acts for a guest without a phone and shows her the amount", asyn
 
   // ---------------------------------------------------------------- add a guest
   await tab(page, "People");
+  await page.getByRole("button", { name: "Add someone without a phone", exact: true }).click();
   await page.getByLabel("Name of person without a phone").fill("Lola");
   await page.getByRole("button", { name: "Add", exact: true }).click();
-  await expect(page.getByText("No phone", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "View Lola", exact: true })).toContainText("No phone");
 
   // ---------------------------------------------------------------- typed receipt adds itself up
   await tab(page, "Receipts");
@@ -80,9 +81,12 @@ test("organizer acts for a guest without a phone and shows her the amount", asyn
 
   // The history says who did it for whom.
   await tab(page, "People");
+  await page.getByRole("button", { name: "Activity", exact: true }).click();
   await expect(page.getByText("saved claims for Lola").first()).toBeVisible();
+  await page.getByRole("dialog", { name: "Activity", exact: true }).getByRole("button", { name: "Close", exact: true }).click();
 
   // ---------------------------------------------------------------- the big screen for Lola
+  await page.getByRole("button", { name: "View Lola", exact: true }).click();
   await page.getByRole("button", { name: "Show amount", exact: true }).click();
   const screen = page.getByTestId("person-screen");
   await expect(screen).toBeVisible();

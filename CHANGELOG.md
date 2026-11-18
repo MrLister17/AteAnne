@@ -2,20 +2,35 @@
 
 This file records every release of AteAnne, what changed and why, and where work stopped. It is written so a person or another AI can pick the project up cold.
 
-**Read in this order:** this file → [`CLAUDE.md`](CLAUDE.md) (rules for coding agents) → [`GUIDE.md`](GUIDE.md) (map of the app and how to change it) → [`docs/decisions.md`](docs/decisions.md) (why things are the way they are, D1–D47) → [`docs/test-report.md`](docs/test-report.md) (what was really run).
+**Read in this order:** this file → [`CLAUDE.md`](CLAUDE.md) (rules for coding agents) → [`GUIDE.md`](GUIDE.md) (map of the app and how to change it) → [`docs/decisions.md`](docs/decisions.md) (why things are the way they are, D1–D48) → [`docs/test-report.md`](docs/test-report.md) (what was really run).
 
 Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from the git history; the code only started carrying a version number (`package.json`) at 0.5.0.
 
 ---
 
-## Where we left off (2026-11-18)
+## Where we left off (2026-11-19 Manila)
 
 - Remote `main` now includes **v0.6.0**, code commit `8a24cc0`, fast-forwarded after green CI with the owner’s approval.
 - **v0.6.0 is live:** https://ateanne.vercel.app. Production deployment `dpl_DKFndt2NyoP1C3pmRzi73dhwRNQL` reached READY; `/api/health` returned `ok: true`, version `8a24cc0`, scanner `groq`.
+- **Sprint S8 / v0.6.1** is implemented on `feature/people-screen` and is being verified before release. This reorganizes People using focused sheets.
 - Sprint S7 covers the owner’s five requested improvements. See [`docs/implementation-plan.md`](docs/implementation-plan.md) for acceptance criteria and [`docs/test-report.md`](docs/test-report.md) for actual verification.
 - New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false, preserving existing receipt behavior. Applied and independently verified in production on 2026-11-18 at 14:53:08 UTC (boolean, NOT NULL, default false).
 - Next human checks: real iPhone Safari installation before joining, organizer recovery hand-over with a relative, and correction explanations with a real group. Automated mobile tests use Chromium emulation, not iOS Safari.
 - Still deferred: more real scanned receipt photos, the pilot study, referenced-member deactivation (FR-18/AT-19), multi-funder receipts, push notifications, and changes after Done.
+
+---
+
+## v0.6.1: People without information overload (2026-11-19 Manila) · in verification
+
+Sprint **S8**, decision **D48**. The owner’s phone screenshots showed expanded management controls repeated for every person, alongside profile, exports, event administration, help and the full activity log.
+
+- People now opens as a compact roster. Tap a name for their amount and available guest, admin, access and removal options. Initial intent is kept in details rather than repeated as a badge.
+- **Add someone without a phone** stays beside the roster; its explanation and form open when tapped.
+- Labeled rows group **Your profile & access**, **Download event record**, **Event settings**, **Help & privacy** and **Activity**, with short descriptions so unfamiliar users know where to look.
+- Exports explain **Spreadsheet (CSV)** and **Full record (JSON)**. Cancellation and deletion are inside Event settings; deletion is hidden if a payment exists in any current or prior statement.
+- One sheet provides Back/Close navigation. Keyboard focus returns to the opener, and nested destinations announce their heading. Closing a pending key request prevents its response from reopening a secret panel.
+- No database migrations or changes to financial calculations or server permissions. New browser checks cover organizer/admin/member paths, guest/recovery regressions, long names, focus, delayed responses, and mobile light/dark layouts.
+- Actual test and deployment results are recorded in `docs/test-report.md`; real iPhone Safari remains a human check.
 
 ---
 

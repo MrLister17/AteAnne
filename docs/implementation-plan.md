@@ -31,6 +31,18 @@ Validation gate: reference fixtures → lint → typecheck → unit → real Pos
 
 Release: owner-approved code commit `8a24cc0` merged to `main`; full GitHub CI green, Vercel production READY, migration and live synthetic smoke verified. Details in `test-report.md`.
 
+## Sprint S8 — simplify People (v0.6.1, 2026-11-18)
+
+Owner request: reduce the amount of information and controls shown at once in People. This slice reorganizes the existing UI; financial calculations, recovery rules and server authorization stay in their existing services.
+
+| Slice | Acceptance criteria | Status |
+| --- | --- | --- |
+| S8.1 Compact roster | Show each person as a compact, labeled row; open their available guest, admin, access and removal actions in a focused sheet | In progress |
+| S8.2 Focused forms and settings | Add-guest form and labeled profile/access, export, event settings, help/privacy and activity entries open separate sheets; keep existing permission and phase gates | In progress |
+| S8.3 Mobile and regression checks | Verify person/section sheet navigation and guest/recovery flows; check Back/Close, keyboard dismissal, ≥44px targets and no overflow at iPhone/360px widths; capture light/dark layouts | Pending verification |
+
+Decision: D48. Requirements: S8-01–S8-04 in `requirements.md`. Validation uses the full `CLAUDE.md` command chain; record actual results in `test-report.md` before marking this sprint complete. Root handoff and changelog track release state.
+
 ## Next (P1 backlog)
 
 1. Deactivate a member who has financial references (redact access, keep money). Gap from FR-18 / AT-19.

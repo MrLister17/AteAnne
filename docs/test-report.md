@@ -1,5 +1,22 @@
 # Test report
 
+## Sprint S8 — People progressive disclosure (v0.6.1, 2026-11-19 Manila)
+
+Branch: `feature/people-screen`, based on production `515a9d7`. User requested less information overload with visible, familiar destinations. Only UI/shared sheet behavior, tests, version and documentation changed; no schema or financial service changes.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run test:unit` | 10 files, **87 passed** |
+| `npm run test:integration` | 8 files, **47 passed**, PostgreSQL 16 |
+| `npm run build` | Passed, production build |
+| `npm run test:e2e` | Running; results to be recorded before release |
+
+New browser checks exercise the compact default roster, person/profile/settings/download/help/activity paths, role gates, Back/Close/Escape and focus restoration, 44px targets, long names, late recovery responses, and light/dark screenshots on iPhone emulation and360px. Existing guest/recovery/equal-split tests now open the relevant People layers. No real phone or human usability study is claimed.
+
+---
+
 ## Authorized production release (2026-11-18)
 
 - Source commit: `8a24cc06cecad6031808b1a5440f7f1dacd69f34`, fast-forwarded into `main` after owner approval.

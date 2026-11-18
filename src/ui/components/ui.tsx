@@ -200,7 +200,7 @@ export function Notice({ tone = "info", title, children }: { tone?: "info" | "wa
   return (
     <div className={`flex gap-3 rounded-2xl p-3.5 text-[15px] ${t}`} role={tone === "pay" ? "alert" : undefined}>
       <Icon name={icon} className={`mt-0.5 shrink-0 ${iconTone}`} size={20} />
-      <div className="min-w-0 space-y-1">
+      <div className="min-w-0 space-y-1 break-words">
         {title && <p className="font-semibold">{title}</p>}
         {children}
       </div>
@@ -233,18 +233,49 @@ export function SectionTitle({ children, action }: { children: React.ReactNode; 
 
 /* ---------------------------------------------------------------- Sheet (modal) */
 
-export function Sheet({ open, onClose, title, children, footer }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; footer?: React.ReactNode }) {
+export function Sheet({
+  open,
+  onClose,
+  onBack,
+  title,
+  children,
+  footer,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onBack?: () => void;
+  title: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
   const ref = useRef<HTMLDialogElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const lastTitle = useRef(title);
   useEffect(() => {
     const d = ref.current;
-    if (!d) return;
-    if (open && !d.open) d.showModal();
-    if (!open && d.open) d.close();
+    if (!d || !open) return;
+    const opener =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    if (!d.open) d.showModal();
+    return () => {
+      if (d.open) d.close();
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
+    };
   }, [open]);
+  useEffect(() => {
+    // Navigation inside one sheet keeps the modal open. Announce the new layer
+    // and avoid leaving focus on a control that has just disappeared.
+    if (open && lastTitle.current !== title) heading.current?.focus();
+    lastTitle.current = title;
+  }, [open, title]);
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
+      onClose={() => {
+        if (ref.current?.open === false && open) onClose();
+      }}
       onCancel={(e) => {
         e.preventDefault();
         onClose();
@@ -256,14 +287,41 @@ export function Sheet({ open, onClose, title, children, footer }: { open: boolea
         <div className="animate-sheet flex h-full flex-col bg-bg sm:rounded-3xl">
           <header className="safe-top sticky top-0 z-10 border-b border-line bg-bg/95 backdrop-blur">
             <div className="flex min-h-14 items-center gap-2 px-2">
-              <button type="button" onClick={onClose} className="icon-btn" aria-label="Close">
-                <Icon name="x" />
+              <button
+                type="button"
+                onClick={onBack ?? onClose}
+                className="icon-btn shrink-0"
+                aria-label={onBack ? "Back" : "Close"}
+              >
+                <Icon name={onBack ? "back" : "x"} />
               </button>
-              <h2 className="truncate text-[17px] font-bold">{title}</h2>
+              <h2
+                ref={heading}
+                tabIndex={-1}
+                className="min-w-0 flex-1 py-3 text-[17px] font-bold break-words"
+              >
+                {title}
+              </h2>
+              {onBack && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="icon-btn shrink-0"
+                  aria-label="Close"
+                >
+                  <Icon name="x" />
+                </button>
+              )}
             </div>
           </header>
-          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">{children}</div>
-          {footer && <footer className="safe-bottom border-t border-line bg-bg/95 px-4 pt-3 pb-3 backdrop-blur">{footer}</footer>}
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+            {children}
+          </div>
+          {footer && (
+            <footer className="safe-bottom border-t border-line bg-bg/95 px-4 pt-3 pb-3 backdrop-blur">
+              {footer}
+            </footer>
+          )}
         </div>
       )}
     </dialog>

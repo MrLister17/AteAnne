@@ -1,8 +1,10 @@
 # Handoff
 
-_Last updated: 2026-11-18_
+_Last updated: 2026-11-19 Manila_
 
 ## Current state
+
+- **Sprint S8 / v0.6.1:** People has a compact roster and focused sheets for each person, add-guest, profile/access, downloads, event settings, help/privacy and activity. Local branch `feature/people-screen`; verification is in progress. Shared Sheet now restores focus and supports Back without stacking modals. No migration or server financial/authorization changes.
 
 - Remote `main`: **v0.6.0**, code commit `8a24cc0`, merged with owner approval after full green GitHub CI (run 44328507489).
 - **Production:** https://ateanne.vercel.app, Vercel deployment `dpl_DKFndt2NyoP1C3pmRzi73dhwRNQL`, READY. Health returned `ok: true`, version `8a24cc0`, scanner `groq`. Sprint S7 implements all five requested improvements. See [CHANGELOG.md](../CHANGELOG.md), [implementation-plan.md](implementation-plan.md), decisions D43–D47 and [test-report.md](test-report.md).

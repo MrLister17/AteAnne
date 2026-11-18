@@ -20,11 +20,13 @@ This one page explains what the app does, where everything lives, how to run and
 | 4. Settling | Transfers are frozen (e.g. "Juan → Mark ₱495"). Payers send money outside the app and tap "I sent money". Receivers tap "Received" or "Not received". | Organizer: **Mark as Done** |
 | 5. Done | Read-only record. | — |
 
-**People without a phone ("guests"):** the organizer, or an **admin** the organizer appoints, adds them in People → *Add someone without a phone*, then taps **Act for Lola** to claim her items, approve and record her payments while showing her the screen (a coral "Acting for Lola" bar stays on top; **Done** goes back). **Show amount** opens a big-text screen (English + Tagalog) with what she owes or is owed and what she had. Nobody can act for someone who has their own phone, a manager can't confirm a payment they themselves made to the guest, and the Activity list shows "Mark saved claims **for Lola**". If Lola gets a phone later, *They got a phone? Give them access* makes a key she opens with "I have a recovery key".
+**People without a phone ("guests"):** the organizer, or an **admin** the organizer appoints, adds them in People → *Add someone without a phone*. Tap their name in the roster to open **Act for them**, or use **Act for Lola** on Home, to claim her items, approve and record her payments while showing her the screen (a coral "Acting for Lola" bar stays on top; **Done** goes back). **Show amount** opens a big-text screen (English + Tagalog) with what she owes or is owed and what she had. Nobody can act for someone who has their own phone, a manager can't confirm a payment they themselves made to the guest, and People → **Activity** shows "Mark saved claims **for Lola**". If Lola gets a phone later, tap her name → *They got a phone? Give them access* to make a key she opens with "I have a recovery key".
 
 **Typing a receipt:** Qty × Price each fills the line total; the receipt total fills itself in (marked *Auto*) until you type the printed total, which switches to checking. Service charge and discounts can be a **percent** (service charge starts at 10%).
 
-**Sprint S7 shortcuts:** install AteAnne on the Home Screen **before** creating/joining (Safari requires its Share menu; other supported browsers show native confirmation). In the receipt editor, choose **Split this receipt equally among everyone**; each person accepts their own share in Claim. Home → **Copy reminder** refreshes, previews a group/person message, and copies it for you to paste into Messenger. It sends nothing automatically. Organizer → **Correct the bill** starts a reasoned correction before Done, carrying confirmed payments into revised balances. People → **Reissue access** lets the organizer check a lost-key member in person and privately hand over a 15-minute key; this trusted-circle power can grant that person’s access, so identity checking matters.
+**Sprint S7 shortcuts:** install AteAnne on the Home Screen **before** creating/joining (Safari requires its Share menu; other supported browsers show native confirmation). In the receipt editor, choose **Split this receipt equally among everyone**; each person accepts their own share in Claim. Home → **Copy reminder** refreshes, previews a group/person message, and copies it for you to paste into Messenger. It sends nothing automatically. Organizer → **Correct the bill** starts a reasoned correction before Done, carrying confirmed payments into revised balances. People → tap the person → **Reissue access** lets the organizer check a lost-key member in person and privately hand over a 15-minute key; this trusted-circle power can grant that person’s access, so identity checking matters.
+
+**Finding things in People (Sprint S8):** the first screen is a compact roster. Tap a person (accessible label **View [name]**) to see the actions you can take for them, such as making them an admin, reissuing access or helping a guest. The labeled rows below the roster open focused sheets: **Your profile & access** for your name, recovery key and big-text amount; **Download event record** for **Spreadsheet (CSV)** and **Full record (JSON)**; **Event settings** for organizer cancellation/deletion; **Help & privacy** for the tutorial and identity/retention explanation; **Activity** for the audit history. **Back** returns from a follow-up action to the person or section you opened it from; **Close** returns to the roster. Those actions keep their existing role and event-phase restrictions.
 
 **Other features:** first-visit "First time here?" prompt plus a 12-step tutorial (the **?** button); recovery key to move to a new phone (Home → **I have a recovery key**; pasting it into the join-code box also works); cash/QR payment instructions; private receipt photos; CSV/JSON export; events auto-delete **30 days after creation**; "preview mode" when no database is connected.
 
@@ -115,7 +117,7 @@ src/
     event/ClaimTab.tsx        claiming wizard
     event/MoneyTab.tsx        review & breakdown
     event/SettlementSection.tsx  paying, confirming, disputes, QR/cash setup
-    event/PeopleTab.tsx       roster, rename, recovery key, export, delete; add guests, admins
+    event/PeopleTab.tsx       compact roster; person actions and profile/export/settings/help/activity sheets
     event/ScanPanel.tsx       the "Take photo / Upload photo" block, progress, errors
     event/useReceiptScanner.ts   shared scan logic (shrink, send, cancel, time-out)
     tutorial/steps.tsx        THE 12 TUTORIAL STEPS (text + pictures)
@@ -266,7 +268,7 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 | Yellow "Preview mode" banner | `DATABASE_URL` or `JOIN_CODE_HASH_KEY` is missing in Vercel |
 | Build fails at migrations | Database unreachable. Check `DIRECT_URL` is the Session pooler (not the "Direct connection") |
 | "Cross-site request blocked" | Set `APP_ORIGIN` to the exact URL you use and redeploy |
-| Someone lost their phone | Use **I have a recovery key** on Home. If the key is lost too, ask the organizer in person to **Reissue access** from People (private key expires in 15 minutes) |
+| Someone lost their phone | Use **I have a recovery key** on Home. If the key is lost too, ask the organizer in person to open People → tap your name → **Reissue access** (private key expires in 15 minutes) |
 
 ---
 
