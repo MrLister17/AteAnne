@@ -52,6 +52,18 @@ function EventLoader({ eventId }: { eventId: string }) {
   const [actingAs, setActingAs] = useState<string | null>(() => readActing(eventId));
   const [personFor, setPersonFor] = useState<string | null>(null);
 
+  // Leaving the event (back to Home) ends acting; a page refresh keeps it.
+  useEffect(
+    () => () => {
+      try {
+        sessionStorage.removeItem(actingKey(eventId));
+      } catch {
+        /* private mode */
+      }
+    },
+    [eventId],
+  );
+
   // Set before any request below runs (effects run in order).
   useEffect(() => {
     api.setActingAs(actingAs);
