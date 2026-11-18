@@ -37,11 +37,11 @@ Owner request: reduce the amount of information and controls shown at once in Pe
 
 | Slice | Acceptance criteria | Status |
 | --- | --- | --- |
-| S8.1 Compact roster | Show each person as a compact, labeled row; open their available guest, admin, access and removal actions in a focused sheet | In progress |
-| S8.2 Focused forms and settings | Add-guest form and labeled profile/access, export, event settings, help/privacy and activity entries open separate sheets; keep existing permission and phase gates | In progress |
-| S8.3 Mobile and regression checks | Verify person/section sheet navigation and guest/recovery flows; check Back/Close, keyboard dismissal, ≥44px targets and no overflow at iPhone/360px widths; capture light/dark layouts | Pending verification |
+| S8.1 Compact roster | Show each person as a compact, labeled row; open their available guest, admin, access and removal actions in a focused sheet | Complete; verified |
+| S8.2 Focused forms and settings | Add-guest form and labeled profile/access, export, event settings, help/privacy and activity entries open separate sheets; keep existing permission and phase gates | Complete; verified |
+| S8.3 Mobile and regression checks | Verify person/section sheet navigation and guest/recovery flows; check Back/Close, keyboard dismissal, ≥44px targets and no overflow at iPhone/360px widths; capture light/dark layouts | Complete; verified |
 
-Decision: D52. Requirements: S8-01–S8-04 in `requirements.md`. Validation uses the full `CLAUDE.md` command chain; record actual results in `test-report.md` before marking this sprint complete. Root handoff and changelog track release state.
+Decision: D52. Requirements: S8-01–S8-04 in `requirements.md`. Validation uses the full `CLAUDE.md` command chain; record actual results in `test-report.md` before marking this sprint complete. Source CI44420961707 and the full local92-unit/49-integration/61-browser chain passed. Merged as `b7d317f`; production READY and live People browser smoke passed, synthetic event deleted. Root handoff and changelog track release evidence.
 
 ## Next (P1 backlog)
 

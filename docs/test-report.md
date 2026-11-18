@@ -6,14 +6,23 @@ Branch: `feature/people-screen`, integrating latest `main` commit `42da456` (v0.
 
 | Command | Actual result |
 | --- | --- |
-| `npm run lint` | Rechecking combined version |
-| `npm run typecheck` | Rechecking combined version |
-| `npm run test:unit` | Rechecking combined version |
-| `npm run test:integration` | Rechecking combined version |
-| `npm run build` | Rechecking combined version |
-| `npm run test:e2e` | Running; results to be recorded before release |
+| `npm run test:reference` | PASS, no fixture diff |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run test:unit` | **10 files,92 passed** |
+| `npm run test:integration` | **9 files,49 passed**, PostgreSQL16 |
+| `npm run build` | Passed |
+| `npm run test:e2e` | **61 passed in one full run (2.3min)** |
 
-New browser checks exercise the compact default roster, person/profile/settings/download/help/activity paths, role gates, Back/Close/Escape and focus restoration, 44px targets, long names, late recovery responses, and light/dark screenshots on iPhone emulation and360px. Existing guest/recovery/equal-split tests now open the relevant People layers. No real phone or human usability study is claimed. Before integration, the branch passed87 unit,47 integration and57 browser tests; those results are not claimed as verification of the merged v0.7.0 workflow.
+New browser checks exercise the compact default roster, person/profile/settings/download/help/activity paths, role gates, Back/Close/Escape and focus restoration,44px targets, long names, late recovery responses, and light/dark screenshots on iPhone emulation and360px. Existing guest/recovery/equal-split and Home workflow tests pass with the newer3-step flow. No real phone or human usability study is claimed.
+
+Initial pre-merge testing found a long unbroken name could overflow notices; both normal and quiet notices now wrap words. Older exact “No phone” selectors were updated for the compact status line; the new touch-size check allows0.01px for browser subpixel representation of a44px target. The corrected full combined run passed all61 cases. Before integration the earlier candidate’s87/47/57 results were superseded by this92/49/61 verification; upstream v0.7.0 was preserved.
+
+GitHub source CI [44420961707](https://github.com/MrLister17/AteAnne/actions/runs/44420961707) passed on `7b1d8a5de36c5bc0cb38c10933ac22ab7bd065e1`. Main merge `b7d317f6ea66e3a9cd8e8c6df01020f49df9ceab` has exactly the same tested tree. No schema/server/domain changes were introduced by People relative to `42da456`.
+
+**Production:** `dpl_BiDM3F9WgMac7WdX3uDextQiu7SE` READY at https://ateanne.vercel.app. Health HTTP200: `{"ok":true,"version":"b7d317f","receiptScan":"groq"}`, `Cache-Control:no-store`. Live Playwright smoke passed compact default (no exposed key/cancel/guest controls), person/profile detail and downloads/settings/help/activity sheets, with no horizontal overflow in a dark phone viewport. Screenshot: `/workspace/scratch/people-production-dark.png`. Synthetic event deleted; no payment reports, transfers or scanner calls created. Runtime scan returned the known pg concurrent-query deprecation warning on stderr; no application exception was returned.
+
+Local review screenshots are under `test-results/screens/people-*.png` (copied outside the ignored test folder to `/workspace/scratch/people-previews/`). Real iPhone OS behavior, real relatives’ usability and next-day production cron close are unverified.
 
 ---
 
