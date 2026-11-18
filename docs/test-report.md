@@ -20,6 +20,8 @@ What the new tests prove:
 - **Recovery (browser):** a key pasted (with a line break) into the join-code box is recognised and redeemed on a second phone; Home shows "I have a recovery key".
 - **Big-text screen (browser):** shows "Your share so far" PHP 60.00 and the item at iPhone 15 width with no sideways scroll.
 
+**After merging to `main` (commit `99fa5ec`, run 44322635354):** everything passed except one older E2E step. It reloads Juan's phone right after Mark taps **Received**, and sometimes looks before the save finishes ("−PHP 495.00" instead of "−PHP 295.00"). That is a race in the test, not the app; the same code passed on the branch three times. The test now waits for Mark's "Confirmed received" before reloading. The Vercel production deployment of `99fa5ec` reported "Deployment has completed" (GitHub commit status).
+
 **Not verified:** a real iPhone (CI uses Chromium with iPhone emulation), the person screen in dark mode or by eye (CI screenshots aren't kept as artifacts), the Paste button (clipboard permission), and the iPhone Home Screen notice (needs a real installed app). The production deploy and migration have not been run.
 
 ---

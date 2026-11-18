@@ -15,7 +15,7 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 - `main` = **v0.5.0**. The owner approved it, and branch `cousins-feedback` was fast-forwarded into `main` on 2026-11-18. The branch can be deleted.
 - GitHub Actions CI passed on the merged commits: lint, typecheck, 70 unit tests, 41 integration tests, build and 31 E2E tests (last branch run 44320383957).
 - Pushing `main` triggers the Vercel production deploy. Migration `20261118140000_guests_and_admins` runs during that deploy. It only adds two columns with defaults (`Member.managed`, `Member.isAdmin`) and two check constraints.
-- **Not confirmed from this session:** that the Vercel deploy and migration finished. The session can't reach Vercel. Check `/api/health` on the live site: `version` should be the newest `main` commit.
+- Vercel reported the production deployment of `99fa5ec` as completed (GitHub commit status), so the migration ran as part of that build. This session can't open the live site, so `/api/health` hasn't been checked from here.
 
 **Open next steps (owner's choice)**
 
@@ -138,7 +138,8 @@ The owner tested with cousins. They reported three problems and asked what else 
 | `210c230` | Leaving the event ends acting mode (CI: all green) |
 | `80ca6ce` | Test report with CI results |
 | `6b7d2c1`, `680e417` | `CHANGELOG.md`, version bumped to 0.5.0 (CI: all green) |
-| *(merge)* | Fast-forwarded into `main` with the owner's approval; this changelog marked released |
+| `99fa5ec` | Fast-forwarded into `main` with the owner's approval; this changelog marked released. Vercel: "Deployment has completed". CI: one older E2E step failed on a timing race |
+| *(next)* | E2E: wait for "Confirmed received" before reloading the payer's phone (fixes that race) |
 
 ---
 

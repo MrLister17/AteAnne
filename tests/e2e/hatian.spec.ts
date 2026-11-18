@@ -241,6 +241,8 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
   await tab(mark.page, "Money");
   await shot(mark.page, "09-receive");
   await mark.page.getByRole("button", { name: "Received", exact: true }).click();
+  // Wait until the confirmation is saved before looking from Juan's phone (was a race: CI run 44322635354).
+  await expect(mark.page.getByText("Confirmed received").first()).toBeVisible();
   await juan.page.reload();
   await tab(juan.page, "Money");
   await expect(juan.page.getByRole("status").filter({ hasText: "Net to pay" })).toContainText("−PHP 295.00");
