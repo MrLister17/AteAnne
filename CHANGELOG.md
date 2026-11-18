@@ -37,7 +37,7 @@ Decisions **D43–D47**, Sprint **S7**. Owner requested all five items from the 
 - Production deployment: [Vercel build](https://vercel.com/yvan17/ateanne/DKFndt2NyoP1C3pmRzi73dhwRNQL), READY on the existing Singapore project. Public URL: https://ateanne.vercel.app.
 - Migration `20261118150000_equal_receipt_split` completed; independently checked using read-only Supabase queries. Existing receipts default to item claims.
 - Live synthetic smoke passed create/join, equal receipt persistence with 51/50 centavo shares, approval/freeze, reasoned correction preserving the original statement, replacement recovery with stable identity/revoked old access, and unrelated-browser denial. Synthetic event deleted; no payment reports or real transfers created. Post-report accounting remains covered by integration/E2E tests, not simulated production payments.
-- Runtime error/fatal scan returned no matching logs at the time checked. Real iPhone OS installation and human usability remain unverified.
+- Post-smoke runtime scan returned the known `pg` concurrent-query deprecation warning on stderr; no application exception was returned. Real iPhone OS installation and human usability remain unverified.
 - **Rollback:** after correction statements exist, v0.5 accounting is not compatible; use a compatible forward fix, preserving all money/history.
 
 ### Verification and handoff

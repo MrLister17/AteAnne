@@ -8,7 +8,7 @@
 - Supabase read-only verification: new column boolean/NOT NULL/default false; Prisma migration `20261118150000_equal_receipt_split` finished `2026-11-18T14:53:08.996817Z`, no rollback.
 - Live synthetic API smoke: **PASS** for create/join, persisted equal policy and exact 51/50 centavo split, approval/freeze allocation-v2, reasoned correction keeping old statement, organizer replacement access preserving member identity, old browser denied and signed-out browser denied. Event deleted afterward. **No payment reports or real transfers created**; post-report/return-transfer accounting was verified by automated isolated tests.
 - Smoke harness adjustments: Node client required the inherited network proxy; a signed-out browser correctly returns 401 (not the initially expected 404). Corrected harness then passed. These were test-harness issues, not production app changes.
-- Deployment runtime error/fatal scan: no matching logs found at the time checked. No claim of continuous monitoring, backup verification or real iPhone OS installation.
+- Post-smoke deployment runtime scan returned one known `pg` concurrent-query deprecation warning on stderr (Vercel labels stderr as error); no application exception was returned. All smoke requests had expected status codes. No claim of continuous monitoring, backup verification or real iPhone OS installation.
 
 ---
 
