@@ -222,12 +222,20 @@ function Walkthrough({ onClose }: { onClose: (finished: boolean) => void }) {
 }
 
 /** Tutorial entry points: a card for the home page, a compact "?" for headers. */
-export function TutorialButton({ variant = "card" }: { variant?: "card" | "icon" }) {
+export function TutorialButton({ variant = "card" }: { variant?: "card" | "icon" | "inline" }) {
   const { open } = useTutorial();
   if (variant === "icon") {
     return (
       <button type="button" onClick={open} className="icon-btn" aria-label="Tutorial: how to use AteAnne">
         <Icon name="help" size={22} />
+      </button>
+    );
+  }
+  if (variant === "inline") {
+    return (
+      <button type="button" onClick={open} className="btn btn-secondary w-full">
+        <Icon name="help" size={20} className="text-coral" />
+        Watch the full walkthrough · 1 min
       </button>
     );
   }

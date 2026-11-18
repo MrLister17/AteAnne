@@ -1,27 +1,25 @@
 "use client";
 
-import { api } from "../api";
 import { Icon } from "../components/Icon";
-import { Avatar, BalanceBanner, Blockers, Button, Card, Notice, SectionTitle, balanceLabel } from "../components/ui";
+import { Avatar, BalanceBanner, Card, Notice, SectionTitle, balanceLabel } from "../components/ui";
 import { php, phpAbs } from "../format";
-import { useAction, useEvent } from "./EventContext";
+import { useEvent } from "./EventContext";
 import { SettlementSection } from "./SettlementSection";
 
 type ShareLike = { memberId: string; lines: Record<string, string>; discounts: Record<string, string>; charges: Record<string, string>; itemsGross: string; discountTotal: string; chargeTotal: string; total: string };
 type ReceiptLike = { id: string; label: string; payerId: string; payable: string; lines: { id: string; label: string; quantity: number; amount: string; mode: string }[]; adjustments: { id: string; kind: string; label: string; amount: string; scopeAll: boolean }[] };
 
 export function MoneyTab() {
-  const { view, me, event } = useEvent();
+  const { view, me } = useEvent();
   const frozen = view.settlement;
 
-  if (event.phase === "COLLECTING" || (event.phase === "ALLOCATING" && !view.calculation.ok)) {
+  if (!frozen && !view.calculation.ok) {
     return (
       <div className="space-y-3">
         <Header />
         <Notice tone="info" title="No split yet">
-          Your share appears once everyone has claimed their items. Nothing here is final until everyone approves and the organizer freezes it.
+          Your share appears once everyone has claimed what they had. The bill freezes by itself once everyone is done.
         </Notice>
-        {view.calculation.issues.length > 0 && event.phase === "ALLOCATING" && <Blockers items={view.calculation.issues} title="Waiting on claims" />}
       </div>
     );
   }
@@ -40,14 +38,13 @@ export function MoneyTab() {
     );
   }
 
-  // Allocating (estimate) or Reviewing (approval).
+  // Still in "Add & claim": an estimate that can change until everyone is done (no approval round, D50).
   const pos = view.calculation.positions.find((p) => p.memberId === me.memberId)!;
   const receipts: ReceiptLike[] = view.receipts.map((r) => ({ id: r.id, label: r.label, payerId: r.payerId, payable: r.payable, lines: r.lines, adjustments: r.adjustments }));
   return (
     <div className="space-y-3">
       <Header />
-      <BalanceBanner net={pos.remaining} estimate={event.phase !== "REVIEWING"} caption={`Paid ${php(pos.funding)} − your share ${php(pos.cost)} · confirmed payments included`} />
-      {event.phase === "REVIEWING" && <ApprovalCard />}
+      <BalanceBanner net={pos.remaining} estimate caption={`Paid ${php(pos.funding)} − your share ${php(pos.cost)} · confirmed payments included`} />
       <SectionTitle>Your share, line by line</SectionTitle>
       <Breakdown receipts={receipts} sharesFor={(rid) => view.calculation.receipts.find((x) => x.receiptId === rid)?.shares ?? []} />
       <Everyone positions={view.calculation.positions} />
@@ -61,7 +58,7 @@ function Header() {
   const { view } = useEvent();
   return (
     <div className="px-1">
-      <h2 className="text-[22px] font-bold">Money</h2>
+      <h2 className="text-[22px] font-bold">{view.event.phase === "SETTLING" ? "Pay" : "Money"}</h2>
       <p className="text-[14px] text-muted">
         {view.settlement ? `Frozen statement · version ${view.settlement.financialVersion}` : `Version ${view.event.financialVersion} · server-calculated, to the centavo`}
       </p>
@@ -92,41 +89,6 @@ function PaymentHistory() {
         ))}
       </ul>
     </details>
-  );
-}
-
-function ApprovalCard() {
-  const { view, event, name } = useEvent();
-  const act = useAction();
-  const approved = new Set(view.review.approvals);
-  const active = view.members.filter((m) => m.active);
-  const blockers = view.gates.reviewing?.blockers ?? [];
-  return (
-    <Card className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="font-bold">Approve version {event.financialVersion}</p>
-        <span className="tnum text-[14px] text-muted">
-          {approved.size}/{active.length} approved
-        </span>
-      </div>
-      <p className="text-[14px] text-muted">You are approving the exact amounts below. If anything changes, every approval resets and everyone checks again.</p>
-      <Blockers items={blockers} />
-      {view.review.approvedByMe ? (
-        <Notice tone="receive">You approved this version.</Notice>
-      ) : (
-        <Button full icon="check" disabled={blockers.length > 0 || event.cancelled} onClick={() => act(() => api.post(`/api/events/${event.id}/review`, { financialVersion: event.financialVersion }), "Approved")}>
-          I agree with this split
-        </Button>
-      )}
-      <ul className="flex flex-wrap gap-1.5">
-        {active.map((m) => (
-          <li key={m.id} className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-semibold ${approved.has(m.id) ? "bg-receive-soft text-receive" : "bg-surface-2 text-muted"}`}>
-            {approved.has(m.id) ? <Icon name="check" size={14} /> : <Icon name="clock" size={14} />}
-            {name(m.id)}
-          </li>
-        ))}
-      </ul>
-    </Card>
   );
 }
 

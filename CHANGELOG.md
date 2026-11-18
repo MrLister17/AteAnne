@@ -2,7 +2,7 @@
 
 This file records every release of AteAnne, what changed and why, and where work stopped. It is written so a person or another AI can pick the project up cold.
 
-**Read in this order:** this file → [`CLAUDE.md`](CLAUDE.md) (rules for coding agents) → [`GUIDE.md`](GUIDE.md) (map of the app and how to change it) → [`docs/decisions.md`](docs/decisions.md) (why things are the way they are, D1–D48) → [`docs/test-report.md`](docs/test-report.md) (what was really run).
+**Read in this order:** this file → [`CLAUDE.md`](CLAUDE.md) (rules for coding agents) → [`GUIDE.md`](GUIDE.md) (map of the app and how to change it) → [`docs/decisions.md`](docs/decisions.md) (why things are the way they are, D1–D52) → [`docs/test-report.md`](docs/test-report.md) (what was really run).
 
 Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from the git history; the code only started carrying a version number (`package.json`) at 0.5.0.
 
@@ -10,9 +10,12 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ## Where we left off (2026-11-19 Manila)
 
+- People progressive disclosure is in verification as **v0.7.1 / D52 / Sprint S8** on `feature/people-screen`. The branch has integrated v0.7.0 and preserves the newer three-step workflow.
+
+- **v0.7.0 "Fewer waits"** (D49–D51) was merged to `main` on the owner’s instruction after the full local chain passed (51 browser tests). Pushing `main` triggers the Vercel production build; no database migration is needed. This container cannot reach the live site, so check the deployment in Vercel. Next: one real hatian with relatives; confirm a fully paid event closes the next day through the daily cron.
+- **v0.6.1 "Simpler Home"** (UI only, full check chain green locally, 51 browser tests) was **fast-forwarded into `main` with the owner’s approval** on 2026-11-18. Pushing `main` triggers the Vercel production build; this container cannot reach the live site, so check the deployment in Vercel or GitHub. Next: watch a relative use the new Home without help.
 - Remote `main` now includes **v0.6.0**, code commit `8a24cc0`, fast-forwarded after green CI with the owner’s approval.
 - **v0.6.0 is live:** https://ateanne.vercel.app. Production deployment `dpl_DKFndt2NyoP1C3pmRzi73dhwRNQL` reached READY; `/api/health` returned `ok: true`, version `8a24cc0`, scanner `groq`.
-- **Sprint S8 / v0.6.1** is implemented on `feature/people-screen` and is being verified before release. This reorganizes People using focused sheets.
 - Sprint S7 covers the owner’s five requested improvements. See [`docs/implementation-plan.md`](docs/implementation-plan.md) for acceptance criteria and [`docs/test-report.md`](docs/test-report.md) for actual verification.
 - New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false, preserving existing receipt behavior. Applied and independently verified in production on 2026-11-18 at 14:53:08 UTC (boolean, NOT NULL, default false).
 - Next human checks: real iPhone Safari installation before joining, organizer recovery hand-over with a relative, and correction explanations with a real group. Automated mobile tests use Chromium emulation, not iOS Safari.
@@ -20,9 +23,9 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ---
 
-## v0.6.1: People without information overload (2026-11-19 Manila) · in verification
+## v0.7.1: People without information overload (2026-11-19 Manila) · in verification
 
-Sprint **S8**, decision **D48**. The owner’s phone screenshots showed expanded management controls repeated for every person, alongside profile, exports, event administration, help and the full activity log.
+Sprint **S8**, decision **D52**. The owner’s phone screenshots showed expanded management controls repeated for every person, alongside profile, exports, event administration, help and the full activity log.
 
 - People now opens as a compact roster. Tap a name for their amount and available guest, admin, access and removal options. Initial intent is kept in details rather than repeated as a badge.
 - **Add someone without a phone** stays beside the roster; its explanation and form open when tapped.
@@ -31,6 +34,113 @@ Sprint **S8**, decision **D48**. The owner’s phone screenshots showed expanded
 - One sheet provides Back/Close navigation. Keyboard focus returns to the opener, and nested destinations announce their heading. Closing a pending key request prevents its response from reopening a secret panel.
 - No database migrations or changes to financial calculations or server permissions. New browser checks cover organizer/admin/member paths, guest/recovery regressions, long names, focus, delayed responses, and mobile light/dark layouts.
 - Actual test and deployment results are recorded in `docs/test-report.md`; real iPhone Safari remains a human check.
+
+---
+
+## v0.7.0: Fewer waits (2026-11-18) · merged to `main` (owner instruction)
+
+The owner tested start to finish and found it confusing. They wrote: "you can't progress until the end without each other", "hide things that we don't need yet", and "there should be clear communication of what needs to be done now". Decisions **D49–D51**. The owner chose the options: fewer rounds with auto-advance, no approval round, and tabs per step.
+
+### Changed: 3 steps, and the app moves on by itself (D49)
+
+- **Before:** the group waited for everyone 4 times, and the organizer pressed a button after each wait:
+  - entry ticks, then **Lock roster**
+  - claims, then **Start review**
+  - approvals, then **Freeze**
+  - payments, then **Mark as Done**
+- **Now there are 2 waits:** everyone done claiming, and everyone paid. Nobody presses a button to move on.
+  1. **Add & claim.**
+     - You can claim from a receipt as soon as it exists.
+     - Saving a receipt you paid counts as "I paid". A receipt someone typed for you still waits for your confirmation.
+     - You tick "I've entered every receipt I paid".
+     - The organizer taps **Everyone's here** once the group is complete. This closes joining for good.
+     - When the roster is closed and everyone is done, **the bill freezes by itself** (`AutoAdvance`, `BaseService.advanceIfReady`, `freezeGate`).
+  2. **Pay.** Same as before: payers report, receivers confirm.
+     - A fully paid event **closes by itself a day after the last payment activity** (daily cleanup job).
+     - The organizer can tap **Close it now**.
+  3. **Done.**
+- **Changed from the plan:** the plan said "Done automatically" the instant the last payment was confirmed. Done is read-only, so that would make a mistaken "Received" on the last payment impossible to undo. The one-day close keeps that safety, and nobody waits: everyone sees "You're all set" / "Everyone is paid ✓" at once.
+- **Corrections** now go back to Add & claim (reason required, as before). The organizer then taps **Freeze the corrected bill**: a corrected bill never re-freezes by itself. Earlier statements and confirmed money are kept, and overpayments become return transfers.
+- **No database migration.** Events started before v0.7 that are in Allocating or Reviewing show as step 1. Claims still work for them, and the organizer can **Freeze the bill now** or reopen receipts.
+
+### Changed: no approval round (D50)
+
+- Claiming is the agreement. "I agree with this split" is gone from the screens. The approval route stays for compatibility, but no step requires it.
+- This supersedes FR-12/AT-12. **Trade-off:** nobody sees the final numbers before they freeze. The safety nets are:
+  - your own per-receipt claim
+  - the line-by-line breakdown in Pay
+  - a reasoned correction before Done
+
+### Changed: show only what's needed now (D51)
+
+- **Bottom tabs per step:**
+  - Add & claim: Home · Receipts · Claim · People
+  - Pay: Home · **Pay** · Receipts · People
+  - Done: Home · Money · Receipts · People
+  - An old link to a hidden tab opens Home.
+- **Header:** "Step 1 of 3 · Add & claim" / "Step 2 of 3 · Pay" / "Step 3 of 3 · Done". A short message appears when the step changes under you, for example "Everyone's done — the bill is frozen. Time to pay."
+- **Home:**
+  - *Your to-do* lists only what is left. Finished items disappear, and "You're done for now" says what happens next.
+  - The organizer's *Invite people* card holds **Everyone's here**.
+  - *Next step* explains the automatic freeze and close, with a calm "Waiting on" list.
+- **Estimates** appear only once everyone has answered every receipt. Before this, the first person to claim a shared dish briefly showed "you owe all of it".
+- **Claim tab** (from the owner's screenshot): after confirming an equal share, it now says **"You confirmed your share"** instead of still offering "Confirm my equal share". "I disagree" moved behind a plainly worded row.
+- Tutorial: 12 → 10 steps. "How it works" on the start screen: 4 → 3 steps. The receipt editor tells a payer that saving confirms they paid. Activity shows automatic moves as "AteAnne".
+
+### Tests
+
+- **Unit:** `AutoAdvance` (freeze rules, never after a correction, close only after a day), `stepOf`, the new transitions, reminders without approvals.
+- **Integration**, real PostgreSQL:
+  - `workflow`, `corrections`, `guests`, `equal-receipt`, `security`, `recovery-reissue`, `retention` and `scan` rewritten for the new flow, with identical money results.
+  - New `auto-advance.test.ts`: a receipt edit holds the freeze, a cancelled event never freezes, and the day-later close (a reversal restarts the clock) through the real cleanup job.
+- **E2E:**
+  - `hatian`, `guests`, `equal-receipt`, `corrections` and `home` rewritten for 3 steps.
+  - Checks that Claim is hidden in Pay, no approval button exists, the equal-share confirmed state shows, tabs match the step, and no estimate appears before everyone has answered.
+
+### Verification
+
+Full local chain, run on commit `50cec76`: reference fixtures PASS, lint, typecheck, **92 unit**, **49 PostgreSQL integration**, production build, **51 browser tests** (iPhone 15 and 360px) — all passed with no failures. See [`docs/test-report.md`](docs/test-report.md). Not verified: real iPhone Safari, the live deployment (this container cannot reach it), and real groups using the new flow.
+
+
+---
+
+## v0.6.1: Simpler Home (2026-11-18) · merged to `main` (owner approved)
+
+The owner said Home was information overload, so people couldn't tell where to focus. Decision **D48**. UI only: no rule, route, migration or money change, and every control is kept with its label unchanged.
+
+### Changed: event Home tab (`src/ui/event/OverviewTab.tsx`)
+
+- **Reading order: you → the group → organizer tools → fine print.** The organizer’s Collecting screen went from 7 stacked boxes to 4 cards plus a footer line.
+- **Your to-do** now holds the **“I’ve entered every receipt I paid”** tick. It used to sit at the very bottom, under the organizer's controls. The old to-do row that only opened Receipts is gone.
+- **Next step**: one card for everyone.
+  - It shows what the group is waiting on, from the server's gates, in a calm grey list: the first 3, then *Show all*.
+  - The organizer gets the button that moves the group on.
+  - **Copy reminder** lives here. Its explanation moved into the reminder sheet.
+  - Members see "Mark, the organizer, moves everyone on when it's ready" instead of a generic paragraph.
+- **One tap away, behind plainly worded rows:**
+  - *Need to fix something? Go back a step* (Back to receipts / Back to claims)
+  - *Something wrong with the bill?* (Correct the bill, with its explanation and blockers)
+  - *More join options* (New code / Close joining)
+  - each guest's *N to do* list
+- **Invite people** (organizer, Collecting): join code, Copy, Share, people count, and "Someone without a phone? Add them in People".
+- **Auto-delete date** is a one-line footer with *Export a copy*. The warning box at the top only appears in the last 7 days.
+- The acting-for notice is shortened to one sentence; the coral bar already explains it.
+
+### Changed: start screen (`src/app/page.tsx`)
+
+- **Returning people see their events first**, above *Start a hatian* / *Join with a code*.
+- **I have a recovery key** is a lighter row right under the two big buttons. It now appears once; before, it appeared 3 times (button, notice, footer link).
+- **How it works** holds the full-walkthrough button (*Watch the full walkthrough · 1 min*). It is open for newcomers and folded once you have events. The big tutorial card is gone from this screen; the **?** icon stays.
+- **Install card** is shorter (one line instead of two paragraphs). Its button is secondary on the start screen so it no longer competes with *Start a hatian*. The /new and /join install pause (D43) is unchanged.
+
+### Added
+
+- `Disclosure` (labelled `<details>` row, ≥44px) and a `limit` / `quiet` option on `Blockers` in `src/ui/components/ui.tsx`; an `inline` variant of `TutorialButton`; `ReminderButton` replaces `ReminderPanel`'s card.
+- `tests/e2e/home.spec.ts`, run at iPhone 15 and 360px: section order, the entry tick without scrolling, rare controls one tap away, member view, start screen for newcomers vs returning, no sideways scroll, ≥44px targets.
+
+### Verification
+
+Reference, lint, typecheck, 87 unit, 47 PostgreSQL integration, production build and **51 browser tests** all passed locally. See [`docs/test-report.md`](docs/test-report.md). Real iPhone Safari and real-relative usability are not verified.
 
 ---
 

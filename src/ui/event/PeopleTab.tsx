@@ -34,6 +34,8 @@ const AUDIT_TEXT: Record<string, string> = {
   "member.access_reissued": "reissued access after an identity check",
   "code.rotated": "made a new join code",
   "code.closed": "closed joining",
+  "roster.locked": "said everyone’s here (joining closed)",
+  "bill.correction_started": "reopened the bill to correct it",
   "entry.completed": "finished entering receipts",
   "entry.reopened": "reopened receipt entry",
   "receipt.created": "added a receipt",
@@ -729,9 +731,12 @@ export function PeopleTab() {
                   receiving money.
                 </li>
                 <li>
-                  Corrections keep confirmed money and prior statements. Resolve
-                  pending reports and disputes first, then everyone approves
-                  again.
+                  Claiming is your agreement: the bill freezes once the
+                  organizer says everyone’s here and everyone is done. Check
+                  your claims before marking entry complete. Corrections keep
+                  confirmed money and prior statements; resolve pending reports
+                  and disputes first, then the organizer freezes the corrected
+                  bill.
                 </li>
               </ul>
             </Card>
@@ -761,7 +766,7 @@ export function PeopleTab() {
                   <li key={a.id} className="flex items-start gap-3 px-4 py-3">
                     <span className="min-w-0 flex-1 break-words">
                       <b>
-                        {a.actorMemberId ? name(a.actorMemberId) : "System"}
+                        {a.actorMemberId ? name(a.actorMemberId) : "AteAnne"}
                       </b>{" "}
                       {AUDIT_TEXT[a.type] ?? a.type}
                       {a.type === "member.access_reissued" &&

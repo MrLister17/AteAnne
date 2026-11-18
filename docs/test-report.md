@@ -1,19 +1,116 @@
 # Test report
 
-## Sprint S8 — People progressive disclosure (v0.6.1, 2026-11-19 Manila)
+## Sprint S8 — People progressive disclosure (v0.7.1, 2026-11-19 Manila)
 
-Branch: `feature/people-screen`, based on production `515a9d7`. User requested less information overload with visible, familiar destinations. Only UI/shared sheet behavior, tests, version and documentation changed; no schema or financial service changes.
+Branch: `feature/people-screen`, integrating latest `main` commit `42da456` (v0.7.0). User requested less information overload with visible, familiar destinations. The People change itself affects only UI/shared sheet behavior, tests, version and documentation; upstream v0.7.0 workflow changes are preserved; no schema or financial service changes.
 
 | Command | Actual result |
 | --- | --- |
-| `npm run lint` | Passed |
-| `npm run typecheck` | Passed |
-| `npm run test:unit` | 10 files, **87 passed** |
-| `npm run test:integration` | 8 files, **47 passed**, PostgreSQL 16 |
-| `npm run build` | Passed, production build |
+| `npm run lint` | Rechecking combined version |
+| `npm run typecheck` | Rechecking combined version |
+| `npm run test:unit` | Rechecking combined version |
+| `npm run test:integration` | Rechecking combined version |
+| `npm run build` | Rechecking combined version |
 | `npm run test:e2e` | Running; results to be recorded before release |
 
-New browser checks exercise the compact default roster, person/profile/settings/download/help/activity paths, role gates, Back/Close/Escape and focus restoration, 44px targets, long names, late recovery responses, and light/dark screenshots on iPhone emulation and360px. Existing guest/recovery/equal-split tests now open the relevant People layers. No real phone or human usability study is claimed.
+New browser checks exercise the compact default roster, person/profile/settings/download/help/activity paths, role gates, Back/Close/Escape and focus restoration, 44px targets, long names, late recovery responses, and light/dark screenshots on iPhone emulation and360px. Existing guest/recovery/equal-split tests now open the relevant People layers. No real phone or human usability study is claimed. Before integration, the branch passed87 unit,47 integration and57 browser tests; those results are not claimed as verification of the merged v0.7.0 workflow.
+
+---
+
+
+## v0.7.0 "Fewer waits" (2026-11-18, commit `50cec76`, merged into `main` on owner instruction)
+
+Rules and UI changed (D49–D51): Add & claim in one step, payer's own receipt auto-confirms funding, "Everyone's here", automatic freeze with no approval round, corrections back to Add & claim with a manual re-freeze, paid events closed by the daily job a day after their last payment activity, tabs per step. No migration. Local Linux run: Node 22.23.5, PostgreSQL 16.15 (isolated `ateanne_test`), pre-installed Playwright Chromium. Synthetic data only.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run test:reference` | PASS (no fixture diff) |
+| `npm run lint` | Passed, exit 0 |
+| `npm run typecheck` | Passed |
+| `npm run test:unit` | **10 files, 92 tests passed** |
+| `npm run test:integration` | **9 files, 49 tests passed** on real PostgreSQL |
+| `npm run build` | Passed, production build |
+| `npm run test:e2e` | **51 passed** in one full run (59.3 s), 0 failed, 0 flaky |
+
+What the new or rewritten tests prove:
+
+**Unit**
+- `AutoAdvance` freezes only when the roster is closed, everyone is done and the event isn't cancelled.
+- It never re-freezes after a correction.
+- It closes a paid event only 24 h after the last payment activity.
+- `stepOf` maps the old phases into 3 steps.
+- The new transitions are guarded.
+- Reminders never ask anyone to approve.
+
+**Integration**
+- `workflow`:
+  - The reference event (Mark +800, Juan +200, Paolo −1,000) gives **identical nets and transfers** with claims made while receipts are still being collected.
+  - The payer's own receipt is auto-confirmed; one entered by someone else is not.
+  - Only the organizer can lock.
+  - The bill freezes on the last entry tick, with the app (null actor) recorded as the actor.
+  - A correction waits for a manual re-freeze.
+  - Full settlement is followed by the event closing a day later.
+- `corrections`: a lock with everyone done freezes at once. Statements, payments, return transfers and the export are preserved across two correction rounds.
+- `guests`: the last guest claim (made by a manager) freezes the bill; the audit has no `onBehalfOf`.
+- `equal-receipt`: shares stay 33.34/33.33/33.33 after the freeze.
+- New `auto-advance`:
+  - A receipt edit makes claims stale and holds the freeze.
+  - A cancelled event never freezes.
+  - A reversal restarts the close clock.
+  - `cleanup.run` reports `closedEvents: 1`.
+
+**E2E**
+- `hatian`, three phones, same amounts as before (+706 / −495 / −211):
+  - claims happen before "Everyone's here"
+  - the bill freezes on that tap
+  - Pay has no Claim tab and no approval button
+  - "Close it now" appears only when everyone is paid
+- `corrections`: back to "Step 1 of 3 · Add & claim", then "Freeze the corrected bill", with payment history shown in Pay.
+- `equal-receipt`: "You confirmed your share" replaces the Confirm button.
+- `home`:
+  - section order
+  - only step-1 tabs
+  - no estimate before everyone has answered
+  - ≥44 px targets and no sideways scroll at both widths
+
+The known `pg` concurrent-query deprecation warning appeared on stderr during integration and E2E; nothing failed because of it.
+
+Not verified: real iPhone Safari; the live Vercel deployment and the production daily cron closing a real event (this container cannot reach the site); real groups using the new flow.
+
+---
+
+## v0.6.1 "Simpler Home" (2026-11-18, branch `claude/bold-mayer-xb2jcw`, fast-forwarded into `main` with owner approval)
+
+UI-only change (D48): the start screen and the event Home tab were reordered and decluttered. No server, domain, route, migration or money code changed. Local Linux run: Node 22.23.5, PostgreSQL 16.15 (local cluster, isolated `ateanne_test` database), pre-installed Playwright Chromium. Synthetic data only.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run test:reference` | PASS (reconciliation, allocations, conservation, transfers, reports, rounding) |
+| `npm run lint` | Passed, exit 0 |
+| `npm run typecheck` | Passed (Prisma generate + `tsc --noEmit`) |
+| `npm run test:unit` | **10 files, 87 tests passed** |
+| `npm run test:integration` | **8 files, 47 tests passed** on real PostgreSQL |
+| `npm run build` | Passed, production build |
+| `npm run test:e2e` | **51 passed** in one full run (1.1 min): the 47 existing scenarios plus 4 new ones (`home.spec.ts` × iPhone 15 and 360px) |
+
+What the new and changed browser tests prove:
+- **`home.spec.ts` (new):**
+  - Organizer Home reads *Your to-do* → *Next step* → *Invite people*.
+  - The "I’ve entered every receipt I paid" tick is visible without scrolling, for the organizer and for a member.
+  - *New code* / *Close joining* are hidden until *More join options* is tapped.
+  - The auto-delete date sits at the bottom.
+  - A member sees "Waiting on" and "Mark, the organizer, moves everyone on…", with no organizer buttons or join code.
+  - Start screen, first visit: the walkthrough is inside *How it works* and the recovery-key link appears exactly once, on screen.
+  - Start screen, returning: *Your events* is above *Start a hatian* and *How it works* is folded but opens with one tap.
+  - Every Home and start-screen check also confirms no sideways scroll and that visible buttons, links and disclosure rows are at least 44px tall.
+- **`corrections.spec.ts` (updated):** *Correct the bill* is hidden until *Something wrong with the bill?* is opened, and *Back to claims* is reached through *Need to fix something? Go back a step*. The full correction flow then passes as before.
+- All other specs (`hatian`, `guests`, `reminders`, `equal-receipt`, `install`, `tutorial`, `layout`, `recovery`, `scan`) passed unchanged; button labels were kept on purpose.
+
+Before/after screenshots were taken by driving both the previous build (`515a9d7`) and this one through identical synthetic steps on a local database.
+
+The known `pg` concurrent-query deprecation warning appeared on stderr during integration and E2E runs; nothing failed because of it. The `package.json` version bump to 0.6.1 and the doc edits were made after this run; no application code changed after it.
+
+Not verified: real iPhone Safari, and whether real relatives find the moved controls (*Go back a step*, *Correct the bill*, *More join options*) without help. That needs a person.
 
 ---
 

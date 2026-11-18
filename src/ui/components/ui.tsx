@@ -208,17 +208,62 @@ export function Notice({ tone = "info", title, children }: { tone?: "info" | "wa
   );
 }
 
-export function Blockers({ items, title = "Still needed" }: { items: string[]; title?: string }) {
+/**
+ * What still blocks a step. With `limit`, only the first few show until "Show all" is tapped.
+ * `quiet` is for plain status ("what the group is waiting on") next to a disabled button,
+ * so it doesn't look like something went wrong.
+ */
+export function Blockers({ items, title = "Still needed", limit, quiet = false }: { items: string[]; title?: string; limit?: number; quiet?: boolean }) {
+  const [all, setAll] = useState(false);
   if (!items.length) return null;
-  return (
-    <Notice tone="warn" title={title}>
-      <ul className="list-disc space-y-0.5 pl-4">
-        {items.slice(0, 12).map((b, i) => (
+  const max = limit && !all ? limit : 12;
+  const hidden = items.length - max;
+  const list = (
+    <>
+      <ul className={`list-disc space-y-0.5 pl-4 ${quiet ? "mt-1 text-muted" : ""}`}>
+        {items.slice(0, max).map((b, i) => (
           <li key={i}>{b}</li>
         ))}
-        {items.length > 12 && <li>…and {items.length - 12} more</li>}
+        {hidden > 0 && max === 12 && <li>…and {hidden} more</li>}
       </ul>
+      {hidden > 0 && max < 12 && (
+        <button type="button" onClick={() => setAll(true)} className="-ml-1 min-h-11 px-1 font-semibold text-violet underline underline-offset-2">
+          Show all {items.length}
+        </button>
+      )}
+    </>
+  );
+  if (quiet) {
+    return (
+      <div className="rounded-2xl bg-surface-2 p-3.5 text-[14px] break-words">
+        <p className="font-semibold">{title}</p>
+        {list}
+      </div>
+    );
+  }
+  return (
+    <Notice tone="warn" title={title}>
+      {list}
     </Notice>
+  );
+}
+
+/**
+ * A clearly worded row that opens to show controls people rarely need
+ * ("Need to fix something? Go back a step"). Keeps a screen calm while still
+ * telling everyone where the option lives. Native <details>: keyboard and
+ * screen readers work without extra code.
+ */
+export function Disclosure({ summary, icon, children, className = "", open }: { summary: React.ReactNode; icon?: IconName; children: React.ReactNode; className?: string; open?: boolean }) {
+  return (
+    <details className={`group ${className}`} open={open}>
+      <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-[15px] font-semibold text-violet [&::-webkit-details-marker]:hidden">
+        {icon && <Icon name={icon} size={18} className="shrink-0" />}
+        <span className="min-w-0 flex-1">{summary}</span>
+        <Icon name="chevron" size={18} className="shrink-0 transition-transform group-open:rotate-90" />
+      </summary>
+      <div className="space-y-3 pt-1 pb-1">{children}</div>
+    </details>
   );
 }
 

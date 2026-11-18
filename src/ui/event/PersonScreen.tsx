@@ -120,7 +120,7 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
                   strong
                 />
               )}
-              {view.paymentHistory.length > 0 && <p className="text-[16px] text-muted">Confirmed payments are included. Wait for the corrected split to be approved before paying. / Kasama na ang kumpirmadong bayad.</p>}
+              {view.paymentHistory.length > 0 && <p className="text-[16px] text-muted">Confirmed payments are included. Wait for the corrected bill to be frozen before paying. / Kasama na ang kumpirmadong bayad.</p>}
             </div>
           ) : (
             <p className="mt-8 text-[20px] text-muted">Nothing to show yet. Your amount appears once the items are claimed. / Wala pa. Lalabas ito kapag na-claim na ang mga item.</p>

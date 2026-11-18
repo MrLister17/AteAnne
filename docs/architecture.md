@@ -78,16 +78,12 @@ classDiagram
 ```mermaid
 stateDiagram-v2
   [*] --> Collecting: create event (owner + join code)
-  Collecting --> Allocating: owner · every member entry-complete · receipts reconcile · payers confirmed · roster LOCKED
-  Allocating --> Reviewing: owner · everyone answered every receipt · all lines fully claimed · calculation OK
-  Allocating --> Collecting: owner (fix a receipt) · approvals reset
-  Reviewing --> Settling: owner · all members approved current financial version · FREEZE snapshot + edges
-  Reviewing --> Allocating: owner · approvals reset
-  Reviewing --> Collecting: owner · approvals reset
-  Settling --> Reviewing: owner · ONLY if no payment report ever existed · old snapshot SUPERSEDED
-  Settling --> Done: owner · every edge fully recipient-confirmed · no pending · no open dispute
+  note right of Collecting: "Add & claim" (v0.7, D49). Receipts AND claims.\n"Everyone's here" (owner) sets rosterLockedAt.\n"Cancelled" is an overlay flag, not a phase;\nit never forgives money.
+  Collecting --> Settling: AUTOMATIC (advanceIfReady) the first time freezeGate passes · roster locked · everyone entry-complete · receipts reconcile · payers confirmed · everyone answered every receipt · calculation OK · no approvals (D50) · FREEZE snapshot + edges
+  Collecting --> Settling: owner by hand after a correction (or legacy Allocating/Reviewing) · same freezeGate
+  Settling --> Collecting: owner correction · reason · no pending report or open dispute · old snapshot SUPERSEDED
+  Settling --> Done: AUTOMATIC (daily cleanup) 24 h after the last payment activity once doneGate passes · or owner "Close it now"
   Done --> [*]: read-only
-  note right of Collecting: "Cancelled" is an overlay flag, not a phase.\nIt never forgives money.
 ```
 
 ## Payment report state machine
@@ -155,4 +151,4 @@ Opaque 32-byte session and recovery secrets, stored as SHA-256 only, in HttpOnly
 - `RecoveryPolicy` authorizes only the organizer’s attested reissue; `RecoveryService` issues/redeems hash-only credentials under the event lock, preserving identity and ledger references. Existing browser binding changes only on successful redemption.
 - `Receipt.equalSplit` defaults false. `EqualReceiptSplit` owns whole-receipt consent validation and centavo component rounding; `ReceiptService` derives only the caller’s claims. Normal item allocation is unchanged.
 - `CorrectionLedger` calculates revised residual balances from corrected economic nets plus all verified, non-reversed transfers across snapshots. Correction uses the normal phase workflow with fresh approvals; `EventService` supersedes only after checking pending/dispute gates. Old snapshot facts and report records remain untouched. `PaymentService` only mutates the active snapshot’s reports. Projection/export includes immutable statement/payment history and equal-policy metadata.
-- `ReminderPanel` refreshes the authorized read model, then `remindersFor` produces plain-text phase tasks with no credential inclusion or automatic delivery. It avoids payment nudges while a report is pending.
+- `ReminderButton` (`ReminderPanel.tsx`, inside Home’s Next step card) refreshes the authorized read model, then `remindersFor` produces plain-text phase tasks with no credential inclusion or automatic delivery. It avoids payment nudges while a report is pending.

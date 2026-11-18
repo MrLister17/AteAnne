@@ -15,19 +15,19 @@ export function remindersFor(view: EventView): Reminder[] {
     const tasks: string[] = [];
     switch (view.event.phase) {
       case "COLLECTING":
+      case "ALLOCATING":
+      case "REVIEWING":
+        // Step 1, "Add & claim" (D49). The bill freezes by itself once everyone is done.
         for (const r of view.receipts) {
           if (r.payerId === m.id && !r.fundingAcknowledged) tasks.push(`Confirm you paid ${php(r.payable)} for “${r.label}”.`);
         }
-        if (!m.entryComplete) tasks.push("Add any receipts you paid, then mark receipt entry complete (even if you paid nothing).");
-        break;
-      case "ALLOCATING":
-        for (const r of view.receipts) {
-          const ack = r.acks.find((a) => a.memberId === m.id);
-          if (!ack?.kind || ack.stale) tasks.push(`Answer “${r.label}”: choose what you had, or say you had nothing.`);
+        if (view.event.phase !== "REVIEWING") {
+          for (const r of view.receipts) {
+            const ack = r.acks.find((a) => a.memberId === m.id);
+            if (!ack?.kind || ack.stale) tasks.push(`Answer “${r.label}”: choose what you had, or say you had nothing.`);
+          }
         }
-        break;
-      case "REVIEWING":
-        if (!view.review.approvals.includes(m.id)) tasks.push(`Check your share and approve split version ${view.event.financialVersion}, or raise a correction before approving.`);
+        if (view.event.phase === "COLLECTING" && !m.entryComplete) tasks.push("Add any receipts you paid, then mark receipt entry complete (even if you paid nothing).");
         break;
       case "SETTLING":
         for (const edge of view.settlement?.edges ?? []) {

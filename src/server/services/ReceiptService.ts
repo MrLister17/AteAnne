@@ -11,11 +11,13 @@ import { BaseService, Caller } from "./BaseService";
 type ReceiptPayload = z.output<typeof receiptSchema>;
 
 /**
- * Receipts (Collecting) and claims (Allocating).
+ * Receipts and claims, both during "Add & claim" (Collecting; D49). Claims are
+ * also accepted in Allocating for events started before v0.7.
  *
  * Receipt edits bump the receipt version — older claims and acknowledgements
  * become stale drafts that must be re-confirmed — and the event financial
- * version, which invalidates every review approval.
+ * version. Every change ends with advanceIfReady: the bill freezes by itself
+ * once the roster is closed and everyone is done.
  */
 export class ReceiptService extends BaseService {
   constructor(
@@ -65,6 +67,8 @@ export class ReceiptService extends BaseService {
       await this.writeLinesAndAdjustments(tx, receipt.id, [], data);
       await this.bumpFinancial(tx, eventId);
       await this.audit(tx, eventId, me.id, "receipt.created", { receiptId: receipt.id, label: data.label, payable: data.payable.toString(), equalSplit: data.equalSplit });
+      await this.payerSavedOwnReceipt(tx, eventId, me, receipt.id, data.payerMemberId, 1, data.payable);
+      await this.advanceIfReady(tx, eventId);
       return { receiptId: receipt.id };
     });
   }
@@ -87,8 +91,22 @@ export class ReceiptService extends BaseService {
       await this.writeLinesAndAdjustments(tx, receiptId, receipt.lines.map((l) => l.id), data);
       await this.bumpFinancial(tx, eventId);
       await this.audit(tx, eventId, me.id, isAuthor ? "receipt.updated" : "receipt.organizer_correction", { receiptId, label: data.label, fromVersion: receipt.version, equalSplit: data.equalSplit });
+      await this.payerSavedOwnReceipt(tx, eventId, me, receiptId, data.payerMemberId, receipt.version + 1, data.payable);
+      await this.advanceIfReady(tx, eventId);
       return { version: receipt.version + 1 };
     });
+  }
+
+  /**
+   * Saving a receipt that names yourself as the payer is your confirmation that
+   * you paid exactly this amount for this version (D49), so there is no
+   * separate "I paid" tap. A receipt someone else entered for you still waits
+   * for your own confirmation.
+   */
+  private async payerSavedOwnReceipt(tx: Tx, eventId: string, me: MemberRecord, receiptId: string, payerMemberId: string, version: number, payable: bigint) {
+    if (payerMemberId !== me.id) return;
+    await tx.fundingAck.create({ data: { receiptId, memberId: me.id, receiptVersion: version, amountCentavos: payable } });
+    await this.audit(tx, eventId, me.id, "funding.acknowledged", { receiptId, amount: payable.toString(), version, withSave: true });
   }
 
   /** Keep IDs of existing lines that were resubmitted (their claims become stale drafts). */
@@ -130,6 +148,7 @@ export class ReceiptService extends BaseService {
       await tx.receipt.delete({ where: { id: receiptId } });
       await this.bumpFinancial(tx, eventId);
       await this.audit(tx, eventId, me.id, "receipt.deleted", { receiptId, label: receipt.label });
+      await this.advanceIfReady(tx, eventId);
     });
   }
 
@@ -149,6 +168,7 @@ export class ReceiptService extends BaseService {
       await tx.fundingAck.create({ data: { receiptId, memberId: me.id, receiptVersion: receipt.version, amountCentavos: receipt.payableCentavos } });
       await this.bumpFinancial(tx, eventId);
       await this.audit(tx, eventId, me.id, "funding.acknowledged", { receiptId, amount: receipt.payableCentavos.toString(), version: receipt.version });
+      await this.advanceIfReady(tx, eventId);
     });
   }
 
@@ -162,7 +182,7 @@ export class ReceiptService extends BaseService {
     const eventId = await this.eventIdForReceipt(receiptId);
     return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       await this.limiter.hit(RATE_RULES.financialSavesPerMember, me.id);
-      agg.machine.assertIn("ALLOCATING");
+      agg.machine.assertIn("COLLECTING", "ALLOCATING");
       agg.assertNotCancelled();
       const receipt = agg.receipt(receiptId);
       if (receipt.version !== data.receiptVersion) throw new ConflictError("stale_receipt", "This receipt was corrected. Review the new version and claim again.");
@@ -212,6 +232,7 @@ export class ReceiptService extends BaseService {
       const updated = await tx.member.update({ where: { id: me.id }, data: { claimVersion: { increment: 1 } } });
       await this.bumpFinancial(tx, eventId);
       await this.audit(tx, eventId, me.id, "claims.saved", { receiptId, status: data.status, lines: data.claims.length, equalSplitAccepted: Boolean(data.acceptEqualSplit) });
+      await this.advanceIfReady(tx, eventId);
       return { claimVersion: updated.claimVersion };
     });
   }

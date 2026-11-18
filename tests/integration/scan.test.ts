@@ -49,8 +49,8 @@ describe("receipt scanning", () => {
     const failing: ReceiptReader = { read: async () => { throw new ReceiptReadError("not_a_receipt", "That doesn’t look like a readable receipt."); } };
     const failApp = new AppContainer(db, new DatabaseStorage(db), TEST_KEY, new RetentionPolicy(30), failing);
     await expect(failApp.scans.scan(e.people.Owner.actorId, e.eventId, photo)).rejects.toMatchObject({ status: 422, code: "scan_not_a_receipt" });
-    await db.event.update({ where: { id: e.eventId }, data: { phase: "ALLOCATING" } });
-    await expect(app.scans.scan(e.people.Owner.actorId, e.eventId, photo)).rejects.toThrow(/Collecting/);
+    await db.event.update({ where: { id: e.eventId }, data: { phase: "SETTLING" } });
+    await expect(app.scans.scan(e.people.Owner.actorId, e.eventId, photo)).rejects.toThrow(/Add & claim/);
   });
 
   it("is disabled when no reader is configured", async () => {

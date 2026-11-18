@@ -29,15 +29,18 @@ describe("manual Messenger reminders", () => {
     expect(rows[1].tasks.join(" ")).toContain("even if you paid nothing");
   });
 
-  it("treats stale receipt answers as unfinished", () => {
-    expect(remindersFor(view("ALLOCATING")).map((r) => r.memberId)).toEqual(["b"]);
-    expect(remindersFor(view("ALLOCATING"))[0].tasks[0]).toContain("or say you had nothing");
+  it("asks for receipts, claims and the entry tick together in Add & claim; stale answers count as unfinished", () => {
+    const rows = remindersFor(view("COLLECTING"));
+    expect(rows[0].tasks).toHaveLength(1); // Mark: only the payment confirmation; his claim is current
+    expect(rows[1].tasks.join(" ")).toContain("or say you had nothing");
+    const paid = view("ALLOCATING", { receipts: [{ id: "r", label: "Cafe", payerId: "a", payable: "10001", fundingAcknowledged: true, acks: [{ memberId: "a", kind: "CLAIMED", stale: false }, { memberId: "b", kind: "NOTHING", stale: true }] }] });
+    expect(remindersFor(paid).map((r) => r.memberId)).toEqual(["b"]);
+    expect(remindersFor(paid)[0].tasks[0]).toContain("or say you had nothing");
   });
 
-  it("asks for the current financial version only when approval is missing", () => {
+  it("never asks anyone to approve: claiming is the agreement (D50)", () => {
     const rows = remindersFor(view("REVIEWING"));
-    expect(rows.map((r) => r.memberId)).toEqual(["b"]);
-    expect(rows[0].tasks[0]).toContain("version 4");
+    expect(rows.flatMap((r) => r.tasks).join(" ")).not.toMatch(/approve/i);
   });
 
   it("does not ask a sender for another transfer while their report is pending", () => {

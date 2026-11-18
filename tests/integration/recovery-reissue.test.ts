@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { ASSISTED_RECOVERY_TTL_MS } from "@/server/services/RecoveryService";
-import { eventWith, makeApp, newActor, resetDb, version } from "./helpers";
+import { eventWith, makeApp, newActor, resetDb } from "./helpers";
 
 const { app, db } = makeApp();
 beforeEach(async () => resetDb(db));
@@ -33,13 +33,10 @@ describe("organizer-assisted access recovery", () => {
     });
     await app.receipts.acknowledgeFunding(Juan.actorId, receiptId, { receiptVersion: 1, amount: "10000" });
     for (const person of [Mark, Juan]) await app.events.updateMe(person.actorId, e.eventId, { entryComplete: true });
-    await app.events.transition(Mark.actorId, e.eventId, { target: "ALLOCATING", expectedFinancialVersion: await version(app, e.eventId, Mark.actorId) });
+    await app.events.lockRoster(Mark.actorId, e.eventId);
     const line = (await app.queries.view(Mark.actorId, e.eventId)).receipts[0].lines[0];
     for (const person of [Mark, Juan]) await app.receipts.saveClaims(person.actorId, receiptId, { receiptVersion: 1, expectedClaimVersion: 1, status: "finish", claims: [{ lineId: line.id, units: 1 }] });
-    const fv = await version(app, e.eventId, Mark.actorId);
-    await app.events.transition(Mark.actorId, e.eventId, { target: "REVIEWING", expectedFinancialVersion: fv });
-    for (const person of [Mark, Juan]) await app.receipts.approveReview(person.actorId, e.eventId, fv);
-    await app.events.transition(Mark.actorId, e.eventId, { target: "SETTLING", expectedFinancialVersion: fv });
+    // The last claim froze the bill by itself.
     const frozen = (await app.queries.view(Juan.actorId, e.eventId)).settlement!;
     const report = await app.payments.report(Mark.actorId, frozen.edges[0].id, { amount: "2000", method: "CASH", idempotencyKey: "before-recovery-1234" });
     await app.payments.verify(Juan.actorId, report.reportId);

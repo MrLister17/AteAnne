@@ -34,7 +34,7 @@ People → CSV or JSON. The export contains receipt funding and consumption, fro
 - Each person gets a **personal recovery key**, shown once. Redeeming it on a new device moves the *same* member (same ID, receipts, claims, instructions and payments) to that device, rotates the key and signs the old device out of that event. Two simultaneous redemptions cannot both succeed.
 - If a browser already controls a different member of that event, recovery is refused; identities are never merged.
 - **Lost key and device:** ask the organizer in person. Only the organizer may issue replacement access for an active phone member, after checking their identity. The replacement expires after 15 minutes and can be redeemed once. Issuing it immediately invalidates the previous recovery key; the previous phone keeps access until redemption. The same member ID, admin role and all financial records are preserved. The organizer cannot use their own already-enrolled browser to merge identities. This is a trusted-circle recovery power: an organizer who hands the key to the wrong person could give them your access. Keep the key private, never in the group chat.
-- The organizer guides phases and can issue replacement access, but cannot directly claim items, approve the split, confirm payments or resolve disputes for phone members. Organizer/admin act-for access is limited to people explicitly added without a phone.
+- The organizer guides phases and can issue replacement access, but cannot directly claim items, confirm payments or resolve disputes for phone members. Organizer/admin act-for access is limited to people explicitly added without a phone.
 
 ## Portfolio privacy
 

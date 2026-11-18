@@ -174,11 +174,11 @@ export class EventAggregate {
 
   // ---- phase gates -------------------------------------------------------
 
-  /** Collecting → Allocating. */
+  /** Receipts are in: everyone said so, everything reconciles, payers confirmed. Part of freezeGate. */
   allocationGate(): Gate {
     const blockers: string[] = [];
     if (this.record.receipts.length === 0) blockers.push("Add at least one receipt.");
-    for (const m of this.activeMembers()) if (!m.entryComplete) blockers.push(`${m.displayName} has not marked expense entry complete.`);
+    for (const m of this.activeMembers()) if (!m.entryComplete) blockers.push(`${m.displayName} hasn’t ticked “I’ve entered every receipt I paid”.`);
     for (const r of this.record.receipts) {
       const rec = this.reconciliation(r);
       for (const issue of rec.issues) blockers.push(`${r.label}: ${issue.message}`);
@@ -189,12 +189,12 @@ export class EventAggregate {
     return { ready: blockers.length === 0, blockers };
   }
 
-  /** Allocating → Reviewing. */
+  /** Everyone answered every receipt and the split calculates. Part of freezeGate. */
   reviewGate(): Gate {
     const blockers: string[] = [];
     for (const r of this.record.receipts) {
       for (const m of this.activeMembers()) {
-        if (!this.currentAck(r, m.id)) blockers.push(`${m.displayName} has not finished "${r.label}".`);
+        if (!this.currentAck(r, m.id)) blockers.push(`${m.displayName} hasn’t claimed from “${r.label}” yet.`);
       }
       const stale = r.lines.flatMap((l) => l.claims).filter((c) => c.receiptVersion !== r.version);
       if (stale.length) blockers.push(`${r.label} changed; ${new Set(stale.map((c) => c.memberId)).size} member(s) must re-confirm their claims.`);
@@ -208,15 +208,18 @@ export class EventAggregate {
     return new Set(this.record.approvals.filter((a) => a.financialVersion === this.record.financialVersion).map((a) => a.memberId));
   }
 
-  /** Reviewing → Settling (freeze). */
-  settlementGate(): Gate {
-    const blockers = [...this.reviewGate().blockers];
-    for (const r of this.record.receipts) {
-      if (!this.fundingAcknowledged(r)) blockers.push(`${r.label}: payer funding confirmation is not current.`);
-    }
-    const approved = this.approvalsForCurrentVersion();
-    for (const m of this.activeMembers()) if (!approved.has(m.id)) blockers.push(`${m.displayName} has not approved version ${this.record.financialVersion}.`);
-    return { ready: blockers.length === 0, blockers };
+  /**
+   * Add & claim → Pay (freeze), D49/D50: the organizer closed the roster
+   * ("Everyone's here") and everyone is done: receipts entered and confirmed by
+   * their payers, every receipt answered by every person, the split calculates.
+   * Claiming is the agreement; there is no separate approval round.
+   */
+  freezeGate(): Gate {
+    const blockers: string[] = [];
+    if (!this.record.rosterLockedAt) blockers.push("The organizer hasn’t tapped “Everyone’s here” yet.");
+    blockers.push(...this.allocationGate().blockers, ...this.reviewGate().blockers);
+    const unique = [...new Set(blockers)];
+    return { ready: unique.length === 0, blockers: unique };
   }
 
   // ---- settlement --------------------------------------------------------
@@ -255,6 +258,22 @@ export class EventAggregate {
       e.disputes.map((d) => ({ edgeId: e.id, open: d.status !== "RESOLVED", awaitingReplacement: d.status === "AWAITING_REPLACEMENT" })),
     );
     return new PaymentLedger(edges, reports, disputes);
+  }
+
+  /** Latest money event on the active statement; the daily job closes a paid event a day after it (D49). */
+  lastSettlementActivity(): Date | null {
+    const snap = this.activeSnapshot();
+    if (!snap) return null;
+    const times = [snap.createdAt];
+    for (const e of snap.edges) {
+      for (const r of e.reports) {
+        times.push(r.createdAt);
+        if (r.decidedAt) times.push(r.decidedAt);
+        if (r.reversal) times.push(r.reversal.createdAt);
+      }
+      for (const d of e.disputes) if (d.resolvedAt) times.push(d.resolvedAt);
+    }
+    return new Date(Math.max(...times.map((t) => t.getTime())));
   }
 
   /** Settling → Done. */

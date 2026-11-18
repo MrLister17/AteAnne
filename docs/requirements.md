@@ -17,7 +17,7 @@ Source: *AteAnne — Full SDLC & Financial Specification v1.0* ([docs/spec/](spe
 | FR-09 | Conflict gate; no silent edits to others' claims; visible corrections | Done | `reviewGate`, claims are always the caller's own; organizer receipt edits are audited as `receipt.organizer_correction` and make claims stale | security "claims are always the caller's own"; workflow organizer correction |
 | FR-10 | Scoped discounts; service on post-discount eligible spending; exact rounding | Done | `ReceiptCalculator` | fixtures (scoped discount), generated tests |
 | FR-11 | Receipt shares = payable; nets sum to zero; server recomputes | Done | `ReceiptCalculator` invariants, `EventLedger`, freeze recomputes in lock | fixtures + 500 generated receipts |
-| FR-12 | Review shows breakdown; all approve the same version; edits reset approvals | Done | `MoneyTab`, `approveReview`, `financialVersion` | workflow review; E2E approvals |
+| FR-12 | Breakdown shown line by line; **superseded by D50 (owner, v0.7): claiming is the agreement, no approval round**; the bill freezes once everyone is done | Changed | `MoneyTab`, `freezeGate`, `AutoAdvance` | workflow auto-freeze; E2E hatian (no approval button) |
 | FR-13 | Immutable snapshot + edges | Done | `EventService.freeze`, `Snapshot` (status-only update) | workflow reopen → superseded |
 | FR-14 | Cash and/or own QR; recipient and instruction version shown; no transfer execution | Done | `PaymentService.setInstructions`, `PaymentInstruction` versions | E2E QR + cash; QR visibility test |
 | FR-15 | Reports: partial/full, pending reserves capacity, idempotent | Done | `PaymentService.report`, `PaymentLedger` | workflow pending/idempotent/over-report; E2E partial |
@@ -40,7 +40,7 @@ Source: *AteAnne — Full SDLC & Financial Specification v1.0* ([docs/spec/](spe
 | AT-09 | Scoped discount; zero service basis flagged, never split equally | Done |
 | AT-10 | Service follows adjusted spending; every allocation sums exactly | Done |
 | AT-11 | All fixtures match; nets and residuals sum to zero | Done |
-| AT-12 | Same-version approvals; stale version rejected; owner cannot approve for others (approvals are self-only by construction) | Done |
+| AT-12 | Same-version approvals (superseded by D50: the approval route stays for old events but no step requires it); owner cannot claim for phone members | Changed |
 | AT-13 | Reopening keeps the superseded snapshot; D47 now permits reasoned post-report correction after resolving pending/disputed payments | Done |
 | AT-14 | QR + cash; instruction version shown; QR hidden from non-debtors; cross-event asset read denied | Done |
 | AT-15 | Pending leaves verified balance unchanged; idempotent replay | Done |
@@ -72,12 +72,12 @@ These override the original spec’s no-reset and post-report freeze limitations
 | S7-01 | Home Screen guidance before mobile identity creation; native prompt where supported; honest Safari steps; explicit browser fallback | `InstallProvider`, `InstallFirst`, `InstallPrompt`; `e2e/install.spec.ts` |
 | S7-02 | Organizer-attested, expiring single-use recovery; stable financial identity and revoked old access; admin/nonmember denial and redemption races | `RecoveryPolicy`, `RecoveryService`; `integration/recovery-reissue.test.ts`, `e2e/recovery.spec.ts` |
 | S7-03 | Equal whole receipt; everyone accepts own share; exact conservation and ≤1c difference; disagreement blocks review | `EqualReceiptSplit`, `ReceiptService`; `unit/equal-receipt.test.ts`, `integration/equal-receipt.test.ts`, `e2e/equal-receipt.spec.ts` |
-| S7-04 | Preview and copy person/group reminders for Messenger; current next steps, no credentials, no duplicate-transfer nudges | `reminders.ts`, `ReminderPanel`; `unit/reminders.test.ts`, `e2e/reminders.spec.ts` |
-| S7-05 | Reasoned correction before Done, pending/dispute gate, immutable history, stable roster, fresh approval and confirmed-payment carry-forward | `CorrectionLedger`, `EventAggregate`, `EventService`, `PaymentService`; `unit/correction-ledger.test.ts`, `integration/corrections.test.ts`, `e2e/corrections.spec.ts` |
+| S7-04 | Preview and copy person/group reminders for Messenger; current next steps, no credentials, no duplicate-transfer nudges | `reminders.ts`, `ReminderButton` (`ReminderPanel.tsx`); `unit/reminders.test.ts`, `e2e/reminders.spec.ts` |
+| S7-05 | Reasoned correction before Done, pending/dispute gate, immutable history, stable roster, confirmed-payment carry-forward and manual corrected freeze (fresh approval was superseded by D50) | `CorrectionLedger`, `EventAggregate`, `EventService`, `PaymentService`; `unit/correction-ledger.test.ts`, `integration/corrections.test.ts`, `e2e/corrections.spec.ts` |
 
 See `test-report.md` for actual command outcomes; presence of a test file alone is not a claim that it passed.
 
-## Sprint S8 People navigation (D48, v0.6.1)
+## Sprint S8 People navigation (D52, v0.7.1)
 
 | ID | Acceptance requirement | Implementation / evidence |
 | --- | --- | --- |
@@ -86,4 +86,4 @@ See `test-report.md` for actual command outcomes; presence of a test file alone 
 | S8-03 | **Your profile & access**, **Download event record**, **Event settings**, **Help & privacy** and **Activity** open focused sheets; rename, own recovery key, amount display, CSV/JSON, cancellation/deletion, tutorial and audit remain reachable | `PeopleTab.tsx`; `e2e/people.spec.ts` section navigation |
 | S8-04 | One shared sheet has visible Back/Close controls, returns follow-up actions to their parent, and supports keyboard dismissal; roster/settings fit iPhone and 360px widths with ≥44px touch targets in light/dark mode | Shared `Sheet` and `PeopleTab.tsx`; `e2e/people.spec.ts` Back/Close/Escape, focus return, touch targets, overflow and screenshots |
 
-This sprint changes presentation and navigation only. See `test-report.md` for actual check results and `implementation-plan.md` for completion status.
+This sprint changes presentation and navigation only and preserves v0.7.0’s three-step workflow with no approval round. See `test-report.md` for actual check results and `implementation-plan.md` for completion status.

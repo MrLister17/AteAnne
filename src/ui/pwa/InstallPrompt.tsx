@@ -5,8 +5,11 @@ import { Icon } from "../components/Icon";
 import { Button, Notice } from "../components/ui";
 import { useInstall } from "./InstallProvider";
 
-/** Safari has no install API. Never imply that Web Share installs an app. */
-export function InstallPrompt() {
+/**
+ * Safari has no install API. Never imply that Web Share installs an app.
+ * `quiet`: on the start screen, where "Start a hatian" is the main action; /new and /join still pause for installing first.
+ */
+export function InstallPrompt({ quiet = false }: { quiet?: boolean }) {
   const { device, canPrompt, install } = useInstall();
   const [expanded, setExpanded] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -18,12 +21,12 @@ export function InstallPrompt() {
         <img src="/icons/icon-192.png" alt="" width={48} height={48} className="size-12 rounded-xl" />
         <div className="min-w-0">
           <h2 className="text-[17px] font-bold">Add AteAnne to your Home Screen first</h2>
-          <p className="mt-1 text-[15px] text-muted">Then open the app to start or join your hatian.</p>
+          <p className="mt-1 text-[15px] text-muted">Then start or join from the app, so your event stays in it.</p>
         </div>
       </div>
-      <p className="mt-3 text-[15px]">Your icon, app name and full-screen view are ready. On iPhone, adding it before joining keeps your event in the app’s sign-in.</p>
       <Button
         full
+        variant={quiet ? "secondary" : "primary"}
         icon="plus"
         className="mt-4"
         aria-expanded={!canPrompt ? expanded : undefined}

@@ -8,7 +8,7 @@ import sharp from "sharp";
 import { AppContainer } from "@/server/container";
 import { DatabaseStorage } from "@/server/storage/PrivateStorage";
 import { RetentionPolicy } from "@/domain/event/RetentionPolicy";
-import { eventWith, makeApp, pesos, resetDb, version, TEST_KEY } from "./helpers";
+import { eventWith, makeApp, pesos, resetDb, TEST_KEY } from "./helpers";
 
 const { db } = makeApp();
 const app = new AppContainer(db, new DatabaseStorage(db), TEST_KEY, new RetentionPolicy(30));
@@ -40,16 +40,13 @@ describe("30-day purge", () => {
     });
     await app.receipts.acknowledgeFunding(P.Mark.actorId, receiptId, { receiptVersion: 1, amount: pesos(400) });
     for (const n of ["Mark", "Juan"]) await app.events.updateMe(P[n].actorId, old.eventId, { entryComplete: true });
-    await app.events.transition(P.Mark.actorId, old.eventId, { target: "ALLOCATING", expectedFinancialVersion: await version(app, old.eventId, P.Mark.actorId) });
+    await app.events.lockRoster(P.Mark.actorId, old.eventId);
     const view = await app.queries.view(P.Mark.actorId, old.eventId);
     for (const n of ["Mark", "Juan"]) {
       const me = await app.queries.view(P[n].actorId, old.eventId);
       await app.receipts.saveClaims(P[n].actorId, receiptId, { receiptVersion: 1, expectedClaimVersion: me.me.claimVersion, status: "finish", claims: [{ lineId: view.receipts[0].lines[0].id, units: 1 }] });
     }
-    await app.events.transition(P.Mark.actorId, old.eventId, { target: "REVIEWING", expectedFinancialVersion: await version(app, old.eventId, P.Mark.actorId) });
-    const v = await version(app, old.eventId, P.Mark.actorId);
-    for (const n of ["Mark", "Juan"]) await app.receipts.approveReview(P[n].actorId, old.eventId, v);
-    await app.events.transition(P.Mark.actorId, old.eventId, { target: "SETTLING", expectedFinancialVersion: v });
+    // The last claim froze the bill by itself.
     const png = await sharp({ create: { width: 30, height: 30, channels: 3, background: "#000" } }).png().toBuffer();
     const { assetId } = await app.assets.upload(P.Mark.actorId, old.eventId, "QR", png);
     await app.payments.setInstructions(P.Mark.actorId, old.eventId, { acceptsCash: true, keepQr: true }, assetId);

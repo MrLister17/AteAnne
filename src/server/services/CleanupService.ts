@@ -5,7 +5,8 @@ import { RetentionPolicy } from "@/domain/event/RetentionPolicy";
 
 /**
  * Daily housekeeping: expired sessions, stale rate-limit buckets, abandoned
- * unreferenced uploads, and whole-event purge of every event older than the
+ * unreferenced uploads, closing fully paid events a day after their last
+ * payment activity, and whole-event purge of every event older than the
  * retention period (default 30 days from creation, finished or not — owner
  * decision). Purging goes through EventService.purge so rows are removed in
  * dependency order and image bytes are deleted too.
@@ -40,6 +41,8 @@ export class CleanupService {
       for (const k of keys) await this.storage.delete(k).catch(() => undefined);
       purgedEvents++;
     }
-    return { sessions: sessions.count, rateBuckets: buckets.count, orphanAssets: orphans.length, purgedEvents };
+    // Fully paid events close a day after their last payment activity (D49).
+    const closedEvents = await this.events.closeSettledEvents(now);
+    return { sessions: sessions.count, rateBuckets: buckets.count, orphanAssets: orphans.length, purgedEvents, closedEvents };
   }
 }

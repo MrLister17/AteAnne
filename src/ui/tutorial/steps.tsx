@@ -56,17 +56,17 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Welcome to AteAnne",
     points: [
       "AteAnne splits a shared bill by what each person actually had, not just total ÷ people.",
-      "It runs in 5 steps: Collect → Claim → Review → Settle → Done.",
+      "It runs in 3 steps: Add & claim → Pay → Done. It moves on by itself; nobody waits for a button.",
       "No accounts, no bank logins. Money moves outside the app; AteAnne keeps the exact record.",
     ],
     art: (
       <div aria-hidden className="flex items-center justify-center gap-2">
-        {(["receipt", "hand", "check", "wallet"] as IconName[]).map((i, n) => (
+        {(["receipt", "wallet", "check"] as IconName[]).map((i, n) => (
           <div key={i} className="flex items-center gap-2">
             <span className="flex size-14 items-center justify-center rounded-2xl bg-violet-soft text-violet">
               <Icon name={i} size={26} />
             </span>
-            {n < 3 && <Icon name="chevron" size={16} className="text-muted" />}
+            {n < 2 && <Icon name="chevron" size={16} className="text-muted" />}
           </div>
         ))}
       </div>
@@ -140,6 +140,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
       "Whoever paid the store opens Receipts and taps “Scan a receipt” to take a photo — the items, service charge and total are filled in for you to check. (Or tap “Add receipt” to type it.)",
       "Choose “Shared equally” (split among whoever had it) or “By piece” (e.g. 3 rice — each person claims pieces).",
       "Check every line against the paper receipt and fix anything misread. The bar turns green when items, discounts and charges add up to the exact total.",
+      "Saving a receipt you paid counts as “I paid”. If someone else typed it in for you, you confirm the amount once on the receipt.",
     ],
     art: (
       <Phone>
@@ -152,30 +153,13 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     ),
   },
   {
-    id: "lock",
-    who: "Everyone",
-    title: "Confirm, finish entering, lock",
-    points: [
-      "The person who paid taps “I paid ₱… for this” on their receipt.",
-      "Everyone ticks “I’ve entered every receipt I paid” on Home — even if they paid nothing.",
-      "Then the organizer taps “Lock roster & start claiming”. Nobody new can join after this.",
-    ],
-    art: (
-      <Phone>
-        <Pill tone="receive"><Icon name="check" size={14} /> I paid ₱1,133.00 for this</Pill>
-        <Row left={<span className="flex items-center gap-2"><span className="inline-flex size-4 items-center justify-center rounded bg-violet text-violet-ink"><Icon name="check" size={12} /></span> I’ve entered every receipt I paid</span>} />
-        <Pill><Icon name="lock" size={14} /> Lock roster & start claiming</Pill>
-      </Phone>
-    ),
-  },
-  {
     id: "claim",
     who: "Everyone",
     title: "Claim what you had",
     points: [
-      "Open Claim. Go through each receipt and tap “I had some” on shared items, or use − / + for pieces.",
+      "Open Claim as soon as a receipt is added; no need to wait for the others. Tap “I had some” on shared items, or use − / + for pieces.",
       "Didn’t have anything from a receipt? Tap “I got nothing from this receipt” so the group knows you answered.",
-      "You only ever change your own claims. If pieces run out, someone needs to fix theirs first.",
+      "You only ever change your own claims. Your claims are your agreement; there is no separate approval round.",
     ],
     art: (
       <Phone>
@@ -187,43 +171,21 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     ),
   },
   {
-    id: "review",
+    id: "everyone",
     who: "Everyone",
-    title: "Review and approve",
+    title: "Say you’re done; the bill freezes by itself",
     points: [
-      "When everyone has answered, the organizer taps “Start review”.",
-      "Money shows your share line by line: each item, discounts, and your part of the service charge (based on what you had).",
-      "Green “Net to receive” = others pay you back. Red “Net to pay” = you pay someone. Tap “I agree with this split”.",
+      "Everyone ticks “I’ve entered every receipt I paid” on Home, even if they paid nothing.",
+      "The organizer taps “Everyone’s here” once everyone who shared the bill has joined. Nobody new can join after this.",
+      "The moment everyone is done, AteAnne freezes the bill and shows simple transfers, e.g. “Juan → Mark ₱495.00”.",
     ],
     art: (
       <Phone>
-        <div className="rounded-xl bg-pay-soft p-3 text-pay">
-          <div className="flex items-center gap-1 text-[12px] font-semibold"><Icon name="arrowUp" size={14} /> Net to pay</div>
-          <div className="tnum text-[22px] font-bold">−₱495.00</div>
-        </div>
-        <Row left="Sisig ÷ 3 people" right="₱200.00" />
-        <Row left="Service (your share)" right="+₱45.00" />
-        <Pill><Icon name="check" size={14} /> I agree with this split</Pill>
+        <Row left={<span className="flex items-center gap-2"><span className="inline-flex size-4 items-center justify-center rounded bg-violet text-violet-ink"><Icon name="check" size={12} /></span> I’ve entered every receipt I paid</span>} />
+        <Pill><Icon name="lock" size={14} /> Everyone’s here</Pill>
+        <Row left="Juan → Mark" right="₱495.00" />
+        <Row left="Paolo → Mark" right="₱211.00" />
       </Phone>
-    ),
-  },
-  {
-    id: "freeze",
-    who: "Organizer",
-    title: "Freeze the statement",
-    points: [
-      "Once everyone approved, the organizer taps “Freeze & start settling”.",
-      "AteAnne locks the amounts and shows simple transfers, e.g. “Juan → Mark ₱495.00”.",
-      "Before Done, the organizer can start a correction with a reason. Resolve pending reports and disputes first; everyone reviews again, and confirmed money is carried forward.",
-    ],
-    art: (
-      <div aria-hidden className="space-y-3">
-        <Big icon="lock" />
-        <div className="mx-auto max-w-[260px] space-y-2">
-          <Row left="Juan → Mark" right="₱495.00" />
-          <Row left="Paolo → Mark" right="₱211.00" />
-        </div>
-      </div>
     ),
   },
   {
@@ -251,7 +213,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     points: [
       "The person who received the money checks their cash or e-wallet and taps “Received”. Only then does the balance go down.",
       "Nothing arrived? Tap “Not received”. You both then pick what happened — nobody else can decide for you.",
-      "Confirmed by mistake? You can undo it once, with a reason, before the event is Done.",
+      "Confirmed by mistake? You can undo it once, with a reason, until the hatian closes.",
     ],
     art: (
       <Phone>
@@ -266,10 +228,10 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: "done",
-    who: "Organizer",
+    who: "Everyone",
     title: "Done!",
     points: [
-      "When every transfer is confirmed by the people who received it, the organizer taps “Mark as Done”.",
+      "When every transfer is confirmed, AteAnne closes the hatian by itself a day later (the organizer can close it sooner). Something wrong before then? The organizer can reopen the bill with a reason; confirmed money is kept.",
       "The event becomes a read-only record. Every event is deleted 30 days after it was created — finished or not — so export a CSV/JSON copy from People if you want one.",
       "Lost your phone, or opened AteAnne from your Home Screen and your event is missing? Tap “I have a recovery key” on the first screen. If you lost the key too, ask the organizer in person for replacement access.",
     ],

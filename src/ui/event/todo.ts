@@ -13,17 +13,18 @@ export function pendingFor(view: View, memberId: string): string[] {
   const out: string[] = [];
   switch (view.event.phase) {
     case "COLLECTING":
-      for (const r of view.receipts) if (r.payerId === memberId && !r.fundingAcknowledged) out.push(`Confirm paying ${php(r.payable)} for “${r.label}”`);
-      if (!m.entryComplete) out.push("Mark receipt entry complete");
-      break;
     case "ALLOCATING":
-      for (const r of view.receipts) {
-        const ack = r.acks.find((a) => a.memberId === memberId);
-        if (!ack?.kind || ack.stale) out.push(`Claim what they had from “${r.label}”`);
-      }
-      break;
     case "REVIEWING":
-      if (!view.review.approvals.includes(memberId)) out.push("Show them their share, then approve");
+      // Step 1, "Add & claim" (D49): confirm what they paid, answer every receipt, say they're done.
+      for (const r of view.receipts) if (r.payerId === memberId && !r.fundingAcknowledged) out.push(`Confirm paying ${php(r.payable)} for “${r.label}”`);
+      if (view.event.phase !== "REVIEWING") {
+        for (const r of view.receipts) {
+          const ack = r.acks.find((a) => a.memberId === memberId);
+          if (!ack?.kind) out.push(`Claim what they had from “${r.label}”`);
+          else if (ack.stale) out.push(`Claim again from “${r.label}” (it changed)`);
+        }
+      }
+      if (view.event.phase === "COLLECTING" && !m.entryComplete) out.push("Tick “I’ve entered every receipt I paid”");
       break;
     case "SETTLING":
       for (const e of view.settlement?.edges ?? []) {
@@ -36,4 +37,15 @@ export function pendingFor(view: View, memberId: string): string[] {
       break;
   }
   return out;
+}
+
+/**
+ * Has every active person answered (a current claim or "nothing") every
+ * receipt, or one receipt? Before that, an estimated share is misleading: the
+ * first person to claim a shared dish briefly "owes" all of it.
+ */
+export function everyoneAnswered(view: View, receiptId?: string): boolean {
+  const people = view.members.filter((m) => m.active);
+  const receipts = receiptId ? view.receipts.filter((r) => r.id === receiptId) : view.receipts;
+  return receipts.length > 0 && receipts.every((r) => people.every((m) => r.acks.some((a) => a.memberId === m.id && a.kind && !a.stale)));
 }
