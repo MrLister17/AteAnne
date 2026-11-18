@@ -10,7 +10,7 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ## Where we left off (2026-11-18)
 
-- **v0.6.1 "Simpler Home"** is on branch `claude/bold-mayer-xb2jcw`: UI only, full check chain green locally (51 browser tests). **Not merged to `main` and not deployed.** Next: the owner reviews the before/after screenshots, then decides whether to merge and deploy. After that, watch a relative use the new Home without help.
+- **v0.6.1 "Simpler Home"** (UI only, full check chain green locally, 51 browser tests) was **fast-forwarded into `main` with the owner’s approval** on 2026-11-18. Pushing `main` triggers the Vercel production build; this container cannot reach the live site, so check the deployment in Vercel or GitHub. Next: watch a relative use the new Home without help.
 - Remote `main` now includes **v0.6.0**, code commit `8a24cc0`, fast-forwarded after green CI with the owner’s approval.
 - **v0.6.0 is live:** https://ateanne.vercel.app. Production deployment `dpl_DKFndt2NyoP1C3pmRzi73dhwRNQL` reached READY; `/api/health` returned `ok: true`, version `8a24cc0`, scanner `groq`.
 - Sprint S7 covers the owner’s five requested improvements. See [`docs/implementation-plan.md`](docs/implementation-plan.md) for acceptance criteria and [`docs/test-report.md`](docs/test-report.md) for actual verification.
@@ -20,7 +20,7 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ---
 
-## v0.6.1: Simpler Home (2026-11-18) · branch `claude/bold-mayer-xb2jcw`, not merged or deployed
+## v0.6.1: Simpler Home (2026-11-18) · merged to `main` (owner approved)
 
 The owner said Home was information overload, so people couldn't tell where to focus. Decision **D48**. UI only: no rule, route, migration or money change, and every control is kept with its label unchanged.
 

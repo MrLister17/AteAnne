@@ -4,7 +4,7 @@ _Last updated: 2026-11-18_
 
 ## Current state
 
-- **Branch `claude/bold-mayer-xb2jcw`: v0.6.1 "Simpler Home"** (D48), UI only. Not merged to `main` and not deployed. It reorganizes the start screen and the event Home tab so each has one clear primary action; every control is kept, rare ones one tap away. See [CHANGELOG.md](../CHANGELOG.md) and the v0.6.1 section of [test-report.md](test-report.md).
+- **v0.6.1 "Simpler Home"** (D48), UI only: fast-forwarded into `main` with the owner’s approval; pushing `main` triggers the Vercel production build (not verifiable from this container). It reorganizes the start screen and the event Home tab so each has one clear primary action; every control is kept, rare ones one tap away. See [CHANGELOG.md](../CHANGELOG.md) and the v0.6.1 section of [test-report.md](test-report.md).
 - Remote `main`: **v0.6.0**, code commit `8a24cc0`, merged with owner approval after full green GitHub CI (run 44328507489).
 - **Production:** https://ateanne.vercel.app, Vercel deployment `dpl_DKFndt2NyoP1C3pmRzi73dhwRNQL`, READY. Health returned `ok: true`, version `8a24cc0`, scanner `groq`. Sprint S7 implements all five requested improvements. See [CHANGELOG.md](../CHANGELOG.md), [implementation-plan.md](implementation-plan.md), decisions D43–D47 and [test-report.md](test-report.md).
 - New migration `20261118150000_equal_receipt_split` adds `Receipt.equalSplit` with default false. Applied by the production Vercel build and verified independently in Supabase at 14:53:08 UTC on 2026-11-18: boolean, NOT NULL, default false.

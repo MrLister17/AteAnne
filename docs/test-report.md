@@ -1,6 +1,6 @@
 # Test report
 
-## v0.6.1 "Simpler Home" (2026-11-18, branch `claude/bold-mayer-xb2jcw`, not merged or deployed)
+## v0.6.1 "Simpler Home" (2026-11-18, branch `claude/bold-mayer-xb2jcw`, fast-forwarded into `main` with owner approval)
 
 UI-only change (D48): the start screen and the event Home tab were reordered and decluttered. No server, domain, route, migration or money code changed. Local Linux run: Node 22.23.5, PostgreSQL 16.15 (local cluster, isolated `ateanne_test` database), pre-installed Playwright Chromium. Synthetic data only.
 
