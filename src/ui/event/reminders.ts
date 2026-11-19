@@ -1,6 +1,6 @@
 import type { EventView } from "@/server/readmodels/EventViewBuilder";
-import { php } from "../format";
-import type { TaskView } from "./next";
+import { money } from "../format";
+import { receivedAmount, type TaskView } from "./next";
 
 export interface Reminder {
   memberId: string;
@@ -17,16 +17,16 @@ export function remindersFor(view: EventView): Reminder[] {
   if (view.event.cancelled || view.event.phase === "DONE") return [];
   const name = (id: string) => view.members.find((m) => m.id === id)?.displayName ?? "someone";
   return view.group.members
-    .map((g) => ({ memberId: g.memberId, name: name(g.memberId), tasks: [...new Set(g.tasks.map((t) => reminderLine(t, name)))] }))
+    .map((g) => ({ memberId: g.memberId, name: name(g.memberId), tasks: [...new Set(g.tasks.map((t) => reminderLine(t, name, view.event.currency)))] }))
     .filter((r) => r.tasks.length > 0);
 }
 
-function reminderLine(task: TaskView, name: (id: string) => string): string {
+function reminderLine(task: TaskView, name: (id: string) => string, ccy: string): string {
   switch (task.kind) {
     case "recheck":
       return `“${task.label}” changed: choose what you had again, or say you had nothing.`;
     case "confirmPaid":
-      return `Confirm you paid ${php(task.amount)} for “${task.label}”.`;
+      return `Confirm you paid ${money(task.amount, task.currency)} for “${task.label}”.`;
     case "claim":
       return `Answer “${task.label}”: choose what you had, or say you had nothing.`;
     case "fixReceipt":
@@ -42,11 +42,11 @@ function reminderLine(task: TaskView, name: (id: string) => string): string {
         ? `Record the money you already sent to ${name(task.withId)}. Do not send it again.`
         : `Resolve the disputed payment with ${name(task.withId)} in the app. Do not send the same money again.`;
     case "confirmReceived":
-      return `Check whether ${php(task.amount)} from ${name(task.fromId)} arrived, then confirm or reject it in the app.`;
+      return `Check whether ${receivedAmount(task, ccy)} from ${name(task.fromId)} arrived, then confirm or reject it in the app.`;
     case "shareDetails":
       return "Add how you want to be paid (cash or QR) in Pay.";
     case "pay":
-      return `Check the latest instructions, pay ${php(task.amount)} to ${name(task.toId)}, then record it in the app. If you already sent it, record that transfer; do not send it again.`;
+      return `Check the latest instructions, pay ${money(task.amount, ccy)} to ${name(task.toId)}, then record it in the app. If you already sent it, record that transfer; do not send it again.`;
   }
 }
 

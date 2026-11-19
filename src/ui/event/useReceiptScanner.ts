@@ -34,7 +34,7 @@ export function useReceiptScanner(eventId: string) {
   useEffect(() => () => running.current?.abort("left"), []);
 
   const scan = useCallback(
-    async (file: File): Promise<ScanResult | null> => {
+    async (file: File, currency?: string): Promise<ScanResult | null> => {
       if (running.current) return null; // one scan at a time
       const ctl = new AbortController();
       running.current = ctl;
@@ -55,6 +55,8 @@ export function useReceiptScanner(eventId: string) {
         setStage("reading");
         const fd = new FormData();
         fd.set("file", photo, uploadName(photo));
+        // Used only when the receipt doesn't show its currency.
+        if (currency) fd.set("currency", currency);
         const draft = await api.post<ScannedDraft>(`/api/events/${eventId}/receipts/scan`, fd, { signal: ctl.signal });
         haptic("ok");
         toast(draft.lines.length ? `Read ${draft.lines.length} item${draft.lines.length === 1 ? "" : "s"}. Check them before saving.` : "Photo read. Check everything before saving.");

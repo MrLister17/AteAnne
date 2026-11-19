@@ -4,7 +4,7 @@ import { useState } from "react";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
 import { ActionError, Avatar, Badge, Button, Card, Notice, Sheet } from "../components/ui";
-import { php } from "../format";
+import { shortDay } from "@/domain/money/Currency";
 import { ReceiptEditor } from "./ReceiptEditor";
 import { ReceiptView, useAction, useEvent, useInlineAction } from "./EventContext";
 import { useReceiptScanner } from "./useReceiptScanner";
@@ -12,12 +12,13 @@ import { ScanOffNote, ScanPanel } from "./ScanPanel";
 import type { ScannedDraft } from "@/server/services/ReceiptScanService";
 
 export function ReceiptsTab() {
-  const { view, event, me, name, seq } = useEvent();
+  const { view, event, me, name, seq, money } = useEvent();
   const [editing, setEditing] = useState<ReceiptView | "new" | null>(null);
   const [scan, setScan] = useState<{ draft: ScannedDraft; photo: Blob } | null>(null);
   const scanner = useReceiptScanner(event.id);
   const startScan = async (file: File) => {
-    const result = await scanner.scan(file);
+    const mine = [...view.receipts].reverse().find((r) => r.authorId === me.memberId);
+    const result = await scanner.scan(file, mine?.currency ?? event.currency);
     if (result) {
       setScan(result);
       setEditing("new");
@@ -34,7 +35,8 @@ export function ReceiptsTab() {
   }
   const open = view.receipts.find((r) => r.id === openId) ?? null;
   const canAdd = event.phase === "COLLECTING" && !event.cancelled && view.receipts.length < 25;
-  const total = view.receipts.reduce((a, r) => a + BigInt(r.payable), 0n);
+  // In the settle-up currency (receipts in other currencies at their purchase-day rate); hidden while a rate is missing.
+  const total = view.receipts.every((r) => r.settlePayable !== null) ? view.receipts.reduce((a, r) => a + BigInt(r.settlePayable!), 0n) : null;
 
   return (
     <div className="space-y-3">
@@ -42,7 +44,8 @@ export function ReceiptsTab() {
         <div>
           <h2 className="text-[22px] font-bold">Receipts</h2>
           <p className="tnum text-[14px] text-muted">
-            {view.receipts.length} receipt{view.receipts.length === 1 ? "" : "s"} · {php(total)} paid to merchants
+            {view.receipts.length} receipt{view.receipts.length === 1 ? "" : "s"}
+            {total !== null && <> · {money(total)} paid to merchants</>}
           </p>
         </div>
         {canAdd && !view.features.receiptScan && (
@@ -83,7 +86,10 @@ export function ReceiptsTab() {
                   {r.equalSplit && <Badge tone="violet">Everyone splits equally</Badge>}
                 </div>
               </div>
-              <p className="tnum shrink-0 text-[16px] font-bold">{php(r.payable)}</p>
+              <div className="shrink-0 text-right">
+                <p className="tnum text-[16px] font-bold">{money(r.payable, r.currency)}</p>
+                {r.currency !== event.currency && r.settlePayable !== null && <p className="tnum text-[13px] text-muted">{money(r.settlePayable)}</p>}
+              </div>
             </button>
           </li>
         ))}
@@ -108,7 +114,8 @@ export function ReceiptsTab() {
 }
 
 function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; onClose: () => void; onEdit: () => void }) {
-  const { view, me, event, name } = useEvent();
+  const { view, me, event, name, money } = useEvent();
+  const php = (v: string | bigint) => money(v, r.currency);
   const act = useAction();
   const funding = useInlineAction();
   const [showPhoto, setShowPhoto] = useState(false);
@@ -133,12 +140,13 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
       }
     >
       <div className="space-y-4">
-        {r.equalSplit && <Notice tone="info" title="Split equally among everyone">All items, discounts and charges are included. Each person confirms their own share; shares can differ by ₱0.01.</Notice>}
+        {r.equalSplit && <Notice tone="info" title="Split equally among everyone">All items, discounts and charges are included. Each person confirms their own share; shares can differ by {php(1n)}.</Notice>}
         <div className="flex items-center justify-between">
           <p className="text-muted">
-            Paid by <b className="text-ink">{name(r.payerId)}</b> · entered by {name(r.authorId)} · v{r.version}
+            Paid by <b className="text-ink">{name(r.payerId)}</b> · entered by {name(r.authorId)} · bought {shortDay(r.purchasedOn)} · v{r.version}
           </p>
         </div>
+        <ConvertedNote receipt={r} />
         {!r.reconciliation.reconciled && (
           <Notice tone="pay" title="This receipt doesn’t add up yet">
             <ul className="list-disc pl-4">
@@ -250,5 +258,24 @@ function ClaimProgress({ r }: { r: ReceiptView }) {
           ))}
       </ul>
     </Card>
+  );
+}
+
+/**
+ * A receipt in another currency than the event's: what it counts as, at the
+ * rate of the day it was bought (D61). Until the bill freezes, a receipt
+ * bought today shows yesterday's rate.
+ */
+export function ConvertedNote({ receipt: r }: { receipt: ReceiptView }) {
+  const { event, money } = useEvent();
+  if (r.currency === event.currency) return null;
+  if (r.rateMissing || !r.rate || r.settlePayable === null) {
+    return <Notice tone="warn" title={`Waiting for the ${shortDay(r.purchasedOn)} exchange rate`}>The bill can’t freeze until AteAnne has the ECB rate for that day. It usually comes out the same evening.</Notice>;
+  }
+  return (
+    <p className="rounded-xl bg-surface-2 px-3 py-2 text-[14px]" data-testid="converted-note">
+      Counts as <b className="tnum">{money(r.settlePayable)}</b> · 1 {r.rate.base} = {r.rate.rate} {r.rate.quote} (ECB, {shortDay(r.rate.date)})
+      {r.rate.date !== r.purchasedOn && event.phase === "COLLECTING" ? <span className="block text-[13px] text-muted">The {shortDay(r.purchasedOn)} rate isn’t out yet (or it was a weekend/holiday), so this uses the latest one before it.</span> : null}
+    </p>
   );
 }

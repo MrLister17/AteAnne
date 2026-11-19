@@ -5,6 +5,7 @@ import { useState } from "react";
 import { api, ApiError } from "@/ui/api";
 import { PageShell } from "@/ui/components/Shell";
 import { Button, Field, Notice } from "@/ui/components/ui";
+import { CURRENCIES } from "@/domain/money/Currency";
 import { CredentialReveal } from "@/ui/components/CredentialReveal";
 import { IntentPicker } from "@/ui/components/IntentPicker";
 import { InstallFirst } from "@/ui/pwa/InstallFirst";
@@ -15,6 +16,7 @@ export default function NewEvent() {
   const [note, setNote] = useState("");
   const [name, setName] = useState("");
   const [intent, setIntent] = useState<"WILL_PAY_ONLY" | "PAID_EXPENSE">("PAID_EXPENSE");
+  const [currency, setCurrency] = useState("PHP");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<{ eventId: string; joinCode: string; recoveryKey: string } | null>(null);
@@ -37,7 +39,7 @@ export default function NewEvent() {
           setBusy(true);
           setError(null);
           try {
-            setCreated(await api.post("/api/events", { title, note, displayName: name, intent }));
+            setCreated(await api.post("/api/events", { title, note, displayName: name, intent, currency }));
           } catch (err) {
             setError(err instanceof ApiError ? err.message : "Could not create the event");
           } finally {
@@ -55,6 +57,17 @@ export default function NewEvent() {
           {(p) => <input {...p} className="field" required maxLength={40} autoComplete="nickname" value={name} onChange={(e) => setName(e.target.value)} placeholder="Mark" />}
         </Field>
         <IntentPicker value={intent} onChange={setIntent} />
+        <Field label="Settle up in" hint="Receipts can be in any currency (e.g. baht on a Bangkok trip). Everyone’s share and every transfer is in this one; other currencies convert at the ECB rate of the day they were bought.">
+          {(p) => (
+            <select {...p} className="field" value={currency} onChange={(e) => setCurrency(e.target.value)}>
+              {CURRENCIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.code} · {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
         {error && <Notice tone="pay">{error}</Notice>}
         <Button type="submit" full busy={busy}>
           Create event

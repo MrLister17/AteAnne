@@ -3,26 +3,28 @@
 import { useEffect, useRef } from "react";
 import { Icon } from "../components/Icon";
 import { Avatar } from "../components/ui";
-import { php, phpAbs } from "../format";
+import { money } from "../format";
 import { useEvent, View } from "./EventContext";
 
 type Share = { memberId: string; lines: Record<string, string>; discountTotal: string; chargeTotal: string; total: string };
-type ReceiptFacts = { id: string; label: string; lines: { id: string; label: string; quantity: number; mode: string }[] };
+type ReceiptFacts = { id: string; label: string; currency?: string; lines: { id: string; label: string; quantity: number; mode: string }[] };
 
 /** One person's items and totals, from the frozen statement when there is one, else the live split. */
 function shareRows(view: View, memberId: string) {
-  const frozen = view.settlement?.facts as { receipts: (ReceiptFacts & { shares: Share[] })[] } | undefined;
+  const frozen = view.settlement?.facts as { currency?: string; receipts: (ReceiptFacts & { shares: Share[] })[] } | undefined;
+  // Statements frozen before v0.9 have no currency: they are in the event's.
+  const fallback = frozen?.currency ?? view.event.currency;
   const receipts: (ReceiptFacts & { shares: Share[] })[] = frozen
     ? frozen.receipts
     : view.calculation.ok
-      ? view.receipts.map((r) => ({ id: r.id, label: r.label, lines: r.lines, shares: (view.calculation.receipts.find((x) => x.receiptId === r.id)?.shares ?? []) as Share[] }))
+      ? view.receipts.map((r) => ({ id: r.id, label: r.label, currency: r.currency, lines: r.lines, shares: (view.calculation.receipts.find((x) => x.receiptId === r.id)?.shares ?? []) as Share[] }))
       : [];
   return receipts
     .map((r) => {
       const s = r.shares.find((x) => x.memberId === memberId);
       if (!s || s.total === "0") return null;
       const items = r.lines.filter((l) => s.lines[l.id] && s.lines[l.id] !== "0").map((l) => ({ label: l.label, amount: s.lines[l.id] }));
-      return { id: r.id, label: r.label, items, discount: s.discountTotal, charges: s.chargeTotal, total: s.total };
+      return { id: r.id, label: r.label, currency: r.currency ?? fallback, items, discount: s.discountTotal, charges: s.chargeTotal, total: s.total };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 }
@@ -36,6 +38,7 @@ function shareRows(view: View, memberId: string) {
  */
 export function PersonScreen({ memberId, onClose }: { memberId: string; onClose: () => void }) {
   const { view, name, seq } = useEvent();
+  const ccy = view.event.currency;
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -91,7 +94,7 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
                   title={e.settled ? `Paid ${name(e.to)}` : `Pay ${name(e.to)}`}
                   tagalog={e.settled ? `Bayad na kay ${name(e.to)}` : `Babayaran mo si ${name(e.to)}`}
                   amount={e.settled ? e.amount : e.outstanding}
-                  note={e.settled ? "Confirmed received ✓" : BigInt(e.verified) > 0n ? `${php(e.verified)} already received · ${php(e.amount)} in all` : BigInt(e.pending) > 0n ? `${php(e.pending)} sent, waiting for ${name(e.to)} to confirm` : undefined}
+                  note={e.settled ? "Confirmed received ✓" : BigInt(e.verified) > 0n ? `${money(e.verified, ccy)} already received · ${money(e.amount, ccy)} in all` : BigInt(e.pending) > 0n ? `${money(e.pending, ccy)} sent, waiting for ${name(e.to)} to confirm` : undefined}
                   avatar={{ name: name(e.to), seq: seq(e.to) }}
                 />
               ))}
@@ -102,7 +105,7 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
                   title={e.settled ? `Got it from ${name(e.from)}` : `${name(e.from)} pays you`}
                   tagalog={e.settled ? `Natanggap na mula kay ${name(e.from)}` : `Babayaran ka ni ${name(e.from)}`}
                   amount={e.settled ? e.amount : e.outstanding}
-                  note={e.settled ? "Confirmed received ✓" : BigInt(e.pending) > 0n ? `${php(e.pending)} sent, check it arrived` : undefined}
+                  note={e.settled ? "Confirmed received ✓" : BigInt(e.pending) > 0n ? `${money(e.pending, ccy)} sent, check it arrived` : undefined}
                   avatar={{ name: name(e.from), seq: seq(e.from) }}
                 />
               ))}
@@ -112,11 +115,11 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
           ) : pos ? (
             <div className="mt-8 space-y-4">
               <Big tone="neutral" title="Your share so far" tagalog="Ang parte mo sa ngayon" amount={pos.cost} note="Not final yet — everyone still has to agree. / Hindi pa ito pinal." />
-              {BigInt(pos.funding) > 0n && <Line label="You paid the store / Binayaran mo sa tindahan" value={php(pos.funding)} />}
+              {BigInt(pos.funding) > 0n && <Line label="You paid the store / Binayaran mo sa tindahan" value={money(pos.funding, ccy)} />}
               {(BigInt(pos.funding) > 0n || view.paymentHistory.length > 0) && (
                 <Line
                   label={BigInt(pos.remaining) >= 0n ? "So you get back / Kaya ibabalik sa iyo" : "So you still pay / Kaya babayaran mo pa"}
-                  value={phpAbs(pos.remaining)}
+                  value={money(BigInt(pos.remaining) < 0n ? -BigInt(pos.remaining) : BigInt(pos.remaining), ccy)}
                   strong
                 />
               )}
@@ -138,25 +141,25 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
                       {r.items.map((it, i) => (
                         <li key={i} className="flex items-baseline justify-between gap-3 text-[19px]">
                           <span className="min-w-0 break-words">{it.label}</span>
-                          <span className="tnum shrink-0 font-semibold">{php(it.amount)}</span>
+                          <span className="tnum shrink-0 font-semibold">{money(it.amount, r.currency)}</span>
                         </li>
                       ))}
                       {r.discount !== "0" && (
                         <li className="flex items-baseline justify-between gap-3 text-[17px] text-receive">
                           <span>Discount / Diskwento</span>
-                          <span className="tnum shrink-0">−{php(r.discount)}</span>
+                          <span className="tnum shrink-0">−{money(r.discount, r.currency)}</span>
                         </li>
                       )}
                       {r.charges !== "0" && (
                         <li className="flex items-baseline justify-between gap-3 text-[17px] text-muted">
                           <span>Service charge / Serbisyo</span>
-                          <span className="tnum shrink-0">+{php(r.charges)}</span>
+                          <span className="tnum shrink-0">+{money(r.charges, r.currency)}</span>
                         </li>
                       )}
                     </ul>
                     <p className="mt-3 flex items-baseline justify-between border-t border-line pt-2 text-[19px] font-bold">
                       <span>Your part</span>
-                      <span className="tnum">{php(r.total)}</span>
+                      <span className="tnum">{money(r.total, r.currency)}</span>
                     </p>
                   </li>
                 ))}
@@ -174,6 +177,7 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
 }
 
 function Big({ tone, title, tagalog, amount, note, avatar }: { tone: "pay" | "receive" | "done" | "neutral"; title: string; tagalog: string; amount: string; note?: string; avatar?: { name: string; seq: number } }) {
+  const { money: exact, shown, viewRate } = useEvent();
   const tones = {
     pay: "bg-pay-soft text-pay",
     receive: "bg-receive-soft text-receive",
@@ -189,9 +193,10 @@ function Big({ tone, title, tagalog, amount, note, avatar }: { tone: "pay" | "re
           <p className="text-[16px] text-muted">{tagalog}</p>
         </div>
       </div>
-      <p className="tnum mt-3 text-[clamp(32px,11vw,48px)] leading-none font-extrabold" data-testid="person-amount">
-        {php(amount)}
+      <p className="tnum mt-3 text-[clamp(32px,11vw,48px)] leading-none font-extrabold break-words" data-testid="person-amount">
+        {exact(amount)}
       </p>
+      {viewRate && amount !== "0" && <p className="tnum mt-1 text-[20px] font-semibold text-ink">{shown(amount)}</p>}
       {note && <p className="mt-2 text-[16px] text-ink">{note}</p>}
     </div>
   );

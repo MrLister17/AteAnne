@@ -1,4 +1,33 @@
 import { Money } from "@/domain/money/Money";
+import { formatMinor, minorToInput, parseMajor } from "@/domain/money/Currency";
+
+const big = (v: string | bigint) => (typeof v === "string" ? BigInt(v) : v);
+
+/** "THB 1,397.00" / "JPY 12,000" / "PHP 495.00" from wire minor units. */
+export function money(minor: string | bigint | null | undefined, currency = "PHP"): string {
+  return formatMinor(minor === null || minor === undefined ? 0n : big(minor), currency);
+}
+
+/** Absolute value, e.g. "PHP 495.00" (the sign is carried by the words around it). */
+export function moneyAbs(minor: string | bigint, currency = "PHP"): string {
+  const v = big(minor);
+  return money(v < 0n ? -v : v, currency);
+}
+
+/** Typed amount → wire minor units, or null if invalid / above the bound. */
+export function toMinor(input: string, currency = "PHP"): string | null {
+  try {
+    const v = parseMajor(input, currency);
+    return v <= 100_000_000n ? v.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Wire minor units → editable text ("180.00" → "180"; yen stays whole). */
+export function toMinorInput(minor: string, currency = "PHP"): string {
+  return minorToInput(big(minor), currency);
+}
 
 /** "PHP 1,234.50" from wire centavos. */
 export function php(centavos: string | bigint | null | undefined): string {

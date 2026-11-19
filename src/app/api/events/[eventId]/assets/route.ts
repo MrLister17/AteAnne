@@ -3,7 +3,7 @@ import { HttpError } from "@/server/http/HttpError";
 import { MAX_UPLOAD_BYTES } from "@/server/services/AssetService";
 
 /**
- * Multipart upload: file + kind=QR [+ acceptsCash, cashNote, qrLabel].
+ * Multipart upload: file + kind=QR [+ acceptsCash, cashNote, qrLabel, acceptedCurrencies (comma-separated)].
  * kind=RECEIPT is refused with 410: receipt photos aren't kept any more (D54).
  */
 export const POST = route<{ eventId: string }>(async (ctx) => {
@@ -27,7 +27,13 @@ export const POST = route<{ eventId: string }>(async (ctx) => {
     const version = await ctx.app.payments.setInstructions(
       actorId,
       ctx.params.eventId,
-      { acceptsCash: form.get("acceptsCash") === "true", cashNote: String(form.get("cashNote") ?? ""), qrLabel: String(form.get("qrLabel") ?? ""), keepQr: true },
+      {
+        acceptsCash: form.get("acceptsCash") === "true",
+        cashNote: String(form.get("cashNote") ?? ""),
+        qrLabel: String(form.get("qrLabel") ?? ""),
+        keepQr: true,
+        acceptedCurrencies: String(form.get("acceptedCurrencies") ?? "").split(",").map((c) => c.trim()).filter(Boolean),
+      },
       assetId,
     );
     return { assetId, ...version };

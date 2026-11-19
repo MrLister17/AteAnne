@@ -6,8 +6,7 @@ import { STEPS, stepOf, type Phase } from "@/domain/event/PhaseMachine";
 import { api, ApiError } from "../api";
 import { Icon, IconName } from "../components/Icon";
 import { Badge, Button, Spinner, ToastProvider, useToast } from "../components/ui";
-import { phpAbs } from "../format";
-import { EventContext, FocusTarget, TabId, View } from "./EventContext";
+import { EventContext, FocusTarget, TabId, View, useEvent, viewCurrencies } from "./EventContext";
 import { OverviewTab } from "./OverviewTab";
 import { ReceiptsTab } from "./ReceiptsTab";
 import { ClaimTab } from "./ClaimTab";
@@ -29,6 +28,16 @@ const actingKey = (eventId: string) => `ateanne:acting:${eventId}`;
 function readActing(eventId: string): string | null {
   try {
     return typeof window === "undefined" ? null : sessionStorage.getItem(actingKey(eventId));
+  } catch {
+    return null;
+  }
+}
+
+/** "Show totals in" is a per-person convenience, remembered per event on this phone only (D60). */
+const viewCurrencyKey = (eventId: string) => `ateanne:view-currency:${eventId}`;
+function readViewCurrency(eventId: string): string | null {
+  try {
+    return typeof window === "undefined" ? null : localStorage.getItem(viewCurrencyKey(eventId));
   } catch {
     return null;
   }
@@ -76,6 +85,18 @@ function EventLoader({ eventId }: { eventId: string }) {
   // Acting for a guest survives a refresh of this tab, but not closing it.
   const [actingAs, setActingAs] = useState<string | null>(() => readActing(eventId));
   const [personFor, setPersonFor] = useState<string | null>(null);
+  const [chosenCurrency, setChosenCurrency] = useState<string | null>(() => readViewCurrency(eventId));
+  const setViewCurrency = useCallback(
+    (code: string) => {
+      setChosenCurrency(code);
+      try {
+        localStorage.setItem(viewCurrencyKey(eventId), code);
+      } catch {
+        /* private mode: the choice lasts until the page reloads */
+      }
+    },
+    [eventId],
+  );
 
   // Leaving the event (back to Home) ends acting; a page refresh keeps it.
   useEffect(
@@ -221,7 +242,12 @@ function EventLoader({ eventId }: { eventId: string }) {
     return () => clearInterval(t);
   }, [settled, refreshQuietly]);
 
-  const ctx = useMemo(() => (view ? { view, reload, setTab, goTo, focus, actAs, showPerson: setPersonFor } : null), [view, reload, setTab, goTo, focus, actAs]);
+  // A remembered currency that no longer applies (e.g. the settle-up currency changed) falls back to the settle-up one.
+  const viewCurrency = view && chosenCurrency && viewCurrencies(view).includes(chosenCurrency) ? chosenCurrency : (view?.event.currency ?? "PHP");
+  const ctx = useMemo(
+    () => (view ? { view, reload, setTab, goTo, focus, actAs, showPerson: setPersonFor, viewCurrency, setViewCurrency } : null),
+    [view, reload, setTab, goTo, focus, actAs, viewCurrency, setViewCurrency],
+  );
 
   // Tell people when the group moved on, e.g. the bill froze because the last person finished.
   const toast = useToast();
@@ -330,6 +356,7 @@ function LoadingEvent({ onRetry }: { onRetry: () => Promise<boolean> }) {
 
 function Header({ view, stale, onRefresh, onStopActing, onShow }: { view: View; stale: { since: string; offline: boolean } | null; onRefresh: () => Promise<boolean>; onStopActing: () => void; onShow: () => void }) {
   const toast = useToast();
+  const { shown } = useEvent();
   const step = stepOf(view.event.phase);
   const myNet = view.settlement?.positions.find((p) => p.memberId === view.me.memberId)?.remaining ?? (view.calculation.ok && everyoneAnswered(view) ? view.calculation.positions.find((p) => p.memberId === view.me.memberId)?.remaining : null);
   const frozen = Boolean(view.settlement);
@@ -350,7 +377,7 @@ function Header({ view, stale, onRefresh, onStopActing, onShow }: { view: View; 
           <div className="text-right" aria-label="My balance">
             <p className={`tnum text-[15px] font-bold ${net > 0n ? "text-receive" : net < 0n ? "text-pay" : ""}`}>
               {net > 0n ? "+" : net < 0n ? "−" : ""}
-              {phpAbs(net)}
+              {shown(net, { abs: true })}
             </p>
             <p className="text-[11px] text-muted">{net > 0n ? "to receive" : net < 0n ? "to pay" : "settled"}{frozen ? "" : " · est."}</p>
           </div>

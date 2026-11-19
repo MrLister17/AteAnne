@@ -1,4 +1,4 @@
-import { php } from "../format";
+import { money } from "../format";
 import type { TabId, View } from "./EventContext";
 
 /** What the server says to show first (D53). */
@@ -50,12 +50,12 @@ export function namesList(ids: string[], name: (id: string) => string): string {
  * else ("Claim from Lunch"). Used in "Everything left", "See what's left" and
  * the guest list.
  */
-export function taskLine(task: TaskView, name: (id: string) => string): string {
+export function taskLine(task: TaskView, name: (id: string) => string, ccy = "PHP"): string {
   switch (task.kind) {
     case "recheck":
       return `Check “${task.label}” again (it changed)`;
     case "confirmPaid":
-      return `Confirm paying ${php(task.amount)} for “${task.label}”`;
+      return `Confirm paying ${money(task.amount, task.currency)} for “${task.label}”`;
     case "claim":
       return `Claim from “${task.label}”`;
     case "fixReceipt":
@@ -69,22 +69,27 @@ export function taskLine(task: TaskView, name: (id: string) => string): string {
     case "sortOut":
       return task.recordAgain ? `Record the money already sent to ${name(task.withId)}` : `Sort out the payment with ${name(task.withId)}`;
     case "confirmReceived":
-      return `Confirm ${php(task.amount)} from ${name(task.fromId)}`;
+      return `Confirm ${receivedAmount(task, ccy)} from ${name(task.fromId)}`;
     case "shareDetails":
       return "Share how to get paid (cash or QR)";
     case "pay":
-      return `Pay ${name(task.toId)} ${php(task.amount)}`;
+      return `Pay ${name(task.toId)} ${money(task.amount, ccy)}`;
   }
 }
 
+/** What arrived: the money actually sent ("THB 512.31") when paid in another currency. */
+export function receivedAmount(task: Extract<TaskView, { kind: "confirmReceived" }>, ccy: string): string {
+  return task.paid ? money(task.paid.amount, task.paid.currency) : money(task.amount, ccy);
+}
+
 /** Your own list wording, where it differs ("Say you're done adding receipts"). */
-export function myTaskLine(task: TaskView, name: (id: string) => string): string {
+export function myTaskLine(task: TaskView, name: (id: string) => string, ccy = "PHP"): string {
   if (task.kind === "doneAdding") return "Say you’re done adding receipts";
-  return taskLine(task, name);
+  return taskLine(task, name, ccy);
 }
 
 /** The sentence under "You're done for now" / "You're all set". */
-export function waitingSentence(w: WaitingView, name: (id: string) => string): string {
+export function waitingSentence(w: WaitingView, name: (id: string) => string, ccy = "PHP"): string {
   if (!w.on.length) return w.reasons[0] ?? "Almost there.";
   const only = w.on.length === 1 ? w.on[0] : null;
   if (w.on.every((o) => o.task.kind === "fixReceipt" && o.task.reason === "doesntAddUp")) {
@@ -101,7 +106,7 @@ export function waitingSentence(w: WaitingView, name: (id: string) => string): s
       case "recheck":
         return `Waiting for ${who} to check ${only.task.label} again.`;
       case "confirmReceived":
-        return `Waiting for ${who} to confirm ${php(only.task.amount)}.`;
+        return `Waiting for ${who} to confirm ${receivedAmount(only.task, ccy)}.`;
       case "pay":
         return `Waiting for ${who} to pay ${name(only.task.toId)}.`;
       default:

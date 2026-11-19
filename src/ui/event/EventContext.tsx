@@ -1,9 +1,12 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { EventView } from "@/server/readmodels/EventViewBuilder";
+import { rateFromDay, type ExchangeRate } from "@/domain/fx/ExchangeRate";
+import { formatMinor } from "@/domain/money/Currency";
 import { ApiError } from "../api";
 import { useToast } from "../components/ui";
+import { money as fmtMoney, moneyAbs as fmtMoneyAbs } from "../format";
 
 export type View = EventView;
 export type ReceiptView = View["receipts"][number];
@@ -23,6 +26,20 @@ export interface EventCtx {
   actAs: (memberId: string | null) => void;
   /** Open the big, simple "show this to them" screen for one person. */
   showPerson: (memberId: string) => void;
+  /** "Show totals in" (D60): the currency this person views totals in (the settle-up currency by default). */
+  viewCurrency: string;
+  setViewCurrency: (code: string) => void;
+}
+
+/** Today's rate from one currency to another, from the view's cached ECB table (null when unavailable). */
+export function todayRate(view: View, from: string, to: string): ExchangeRate | null {
+  if (from === to || !view.fx.today || !view.fx.day) return null;
+  return rateFromDay({ ...view.fx.today, day: view.fx.day }, from, to);
+}
+
+/** Currencies offered in "Show totals in": the settle-up currency, every receipt currency, and pesos. */
+export function viewCurrencies(view: View): string[] {
+  return [...new Set([...view.fx.used, "PHP"])];
 }
 
 export type TabId = "overview" | "receipts" | "claim" | "money" | "people";
@@ -44,7 +61,27 @@ export function useEvent() {
   const { view } = ctx;
   const name = useCallback((id: string) => view.members.find((m) => m.id === id)?.displayName ?? "Someone", [view.members]);
   const seq = useCallback((id: string) => view.members.find((m) => m.id === id)?.seq ?? 0, [view.members]);
-  return { ...ctx, me: view.me, event: view.event, name, seq };
+  const currency = view.event.currency;
+  /** Exact amount; settle-up currency unless another is given (a receipt's own currency, a payment's). */
+  const money = useCallback((minor: string | bigint | null | undefined, ccy: string = currency) => fmtMoney(minor, ccy), [currency]);
+  const moneyAbs = useCallback((minor: string | bigint, ccy: string = currency) => fmtMoneyAbs(minor, ccy), [currency]);
+  const viewRate = useMemo(() => todayRate(view, currency, ctx.viewCurrency), [view, currency, ctx.viewCurrency]);
+  /**
+   * A settle-up total as this person chose to see it (D60): exact when viewing
+   * the settle-up currency, otherwise "≈ THB 512.31" at today's rate. Never
+   * used for anything someone pays or confirms.
+   */
+  const shown = useCallback(
+    (minor: string | bigint, opts: { abs?: boolean } = {}) => {
+      const v = typeof minor === "string" ? BigInt(minor) : minor;
+      const a = v < 0n ? -v : v;
+      if (!viewRate) return opts.abs ? fmtMoneyAbs(a, currency) : fmtMoney(v, currency);
+      const converted = viewRate.convert(a);
+      return `≈ ${formatMinor(opts.abs || v >= 0n ? converted : -converted, viewRate.quote)}`;
+    },
+    [viewRate, currency],
+  );
+  return { ...ctx, me: view.me, event: view.event, name, seq, currency, money, moneyAbs, shown, viewRate };
 }
 
 /**

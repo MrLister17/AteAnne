@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
 import { initials, phpAbs } from "../format";
+import { currencyInfo } from "@/domain/money/Currency";
 import { onActivity } from "../api";
 import { Icon, IconName } from "./Icon";
 
@@ -153,12 +154,16 @@ export function Field({
   );
 }
 
-/** Peso amount input with decimal keypad on iPhone. */
-export function MoneyInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+/** Amount input with the currency's sign; decimal keypad on iPhone (whole-number keypad for yen, won, rupiah). */
+export function MoneyInput({ currency = "PHP", ...props }: React.InputHTMLAttributes<HTMLInputElement> & { currency?: string }) {
+  const info = currencyInfo(currency);
+  const pad = info.symbol.length >= 3 ? "pl-14" : info.symbol.length === 2 ? "pl-11" : "pl-8";
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted">₱</span>
-      <input inputMode="decimal" autoComplete="off" placeholder="0.00" {...props} className={`field tnum pl-8 ${props.className ?? ""}`} />
+      <span className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted" aria-hidden>
+        {info.symbol}
+      </span>
+      <input inputMode={info.exponent === 0 ? "numeric" : "decimal"} autoComplete="off" placeholder={info.exponent === 0 ? "0" : "0.00"} {...props} className={`field tnum ${pad} ${props.className ?? ""}`} />
     </div>
   );
 }
@@ -206,7 +211,8 @@ export function balanceLabel(net: string | bigint): { tone: "receive" | "pay" | 
   return { tone: "neutral", text: "Settled", sign: "", icon: "check" };
 }
 
-export function BalanceBanner({ net, caption, estimate }: { net: string; caption?: string; estimate?: boolean }) {
+/** `display`: the amount as the person chose to see it (D60), e.g. "≈ THB 512.31"; `exact` then shows the real figure underneath. */
+export function BalanceBanner({ net, caption, estimate, display, exact }: { net: string; caption?: string; estimate?: boolean; display?: string; exact?: string }) {
   const b = balanceLabel(net);
   const tone = b.tone === "receive" ? "bg-receive-soft text-receive" : b.tone === "pay" ? "bg-pay-soft text-pay" : "bg-surface-2 text-ink";
   return (
@@ -216,10 +222,11 @@ export function BalanceBanner({ net, caption, estimate }: { net: string; caption
         {b.text}
         {estimate && <span className="ml-auto rounded-full bg-surface/70 px-2 py-0.5 text-[12px] text-muted">Estimate</span>}
       </div>
-      <div className="tnum mt-1 text-[32px] leading-tight font-bold">
+      <div className="tnum mt-1 text-[32px] leading-tight font-bold break-words">
         {b.sign}
-        {phpAbs(net)}
+        {display ?? phpAbs(net)}
       </div>
+      {exact && <p className="tnum text-[15px] font-semibold opacity-90">{exact}</p>}
       {caption && <p className="mt-1 text-[14px] opacity-80">{caption}</p>}
     </div>
   );

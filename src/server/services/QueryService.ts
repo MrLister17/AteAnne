@@ -34,10 +34,12 @@ export class QueryService {
       where: { id: eventId },
       select: { currency: true, phase: true, receipts: { select: { currency: true, purchasedOn: true, createdAt: true } }, members: { select: { instructions: { where: { current: true }, select: { acceptedCurrencies: true } } } } },
     });
-    if (!e || e.phase === "DONE") return;
-    const foreign = e.receipts.filter((r) => r.currency !== e.currency);
+    if (!e) return;
+    // A frozen or Done bill keeps its rates in the statement; only today's (for the totals switch) can still change.
+    const foreign = e.phase === "COLLECTING" || e.phase === "ALLOCATING" || e.phase === "REVIEWING" ? e.receipts.filter((r) => r.currency !== e.currency) : [];
     const acceptsOther = e.members.some((m) => m.instructions.some((i) => i.acceptedCurrencies.some((c) => c !== e.currency)));
-    if (!foreign.length && !acceptsOther && e.currency === "PHP") return;
+    const mixed = e.receipts.some((r) => r.currency !== e.currency);
+    if (!mixed && !acceptsOther && e.currency === "PHP") return;
     await this.rates.ensureDays([this.rates.today(), ...foreign.map(receiptDay)]);
   }
 

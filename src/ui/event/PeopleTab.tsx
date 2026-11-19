@@ -17,6 +17,7 @@ import {
 } from "../components/ui";
 import { timeAgo } from "../format";
 import { useAction, useEvent } from "./EventContext";
+import { currencyInfo } from "@/domain/money/Currency";
 import { useTutorial } from "../tutorial/TutorialProvider";
 
 const AUDIT_TEXT: Record<string, string> = {
@@ -59,6 +60,7 @@ const AUDIT_TEXT: Record<string, string> = {
   "asset.removed": "removed a receipt photo",
   "event.cancelled": "cancelled the event",
   "event.uncancelled": "un-cancelled the event",
+  "event.currency_changed": "changed the settle-up currency",
 };
 
 type Panel =
@@ -285,7 +287,7 @@ export function PeopleTab() {
           <PeopleRow
             icon="shield"
             title="Event settings"
-            description="Cancel or delete this event"
+            description="Currency, cancel or delete this event"
             onClick={() => navigate("settings")}
           />
         )}
@@ -626,6 +628,7 @@ export function PeopleTab() {
           !acting &&
           event.phase !== "DONE" && (
             <div className="space-y-5">
+              <SettleCurrencyCard hasReports={hasReports} />
               <Card className="space-y-3">
                 <h3 className="font-semibold">
                   {event.cancelled ? "Reopen event" : "Cancel event"}
@@ -1018,5 +1021,65 @@ function AddGuest({ onAdded }: { onAdded: () => void }) {
         </Button>
       </form>
     </div>
+  );
+}
+
+/**
+ * Settle-up currency (D58/D59): what every share, balance and transfer is in.
+ * Receipts keep their own currency and numbers; changing this only changes
+ * what they convert to. Only during Add & claim (a correction returns there)
+ * and only before anyone reports a payment.
+ */
+function SettleCurrencyCard({ hasReports }: { hasReports: boolean }) {
+  const { view, event } = useEvent();
+  const act = useAction();
+  const [code, setCode] = useState(event.currency);
+  const [busy, setBusy] = useState(false);
+  const canChange = event.phase === "COLLECTING" && !event.cancelled && !hasReports;
+  const codes = [...new Set([event.currency, ...view.fx.used, ...view.fx.supported.map((c) => c.code)])];
+  return (
+    <Card className="space-y-3" data-testid="settle-currency">
+      <h3 className="font-semibold">Settle-up currency</h3>
+      <p className="text-[14px] text-muted">
+        Everyone’s share and every transfer is in {currencyInfo(event.currency).name} ({event.currency}). Receipts in other currencies are converted at the ECB rate of the day they were bought.
+      </p>
+      {canChange ? (
+        <>
+          <label className="block text-[14px] font-semibold text-muted">
+            Settle up in
+            <select aria-label="Settle-up currency" className="field mt-1" value={code} onChange={(e) => setCode(e.target.value)}>
+              {codes.map((c) => (
+                <option key={c} value={c}>
+                  {c} · {currencyInfo(c).name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button
+            full
+            variant="secondary"
+            busy={busy}
+            busyLabel="Saving…"
+            disabled={code === event.currency}
+            onClick={async () => {
+              setBusy(true);
+              await act(() => api.post(`/api/events/${event.id}/currency`, { currency: code, expectedFinancialVersion: event.financialVersion }), `Totals are now in ${code}`);
+              setBusy(false);
+            }}
+          >
+            Settle up in {code}
+          </Button>
+          <p className="text-[13px] text-muted">Receipts keep the numbers people typed. Only the currency everyone settles in changes.</p>
+        </>
+      ) : (
+        <Notice tone="info">
+          {hasReports
+            ? "Payments were already reported in this currency, so it can’t change."
+            : event.phase === "COLLECTING"
+              ? "Reopen the event to change it."
+              : "The bill is frozen. To change its currency, use “Something wrong with the bill?” on Home first (only before anyone reports a payment)."}
+        </Notice>
+      )}
+    </Card>
   );
 }

@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { api } from "../api";
 import { ActionError, Button, Sheet } from "../components/ui";
-import { php } from "../format";
 import { useEvent, useInlineAction } from "./EventContext";
-import { isTask, namesList, taskLine, waitingSentence, type NextView, type TaskView } from "./next";
+import { isTask, namesList, receivedAmount, taskLine, waitingSentence, type NextView, type TaskView } from "./next";
 import { ReminderButton } from "./ReminderPanel";
 import { DidntArriveSheet } from "./SettlementSection";
 
@@ -52,7 +51,7 @@ function Secondary({ children, onClick }: { children: React.ReactNode; onClick: 
 }
 
 function NextBody({ next, where }: { next: NextView; where: Where }) {
-  const { view, me, event, name, goTo } = useEvent();
+  const { view, me, event, name, goTo, money, currency } = useEvent();
   const { run, error } = useInlineAction();
   const [left, setLeft] = useState(false);
   const owner = me.isOwner;
@@ -61,19 +60,19 @@ function NextBody({ next, where }: { next: NextView; where: Where }) {
 
   switch (next.kind) {
     case "waiting": {
-      const sentence = waitingSentence(next, name);
+      const sentence = waitingSentence(next, name, currency);
       if (next.sent) {
         const s = next.sent;
         return (
           <>
-            <Status title={`Sent ${php(s.amount)} · Waiting for ${name(s.toId)}`} line={s.left !== "0" ? `${php(s.left)} left` : `${name(s.toId)} will confirm it arrived.`} />
+            <Status title={`Sent ${money(s.amount)} · Waiting for ${name(s.toId)}`} line={s.left !== "0" ? `${money(s.left)} left` : `${name(s.toId)} will confirm it arrived.`} />
             {s.left !== "0" && where !== "pay" && <Secondary onClick={() => goTo("money", { transferId: s.transferId })}>I sent more</Secondary>}
           </>
         );
       }
       if (next.incoming) {
         const i = next.incoming;
-        return <Status title={`Waiting for ${name(i.fromId)}`} line={`${name(i.fromId)} will pay you ${php(i.amount)}.`} />;
+        return <Status title={`Waiting for ${name(i.fromId)}`} line={`${name(i.fromId)} will pay you ${money(i.amount)}.`} />;
       }
       return (
         <>
@@ -129,7 +128,7 @@ function NextBody({ next, where }: { next: NextView; where: Where }) {
 }
 
 function TaskBody({ task, where }: { task: TaskView; where: Where }) {
-  const { view, me, event, name, goTo, setTab } = useEvent();
+  const { view, me, event, name, goTo, setTab, money, currency } = useEvent();
   const { run, error } = useInlineAction();
   const [didntArrive, setDidntArrive] = useState(false);
 
@@ -146,7 +145,7 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
     case "confirmPaid":
       return (
         <>
-          <Status title={`Did you pay ${php(task.amount)} for ${task.label}?`} />
+          <Status title={`Did you pay ${money(task.amount, task.currency)} for ${task.label}?`} />
           <Button full onClick={() => goTo("receipts", { receiptId: task.receiptId })}>
             Check and confirm
           </Button>
@@ -242,13 +241,13 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
     case "confirmReceived":
       return (
         <>
-          <Status title={`Did ${php(task.amount)} from ${name(task.fromId)} arrive?`} line="Not there yet? Leave this and check later." />
+          <Status title={`Did ${receivedAmount(task, currency)} from ${name(task.fromId)} arrive?`} line={task.paid ? `Counts as ${money(task.amount)}. Not there yet? Leave this and check later.` : "Not there yet? Leave this and check later."} />
           <Button
             full
             variant="receive"
             icon="check"
             busyLabel="Confirming…"
-            onClick={() => run(() => api.post(`/api/payments/${task.reportId}/verify`, { expectedVersion: task.reportVersion }), `Got it. ${php(task.amount)} from ${name(task.fromId)}.`)}
+            onClick={() => run(() => api.post(`/api/payments/${task.reportId}/verify`, { expectedVersion: task.reportVersion }), `Got it. ${receivedAmount(task, currency)} from ${name(task.fromId)}.`)}
           >
             Yes, I got it
           </Button>
@@ -273,7 +272,7 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
       const how = instr ? [instr.acceptsCash && "Cash", instr.hasQr && "QR"].filter(Boolean).join(" or ") + "." : `Ask ${name(task.toId)} how to pay.`;
       return (
         <>
-          <Status title={`Pay ${name(task.toId)} ${php(task.amount)}`} line={task.received !== "0" ? `${name(task.toId)} got ${php(task.received)} so far.` : how} />
+          <Status title={`Pay ${name(task.toId)} ${money(task.amount)}`} line={task.received !== "0" ? `${name(task.toId)} got ${money(task.received)} so far.` : how} />
           {where !== "pay" && (
             <Button full icon="arrowUp" onClick={() => goTo("money", { transferId: task.transferId })}>
               Pay {name(task.toId)}
@@ -287,7 +286,7 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
 
 /** "See what's left": everyone who still has something to do, in plain words. */
 function WhatsLeft({ onClose }: { onClose: () => void }) {
-  const { view, name } = useEvent();
+  const { view, name, currency } = useEvent();
   const rows = view.group.members.filter((g) => g.tasks.length > 0);
   return (
     <Sheet open onClose={onClose} title="What’s left">
@@ -298,7 +297,7 @@ function WhatsLeft({ onClose }: { onClose: () => void }) {
             <p className="font-semibold">{name(g.memberId)}</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[15px] text-muted">
               {g.tasks.map((t, i) => (
-                <li key={i}>{taskLine(t, name)}</li>
+                <li key={i}>{taskLine(t, name, currency)}</li>
               ))}
             </ul>
           </div>

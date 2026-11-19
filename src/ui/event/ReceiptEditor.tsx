@@ -4,8 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
 import { Button, Field, MoneyInput, Notice, Sheet, useToast } from "../components/ui";
-import { php, toCentavos, toInput } from "../format";
-import { ReceiptView, useAction, useEvent } from "./EventContext";
+import { money, toMinor, toMinorInput } from "../format";
+import { ReceiptView, todayRate, useAction, useEvent } from "./EventContext";
+import { addDays, currencyInfo, manilaDay, shortDay } from "@/domain/money/Currency";
+import { ExchangeRate } from "@/domain/fx/ExchangeRate";
 import type { ScannedDraft } from "@/server/services/ReceiptScanService";
 import { EntryMath } from "@/domain/receipt/EntryMath";
 import { ScanPanel } from "./ScanPanel";
@@ -21,11 +23,15 @@ type AdjDraft = { kind: "DISCOUNT" | "SERVICE" | "CHARGE"; label: string; amount
 
 const KIND_LABEL = { DISCOUNT: "Discount", SERVICE: "Service charge", CHARGE: "Other charge" } as const;
 
-/** `payableAuto`: the total paid follows items − discounts + charges until the person types the printed total. */
-type Draft = { label: string; payerMemberId: string; equalSplit: boolean; payable: string; payableAuto: boolean; lines: LineDraft[]; adjustments: AdjDraft[] };
+/**
+ * `payableAuto`: the total paid follows items − discounts + charges until the person types the printed total.
+ * `currency`/`purchasedOn`: what the receipt is printed in and the day it was bought (D58/D61). Amounts are typed in that currency.
+ */
+type Draft = { label: string; payerMemberId: string; equalSplit: boolean; currency: string; purchasedOn: string; payable: string; payableAuto: boolean; lines: LineDraft[]; adjustments: AdjDraft[] };
 
-const cv = (s: string): bigint | null => {
-  const c = s.trim() === "" ? null : toCentavos(s);
+/** Typed text → minor units of `ccy`, or null when blank or invalid. */
+const cv = (s: string, ccy: string): bigint | null => {
+  const c = s.trim() === "" ? null : toMinor(s, ccy);
   return c === null ? null : BigInt(c);
 };
 const qty = (s: string) => Math.max(0, Math.floor(Number(s) || 0));
@@ -39,28 +45,30 @@ const emptyLine = (): LineDraft => ({ label: "", quantity: "1", amount: "", unit
  * exact (bigint centavos); the server recomputes everything again on save.
  */
 function resolveDraft(d: Draft) {
+  const ccy = d.currency;
+  const asInput = (v: bigint) => toMinorInput(v.toString(), ccy);
   const lineAmounts = d.lines.map((l) => {
     if (l.autoTotal) {
-      const t = EntryMath.lineTotal(cv(l.unitPrice), qty(l.quantity));
-      if (t !== null) return toInput(t.toString());
+      const t = EntryMath.lineTotal(cv(l.unitPrice, ccy), qty(l.quantity));
+      if (t !== null) return asInput(t);
     }
     return l.amount;
   });
-  const lineCv = lineAmounts.map(cv);
+  const lineCv = lineAmounts.map((a) => cv(a, ccy));
   const adjAmounts = d.adjustments.map((a) => {
     if (!a.byPercent) return a.amount;
     if (!a.percent.trim()) return "";
     const idx = a.scope === "ALL" ? d.lines.map((_, i) => i) : a.scope;
     const base = idx.reduce((sum, i) => sum + (lineCv[i] ?? 0n), 0n);
     const v = EntryMath.percentOf(base, a.percent);
-    return v === null ? "x" : toInput(v.toString()); // "x" = shown as invalid until the % is fixed
+    return v === null ? "x" : asInput(v); // "x" = shown as invalid until the % is fixed
   });
   let gross = 0n;
   let disc = 0n;
   let chg = 0n;
   for (const v of lineCv) if (v !== null) gross += v;
   d.adjustments.forEach((a, i) => {
-    const v = cv(adjAmounts[i]);
+    const v = cv(adjAmounts[i], ccy);
     if (v === null) return;
     if (a.kind === "DISCOUNT") disc += v;
     else chg += v;
@@ -69,11 +77,11 @@ function resolveDraft(d: Draft) {
   // Blank fields are "not finished yet"; only typed non-amounts are errors.
   const itemFields = [...lineAmounts, ...adjAmounts];
   const itemsEmpty = itemFields.some((f) => f.trim() === "");
-  const payable = d.payableAuto ? (itemsEmpty || computed < 0n ? "" : toInput(computed.toString())) : d.payable;
+  const payable = d.payableAuto ? (itemsEmpty || computed < 0n ? "" : asInput(computed)) : d.payable;
   const fields = [...itemFields, payable];
   const empty = fields.some((f) => f.trim() === "");
-  const invalid = fields.some((f) => f.trim() !== "" && toCentavos(f) === null);
-  const payableCv = cv(payable);
+  const invalid = fields.some((f) => f.trim() !== "" && toMinor(f, ccy) === null);
+  const payableCv = cv(payable, ccy);
   return {
     lineAmounts,
     adjAmounts,
@@ -84,43 +92,52 @@ function resolveDraft(d: Draft) {
 
 /** A scan result becomes an ordinary editable draft; nothing about it is trusted until saved. */
 function fromScan(s: ScannedDraft, myId: string): Draft {
+  const ccy = s.currency;
+  const asInput = (v: string) => toMinorInput(v, ccy);
   return {
     label: s.label,
     payerMemberId: myId,
     equalSplit: false,
+    currency: ccy,
+    purchasedOn: s.purchasedOn ?? manilaDay(),
     // The printed total stays as read, so a misread line shows up as a mismatch.
-    payable: toInput(s.payable),
+    payable: asInput(s.payable),
     payableAuto: false,
     lines: s.lines.length
-      ? s.lines.map((l) => ({ label: l.label, quantity: String(l.quantity), amount: toInput(l.amount), unitPrice: l.unitPrice ? toInput(l.unitPrice) : "", mode: "SHARED" as const, autoTotal: consistent(l.unitPrice, l.quantity, l.amount) }))
+      ? s.lines.map((l) => ({ label: l.label, quantity: String(l.quantity), amount: asInput(l.amount), unitPrice: l.unitPrice ? asInput(l.unitPrice) : "", mode: "SHARED" as const, autoTotal: consistent(l.unitPrice, l.quantity, l.amount) }))
       : [emptyLine()],
-    adjustments: s.adjustments.map((a) => ({ kind: a.kind, label: a.label, amount: toInput(a.amount), byPercent: false, percent: "", scope: "ALL" as const })),
+    adjustments: s.adjustments.map((a) => ({ kind: a.kind, label: a.label, amount: asInput(a.amount), byPercent: false, percent: "", scope: "ALL" as const })),
   };
 }
 
-function fromReceipt(r: ReceiptView | null, myId: string): Draft {
+function fromReceipt(r: ReceiptView | null, myId: string, newCurrency: string): Draft {
   if (!r) {
     return {
       label: "",
       payerMemberId: myId,
       equalSplit: false,
+      currency: newCurrency,
+      purchasedOn: manilaDay(),
       payable: "",
       payableAuto: true,
       lines: [emptyLine()],
       adjustments: [],
     };
   }
+  const asInput = (v: string) => toMinorInput(v, r.currency);
   return {
     label: r.label,
     payerMemberId: r.payerId,
     equalSplit: r.equalSplit,
-    payable: toInput(r.payable),
+    currency: r.currency,
+    purchasedOn: r.purchasedOn,
+    payable: asInput(r.payable),
     payableAuto: r.payable === r.reconciliation.computedPayable,
-    lines: r.lines.map((l) => ({ id: l.id, label: l.label, quantity: String(l.quantity), amount: toInput(l.amount), unitPrice: l.unitPrice ? toInput(l.unitPrice) : "", mode: l.mode, autoTotal: consistent(l.unitPrice, l.quantity, l.amount) })),
+    lines: r.lines.map((l) => ({ id: l.id, label: l.label, quantity: String(l.quantity), amount: asInput(l.amount), unitPrice: l.unitPrice ? asInput(l.unitPrice) : "", mode: l.mode, autoTotal: consistent(l.unitPrice, l.quantity, l.amount) })),
     adjustments: r.adjustments.map((a) => ({
       kind: a.kind,
       label: a.label,
-      amount: toInput(a.amount),
+      amount: asInput(a.amount),
       byPercent: false,
       percent: "",
       scope: a.scopeAll ? ("ALL" as const) : a.eligibleLineIds.map((id) => r.lines.findIndex((l) => l.id === id)).filter((i) => i >= 0),
@@ -148,7 +165,10 @@ export function ReceiptEditor({
 }) {
   const { view, me, event } = useEvent();
   const act = useAction();
-  const [d, setD] = useState<Draft>(() => (scanned && !receipt ? fromScan(scanned, me.memberId) : fromReceipt(receipt, me.memberId)));
+  // A new receipt starts in the currency of the last one you added here (a trip's receipts usually match), else the event's.
+  const lastMine = [...view.receipts].reverse().find((r) => r.authorId === me.memberId);
+  const newCurrency = lastMine?.currency ?? event.currency;
+  const [d, setD] = useState<Draft>(() => (scanned && !receipt ? fromScan(scanned, me.memberId) : fromReceipt(receipt, me.memberId, newCurrency)));
   // A scan can come from the Receipts tab (props) or from the button inside this form.
   const [scanState, setScanState] = useState<ScannedDraft | null>(scanned && !receipt ? scanned : null);
   const [photoBlob, setPhotoBlob] = useState<Blob | null>(photo ?? null);
@@ -198,23 +218,26 @@ export function ReceiptEditor({
       return;
     }
     if (calc.payable === null) return;
+    const ccy = d.currency;
     const body = {
       label: d.label,
       payerMemberId: d.payerMemberId,
       equalSplit: d.equalSplit,
+      currency: ccy,
+      purchasedOn: d.purchasedOn,
       payable: calc.payable.toString(),
       lines: d.lines.map((l, i) => ({
         ...(l.id ? { id: l.id } : {}),
         label: l.label,
         quantity: Math.max(1, Math.floor(Number(l.quantity) || 1)),
-        amount: toCentavos(resolved.lineAmounts[i])!,
-        unitPrice: l.unitPrice ? toCentavos(l.unitPrice) : null,
+        amount: toMinor(resolved.lineAmounts[i], ccy)!,
+        unitPrice: l.unitPrice ? toMinor(l.unitPrice, ccy) : null,
         mode: d.equalSplit ? "SHARED" : l.mode,
       })),
       adjustments: d.adjustments.map((a, i) => ({
         kind: a.kind,
         label: a.label || (a.byPercent ? `${KIND_LABEL[a.kind]} ${a.percent.trim().replace(/%$/, "")}%` : KIND_LABEL[a.kind]),
-        amount: toCentavos(resolved.adjAmounts[i])!,
+        amount: toMinor(resolved.adjAmounts[i], ccy)!,
         eligibleLineIndexes: a.scope === "ALL" ? null : a.scope,
       })),
     };
@@ -228,7 +251,9 @@ export function ReceiptEditor({
     if (ok) onClose();
   };
 
-  const err = (s: string, required = true) => (tried && ((required && !s.trim()) || (s.trim() && !toCentavos(s))) ? "Enter a peso amount (up to 2 decimals)" : null);
+  const info = currencyInfo(d.currency);
+  const amountHint = d.currency === "PHP" ? "Enter a peso amount (up to 2 decimals)" : info.exponent === 0 ? `Enter a whole ${d.currency} amount` : `Enter a ${d.currency} amount (up to 2 decimals)`;
+  const err = (s: string, required = true) => (tried && ((required && !s.trim()) || (s.trim() && !toMinor(s, d.currency))) ? amountHint : null);
 
   return (
     <Sheet
@@ -237,7 +262,7 @@ export function ReceiptEditor({
       title={receipt ? `Edit “${receipt.label}”` : "Add a receipt"}
       footer={
         <div className="space-y-2">
-          <Reconciliation calc={calc} onUse={() => setD((x) => ({ ...x, payable: "", payableAuto: true }))} />
+          <Reconciliation calc={calc} currency={d.currency} onUse={() => setD((x) => ({ ...x, payable: "", payableAuto: true }))} />
           <Button full busy={busy} busyLabel="Saving…" disabled={scanner.scanning} onClick={() => void submit()}>
             {receipt ? "Save changes" : "Save receipt"}
           </Button>
@@ -253,7 +278,7 @@ export function ReceiptEditor({
             onFile={async (f) => {
               // Never silently throw away what the person already typed.
               if (!scanState && typed && !confirm("Replace what you typed with the details from the photo?")) return;
-              const result = await scanner.scan(f);
+              const result = await scanner.scan(f, d.currency);
               if (result) {
                 setScanState(result.draft);
                 setPhotoBlob(result.photo);
@@ -314,6 +339,14 @@ export function ReceiptEditor({
           )}
         </Field>
 
+        <CurrencyAndDay
+          draft={d}
+          receipt={receipt}
+          payable={calc.payable}
+          onChange={(patch) => setD((x) => ({ ...x, ...patch }))}
+          detected={scanState ? scanState.currencyDetected : null}
+        />
+
         <div className="card space-y-2 p-4">
           <label className="flex min-h-11 cursor-pointer items-start gap-3">
             <input type="checkbox" className="mt-1 size-5 shrink-0 accent-violet" checked={d.equalSplit} onChange={(e) => setD({ ...d, equalSplit: e.target.checked })} />
@@ -337,6 +370,7 @@ export function ReceiptEditor({
                   )}
                 </div>
                 <LineAmounts
+                  currency={d.currency}
                   index={i}
                   line={l}
                   shownTotal={resolved.lineAmounts[i]}
@@ -364,7 +398,7 @@ export function ReceiptEditor({
 
         <div>
           <h3 className="mb-1 text-[15px] font-bold">Discounts & charges</h3>
-          <p className="mb-2 text-[13px] text-muted">Enter amounts exactly as printed. VAT already inside prices and card-payment lines are not added. Discounts printed on an ex-VAT base: enter the equivalent peso reduction so the total matches.</p>
+          <p className="mb-2 text-[13px] text-muted">Enter amounts exactly as printed. VAT already inside prices and card-payment lines are not added. Discounts printed on an ex-VAT base: enter the equivalent reduction so the total matches.</p>
           <ol className="space-y-3">
             {d.adjustments.map((a, i) => (
               <li key={i} className="card space-y-3 p-3">
@@ -381,7 +415,7 @@ export function ReceiptEditor({
                 <input aria-label="Label" className="field" maxLength={80} value={a.label} onChange={(e) => setAdj(i, { label: e.target.value })} placeholder={KIND_LABEL[a.kind]} />
                 <div className="segmented" role="group" aria-label="Enter as">
                   <button type="button" aria-pressed={!a.byPercent} onClick={() => a.byPercent && setAdj(i, { byPercent: false, amount: resolved.adjAmounts[i] === "x" ? "" : resolved.adjAmounts[i] })}>
-                    Peso amount
+                    {d.currency === "PHP" ? "Peso amount" : "Amount"}
                   </button>
                   <button type="button" aria-pressed={a.byPercent} onClick={() => !a.byPercent && setAdj(i, { byPercent: true, percent: a.percent || (a.kind === "SERVICE" ? "10" : "") })}>
                     Percent %
@@ -407,13 +441,13 @@ export function ReceiptEditor({
                         <span className="text-[14px] text-muted">Type a % like 10 or 12.5</span>
                       ) : (
                         <>
-                          = <b>₱{resolved.adjAmounts[i]}</b> <span className="text-[13px] text-muted">of {a.scope === "ALL" ? "all items" : "the ticked items"}</span>
+                          = <b>{info.symbol}{resolved.adjAmounts[i]}</b> <span className="text-[13px] text-muted">of {a.scope === "ALL" ? "all items" : "the ticked items"}</span>
                         </>
                       )}
                     </p>
                   </div>
                 ) : (
-                  <MoneyInput aria-label="Amount" value={a.amount} onChange={(e) => setAdj(i, { amount: e.target.value })} aria-invalid={err(a.amount) ? true : undefined} />
+                  <MoneyInput currency={d.currency} aria-label="Amount" value={a.amount} onChange={(e) => setAdj(i, { amount: e.target.value })} aria-invalid={err(a.amount) ? true : undefined} />
                 )}
                 <fieldset>
                   <legend className="text-[13px] text-muted">{a.kind === "DISCOUNT" ? "Which items does it apply to?" : "Proportional to spending on"}</legend>
@@ -458,7 +492,7 @@ export function ReceiptEditor({
         >
           {(p) => (
             <div className="relative">
-              <MoneyInput {...p} value={resolved.payable} className={d.payableAuto ? "pr-20" : ""} onChange={(e) => setD({ ...d, payable: e.target.value, payableAuto: e.target.value.trim() === "" })} />
+              <MoneyInput {...p} currency={d.currency} value={resolved.payable} className={d.payableAuto ? "pr-20" : ""} onChange={(e) => setD({ ...d, payable: e.target.value, payableAuto: e.target.value.trim() === "" })} />
               {d.payableAuto && resolved.payable && <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-violet-soft px-2 py-0.5 text-[12px] font-semibold text-violet">Auto</span>}
             </div>
           )}
@@ -468,8 +502,15 @@ export function ReceiptEditor({
   );
 }
 
-function Reconciliation({ calc, onUse }: { calc: { gross: bigint; disc: bigint; chg: bigint; computed: bigint; diff: bigint | null; auto: boolean; bad: boolean; invalid: boolean; empty: boolean }; onUse: () => void }) {
-  if (calc.invalid) return <p className="text-[14px] text-warn">Some amounts aren’t valid peso values. Use numbers like 120 or 120.50.</p>;
+function Reconciliation({ calc, currency, onUse }: { calc: { gross: bigint; disc: bigint; chg: bigint; computed: bigint; diff: bigint | null; auto: boolean; bad: boolean; invalid: boolean; empty: boolean }; currency: string; onUse: () => void }) {
+  const php = (v: bigint) => money(v, currency);
+  if (calc.invalid) {
+    return (
+      <p className="text-[14px] text-warn">
+        {currency === "PHP" ? "Some amounts aren’t valid peso values. Use numbers like 120 or 120.50." : currencyInfo(currency).exponent === 0 ? `Some amounts aren’t valid ${currency} values. ${currency} has no decimals: use numbers like 1200.` : `Some amounts aren’t valid ${currency} values. Use numbers like 120 or 120.50.`}
+      </p>
+    );
+  }
   if (calc.empty) return <p className="text-[14px] text-muted">Enter each item’s price. We’ll add everything up for you.</p>;
   if (calc.computed < 0n) return <p className="text-[14px] text-warn">Discounts are bigger than the items. Check the discount amounts.</p>;
   if (calc.auto) {
@@ -508,11 +549,12 @@ function Reconciliation({ calc, onUse }: { calc: { gross: bigint; disc: bigint; 
  * price; typing a different total (as printed) takes over, and a one-tap
  * button puts the automatic total back.
  */
-function LineAmounts({ index, line, shownTotal, invalid, onChange }: { index: number; line: LineDraft; shownTotal: string; invalid: boolean; onChange: (patch: Partial<LineDraft>) => void }) {
-  const unit = cv(line.unitPrice);
+function LineAmounts({ currency, index, line, shownTotal, invalid, onChange }: { currency: string; index: number; line: LineDraft; shownTotal: string; invalid: boolean; onChange: (patch: Partial<LineDraft>) => void }) {
+  const php = (v: bigint) => money(v, currency);
+  const unit = cv(line.unitPrice, currency);
   const q = qty(line.quantity);
   const product = EntryMath.lineTotal(unit, q);
-  const typed = cv(line.amount);
+  const typed = cv(line.amount, currency);
   const derived = line.autoTotal && product !== null;
   const mismatch = !line.autoTotal && product !== null && typed !== null && typed !== product;
   return (
@@ -531,7 +573,7 @@ function LineAmounts({ index, line, shownTotal, invalid, onChange }: { index: nu
         <label className="text-[13px] text-muted">
           Price each
           <div className="mt-1">
-            <MoneyInput aria-label={`Item ${index + 1} price each`} value={line.unitPrice} onChange={(e) => onChange({ unitPrice: e.target.value })} />
+            <MoneyInput currency={currency} aria-label={`Item ${index + 1} price each`} value={line.unitPrice} onChange={(e) => onChange({ unitPrice: e.target.value })} />
           </div>
         </label>
         <label className="text-[13px] text-muted">
@@ -541,6 +583,7 @@ function LineAmounts({ index, line, shownTotal, invalid, onChange }: { index: nu
           </span>
           <div className="mt-1">
             <MoneyInput
+              currency={currency}
               aria-label={`Item ${index + 1} line total`}
               value={shownTotal}
               aria-invalid={invalid ? true : undefined}
@@ -561,6 +604,69 @@ function LineAmounts({ index, line, shownTotal, invalid, onChange }: { index: nu
         </div>
       )}
       {!derived && !mismatch && unit === null && <p className="text-[12px] text-muted">Type the price each and we’ll multiply, or type the line total as printed.</p>}
+    </div>
+  );
+}
+
+/**
+ * The receipt's currency and the day it was bought (D58/D61). Changing the
+ * currency only relabels what was typed; a receipt in another currency than
+ * the event's is converted at that day's ECB rate when the bill freezes.
+ */
+function CurrencyAndDay({
+  draft,
+  receipt,
+  payable,
+  onChange,
+  detected,
+}: {
+  draft: Draft;
+  receipt: ReceiptView | null;
+  payable: bigint | null;
+  onChange: (patch: Partial<Draft>) => void;
+  detected: boolean | null;
+}) {
+  const { view, event, money: fmt } = useEvent();
+  const today = manilaDay();
+  const foreign = draft.currency !== event.currency;
+  // The rate we already know for this currency and day: the saved receipt's, or today's table for a receipt bought today.
+  const known = receipt && receipt.rate && receipt.currency === draft.currency && receipt.purchasedOn === draft.purchasedOn ? ExchangeRate.fromWire(receipt.rate) : draft.purchasedOn === today ? todayRate(view, draft.currency, event.currency) : null;
+  const options = [...new Set([event.currency, ...view.fx.used, ...view.fx.supported.map((c) => c.code)])];
+  return (
+    <div className="space-y-2" data-testid="receipt-currency">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="text-[13px] font-semibold text-muted">
+          Currency
+          <select aria-label="Receipt currency" className="field mt-1" value={draft.currency} onChange={(e) => onChange({ currency: e.target.value })}>
+            {options.map((code) => (
+              <option key={code} value={code}>
+                {code} · {currencyInfo(code).name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-[13px] font-semibold text-muted">
+          Bought on
+          <input
+            type="date"
+            aria-label="Bought on"
+            className="field mt-1"
+            value={draft.purchasedOn}
+            min={addDays(today, -366)}
+            max={today}
+            onChange={(e) => e.target.value && onChange({ purchasedOn: e.target.value })}
+          />
+        </label>
+      </div>
+      {detected === false && draft.currency !== event.currency && <p className="text-[13px] text-muted">The photo didn’t show a currency. Check that {draft.currency} is right.</p>}
+      {foreign && (
+        <p className="text-[14px] text-muted" data-testid="receipt-conversion">
+          {known && payable !== null
+            ? `= ${fmt(known.convert(payable))} · 1 ${draft.currency} = ${known.rateText()} ${event.currency} (ECB, ${shortDay(known.date)})`
+            : `Counted in ${event.currency} at the ECB rate for ${shortDay(draft.purchasedOn)}.`}
+          {draft.purchasedOn === today && known && known.date !== today ? " Today’s rate comes out tonight; the bill uses it if it freezes later." : ""}
+        </p>
+      )}
     </div>
   );
 }

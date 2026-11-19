@@ -4,16 +4,19 @@ import { useRef, useState } from "react";
 import { api, newIdempotencyKey } from "../api";
 import { Icon } from "../components/Icon";
 import { ActionError, Badge, BalanceBanner, Button, Card, Disclosure, Field, MoneyInput, Notice, Progress, SectionTitle, Sheet, balanceLabel } from "../components/ui";
-import { php, phpAbs, timeAgo, toCentavos, toInput } from "../format";
+import { money, timeAgo, toMinor, toMinorInput } from "../format";
 import { MAX_CLIENT_UPLOAD_BYTES, prepareImage, uploadName } from "../image";
-import { EdgeView, useAction, useEvent, useInlineAction } from "./EventContext";
+import { EdgeView, View, todayRate, useAction, useEvent, useInlineAction } from "./EventContext";
+import { Decimal, ExchangeRate } from "@/domain/fx/ExchangeRate";
+import { ForeignPayment } from "@/domain/payments/ForeignPayment";
+import { currencyInfo, shortDay } from "@/domain/money/Currency";
 
 /**
  * Settlement: frozen edges, payment instructions (cash/QR), "reported sent"
  * vs recipient-confirmed amounts, rejection disputes and reversal.
  */
 export function SettlementSection() {
-  const { view, me, event } = useEvent();
+  const { view, me, event, shown, moneyAbs, viewRate } = useEvent();
   const s = view.settlement!;
   const mine = s.positions.find((p) => p.memberId === me.memberId)!;
   const toPay = s.edges.filter((e) => e.from === me.memberId);
@@ -27,7 +30,9 @@ export function SettlementSection() {
     <div className="space-y-3">
       <BalanceBanner
         net={mine.remaining}
-        caption={mine.remaining === mine.net ? "Frozen bill · only money the other person confirms changes this" : `Bill: ${balanceLabel(mine.net).text.toLowerCase()} ${phpAbs(mine.net)} · confirmed payments included`}
+        display={shown(mine.remaining, { abs: true })}
+        exact={viewRate ? moneyAbs(mine.remaining) : undefined}
+        caption={mine.remaining === mine.net ? "Frozen bill · only money the other person confirms changes this" : `Bill: ${balanceLabel(mine.net).text.toLowerCase()} ${shown(mine.net, { abs: true })} · confirmed payments included`}
       />
       {event.phase === "DONE" && <Notice tone="receive" title="Done">Every payment was confirmed by the person who got it. This record is read-only.</Notice>}
       {s.edges.length === 0 && <Notice tone="receive">Nobody owes anybody in this event.</Notice>}
@@ -52,8 +57,9 @@ export function SettlementSection() {
   );
 }
 
-/** One line of status per transfer: "₱400 received · ₱298.50 left". */
-export function edgeStatus(edge: EdgeView): string {
+/** One line of status per transfer: "PHP 400.00 received · PHP 298.50 left" (in the settle-up currency). */
+export function edgeStatus(edge: EdgeView, ccy = "PHP"): string {
+  const php = (v: string | bigint) => money(v, ccy);
   const verified = BigInt(edge.verified);
   const pending = BigInt(edge.pending);
   // What hasn't been sent yet: money already reported is "sent, waiting", not "left".
@@ -66,8 +72,33 @@ export function edgeStatus(edge: EdgeView): string {
   return parts.join(" · ");
 }
 
+type ReportView = EdgeView["reports"][number];
+type PaidView = NonNullable<ReportView["paid"]>;
+
+/** The locked rate of a payment sent in another currency ("1 THB = 1.63 PHP"). */
+function paidRate(p: PaidView, settle: string): ExchangeRate {
+  return new ExchangeRate(p.currency, settle, Decimal.parse(p.rate), p.rateDate, p.source);
+}
+
+/** "THB 512.31 (counts as PHP 835.06 · 1 THB = 1.63 PHP, ECB 25 Nov)" pieces for a payment report. */
+function paidLine(r: ReportView, settle: string): string | null {
+  if (!r.paid) return null;
+  return `Counts as ${money(r.amount, settle)} · 1 ${r.paid.currency} = ${r.paid.rate} ${settle} (ECB, ${shortDay(r.paid.rateDate)})`;
+}
+
+/** What a payment report says was sent: the paid currency when it wasn't the settle-up one. */
+function sentAmount(r: ReportView, settle: string): string {
+  return r.paid ? money(r.paid.amount, r.paid.currency) : money(r.amount, settle);
+}
+
+/** Currencies the payer can send to `to` right now: the ones they accept, where today's rate is known (the settle-up currency always). */
+function payCurrencies(view: View, to: string): string[] {
+  const accepted = view.instructions[to]?.acceptedCurrencies ?? view.defaultAcceptedCurrencies;
+  return accepted.filter((c) => c === view.event.currency || todayRate(view, c, view.event.currency));
+}
+
 function EdgeHeader({ edge, title }: { edge: EdgeView; title?: string }) {
-  const { name } = useEvent();
+  const { name, currency } = useEvent();
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
@@ -82,19 +113,26 @@ function EdgeHeader({ edge, title }: { edge: EdgeView; title?: string }) {
       </div>
       <Progress value={Number(edge.verified)} pending={Number(edge.pending)} max={Number(edge.amount)} tone="receive" />
       <p className="tnum text-[14px] text-muted" data-testid="edge-status">
-        {edgeStatus(edge)}
+        {edgeStatus(edge, currency)}
       </p>
     </div>
   );
 }
 
 function PayEdge({ edge, focused }: { edge: EdgeView; focused: boolean }) {
-  const { view, event, name } = useEvent();
+  const { view, event, name, money: php, currency } = useEvent();
   const [reporting, setReporting] = useState(false);
   const instr = view.instructions[edge.to];
   const agreedReplacement = edge.dispute?.status === "AWAITING_REPLACEMENT" ? edge.dispute.rejectedReportId : null;
   const canReport = !edge.settled && event.phase === "SETTLING" && (!edge.disputed || agreedReplacement) && edge.capacity !== "0";
   const sentSome = edge.pending !== "0";
+  // Pay in (D58): the receiver's accepted currencies with a rate today. A replacement re-records the same money in its original currency.
+  const rejected = agreedReplacement ? edge.reports.find((r) => r.id === agreedReplacement) : undefined;
+  const options = rejected?.paid ? [rejected.paid.currency] : payCurrencies(view, edge.to);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const payIn = chosen && options.includes(chosen) ? chosen : rejected?.paid ? rejected.paid.currency : currency;
+  const rate = payIn === currency ? null : rejected?.paid ? paidRate(rejected.paid, currency) : todayRate(view, payIn, currency);
+  const fullInPayCurrency = rate ? new ForeignPayment(rate).toSend(BigInt(edge.capacity)) : null;
 
   return (
     <Card className={`space-y-3 scroll-mt-28 ${focused ? "border-violet ring-2 ring-violet-soft" : ""}`}>
@@ -127,26 +165,75 @@ function PayEdge({ edge, focused }: { edge: EdgeView; focused: boolean }) {
       )}
       {edge.disputed && edge.dispute && <DisputeCard edge={edge} />}
       {sentSome && !edge.settled && <p className="text-[15px] font-semibold">Sent {php(edge.pending)} · Waiting for {name(edge.to)}</p>}
+      {canReport && options.length > 1 && (
+        <div className="space-y-1.5" data-testid="pay-in">
+          <p id={`pay-in-${edge.id}`} className="text-[14px] font-semibold text-muted">
+            Pay in
+          </p>
+          <div role="radiogroup" aria-labelledby={`pay-in-${edge.id}`} className="flex flex-wrap gap-1.5">
+            {options.map((c) => (
+              <button
+                key={c}
+                type="button"
+                role="radio"
+                aria-checked={payIn === c}
+                onClick={() => setChosen(c)}
+                className={`min-h-11 rounded-full border px-4 text-[15px] font-semibold ${payIn === c ? "border-violet bg-violet text-violet-ink" : "border-line bg-surface active:bg-surface-2"}`}
+              >
+                {currencyInfo(c).symbol} {currencyInfo(c).name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {canReport && rate && fullInPayCurrency !== null && (
+        <p className="rounded-xl bg-surface-2 px-3 py-2 text-[15px]" data-testid="pay-quote">
+          {rejected?.paid ? "At the rate when you sent it" : "At today’s rate"}: 1 {payIn} = {rate.rateText()} {currency} (ECB, {shortDay(rate.date)})
+          <b className="mt-0.5 block">Send {fullInPayCurrency > 0n ? php(fullInPayCurrency, payIn) : `less than ${php(1n, payIn)}: pay in ${currency}`}</b>
+        </p>
+      )}
       {canReport && (
-        <Button full variant={sentSome ? "secondary" : "primary"} icon="arrowUp" onClick={() => setReporting(true)}>
-          {agreedReplacement ? "Record the money you already sent" : sentSome ? "I sent more" : `I sent ${php(edge.capacity)}`}
+        <Button full variant={sentSome ? "secondary" : "primary"} icon="arrowUp" disabled={fullInPayCurrency === 0n} onClick={() => setReporting(true)}>
+          {agreedReplacement ? "Record the money you already sent" : sentSome ? "I sent more" : rate && fullInPayCurrency ? `I sent ${php(fullInPayCurrency, payIn)}` : `I sent ${php(edge.capacity)}`}
         </Button>
       )}
       <ReportList edge={edge} role="sender" />
-      {reporting && <ReportSheet edge={edge} replaces={agreedReplacement} hasQr={Boolean(instr?.qrAssetId)} onClose={() => setReporting(false)} />}
+      {reporting && <ReportSheet edge={edge} replaces={agreedReplacement} hasQr={Boolean(instr?.qrAssetId)} payIn={payIn} rate={rate} onClose={() => setReporting(false)} />}
     </Card>
   );
 }
 
-function ReportSheet({ edge, replaces, hasQr, onClose }: { edge: EdgeView; replaces: string | null; hasQr: boolean; onClose: () => void }) {
-  const { name } = useEvent();
+/**
+ * "How much did you send?" In the settle-up currency, or (D58) in another
+ * currency the receiver accepts: then the amount is typed in that currency,
+ * and what it counts as comes from the day's locked rate. The server
+ * recomputes the credit and refuses it if the rate moved.
+ */
+function ReportSheet({ edge, replaces, hasQr, payIn, rate, onClose }: { edge: EdgeView; replaces: string | null; hasQr: boolean; payIn: string; rate: ExchangeRate | null; onClose: () => void }) {
+  const { name, money: php, currency } = useEvent();
   const { run, error } = useInlineAction();
-  const [amount, setAmount] = useState(toInput(edge.capacity));
+  const capacity = BigInt(edge.capacity);
+  const fx = rate ? new ForeignPayment(rate) : null;
+  const maxSend = fx ? fx.toSend(capacity) : capacity;
+  const [amount, setAmount] = useState(toMinorInput(maxSend.toString(), payIn));
   const [method, setMethod] = useState<"CASH" | "QR">(hasQr ? "QR" : "CASH");
   const [note, setNote] = useState("");
   const key = useRef(newIdempotencyKey()); // same key on retry → no duplicate report
-  const cents = toCentavos(amount);
-  const tooMuch = cents !== null && BigInt(cents) > BigInt(edge.capacity);
+  const sent = toMinor(amount, payIn);
+  const tooMuch = sent !== null && BigInt(sent) > maxSend;
+  // What it counts as on the transfer (settle-up currency).
+  let credit: bigint | null = null;
+  let creditError: string | null = null;
+  if (sent && sent !== "0" && !tooMuch) {
+    if (!fx) credit = BigInt(sent);
+    else {
+      try {
+        credit = fx.creditFor(BigInt(sent), capacity);
+      } catch (e) {
+        creditError = e instanceof Error ? e.message : "That amount can’t be counted";
+      }
+    }
+  }
   return (
     <Sheet
       open
@@ -158,23 +245,41 @@ function ReportSheet({ edge, replaces, hasQr, onClose }: { edge: EdgeView; repla
           <Button
             full
             busyLabel="Sending…"
-            disabled={!cents || cents === "0" || tooMuch}
+            disabled={credit === null}
             onClick={async () => {
-              const ok = await run(() => api.post(`/api/edges/${edge.id}/reports`, { amount: cents, method, note, idempotencyKey: key.current, ...(replaces ? { replacesReportId: replaces } : {}) }), `Sent. ${name(edge.to)} will confirm.`);
+              if (credit === null || !sent) return;
+              const body = {
+                amount: credit.toString(),
+                method,
+                note,
+                idempotencyKey: key.current,
+                ...(rate ? { paid: { currency: payIn, amount: sent, rateDate: rate.date } } : {}),
+                ...(replaces ? { replacesReportId: replaces } : {}),
+              };
+              const ok = await run(() => api.post(`/api/edges/${edge.id}/reports`, body), `Sent. ${name(edge.to)} will confirm.`);
               if (ok) onClose();
               return ok;
             }}
           >
-            {`I sent ${cents ? php(cents) : ""}`.trim()}
+            {`I sent ${sent ? php(sent, payIn) : ""}`.trim()}
           </Button>
         </div>
       }
     >
       <div className="space-y-4">
         <Notice tone="info">Only record money you’ve already sent. It stays “sent” until {name(edge.to)} says it arrived.</Notice>
-        <Field label="Amount sent" hint={`Up to ${php(edge.capacity)}. Sending part of it is fine.`} error={tooMuch ? `More than the ${php(edge.capacity)} still open` : null}>
-          {(p) => <MoneyInput {...p} value={amount} onChange={(e) => setAmount(e.target.value)} />}
+        <Field
+          label={rate ? `Amount sent in ${currencyInfo(payIn).name}` : "Amount sent"}
+          hint={rate ? `Up to ${php(maxSend, payIn)} (= ${php(capacity)} at 1 ${payIn} = ${rate.rateText()} ${currency}, ECB ${shortDay(rate.date)}). Sending part of it is fine.` : `Up to ${php(capacity)}. Sending part of it is fine.`}
+          error={tooMuch ? `More than the ${php(maxSend, payIn)} still open` : creditError}
+        >
+          {(p) => <MoneyInput {...p} currency={payIn} value={amount} onChange={(e) => setAmount(e.target.value)} />}
         </Field>
+        {rate && credit !== null && (
+          <p className="text-[15px]" data-testid="counts-as">
+            Counts as <b className="tnum">{php(credit)}</b> of the {php(capacity)} still open.
+          </p>
+        )}
         <fieldset>
           <legend className="mb-1.5 text-[15px] font-semibold">How</legend>
           <div className="grid grid-cols-2 gap-2">
@@ -238,7 +343,7 @@ export function DidntArriveSheet({ reportId, reportVersion, senderId, onClose }:
 }
 
 function ReceiveEdge({ edge, focused }: { edge: EdgeView; focused: boolean }) {
-  const { name } = useEvent();
+  const { name, money: php } = useEvent();
   return (
     <Card className={`space-y-3 scroll-mt-28 ${focused ? "border-violet ring-2 ring-violet-soft" : ""}`}>
       <div id={`transfer-${edge.id}`} />
@@ -274,24 +379,23 @@ function ReportList({ edge, role }: { edge: EdgeView; role: "sender" | "recipien
   );
 }
 
-type ReportView = EdgeView["reports"][number];
-
 /** The recipient's question: did this money arrive? */
 function PendingReport({ edge, report: r }: { edge: EdgeView; report: ReportView }) {
-  const { name } = useEvent();
+  const { name, currency } = useEvent();
   const { run, error } = useInlineAction();
   const [didntArrive, setDidntArrive] = useState(false);
   return (
     <div className="space-y-2 rounded-xl border border-line p-3" data-testid="pending-report">
       <p className="text-[17px] font-semibold">
-        Did {php(r.amount)} from {name(edge.from)} arrive?
+        Did {sentAmount(r, currency)} from {name(edge.from)} arrive?
       </p>
+      {r.paid && <p className="text-[14px] text-muted">{paidLine(r, currency)}</p>}
       <p className="text-[13px] text-muted">
         {r.method === "CASH" ? "Cash" : "QR / e-wallet"} · {timeAgo(r.createdAt)}
         {r.note ? ` · “${r.note}”` : ""}
       </p>
       {r.replacesReportId && <p className="text-[13px] text-muted">Recorded again after you both agreed. It isn’t new money.</p>}
-      <Button full variant="receive" icon="check" busyLabel="Confirming…" onClick={() => run(() => api.post(`/api/payments/${r.id}/verify`, { expectedVersion: r.version }), `Got it. ${php(r.amount)} from ${name(edge.from)}.`)}>
+      <Button full variant="receive" icon="check" busyLabel="Confirming…" onClick={() => run(() => api.post(`/api/payments/${r.id}/verify`, { expectedVersion: r.version }), `Got it. ${sentAmount(r, currency)} from ${name(edge.from)}.`)}>
         Yes, I got it
       </Button>
       <ActionError message={error} />
@@ -307,18 +411,19 @@ function PendingReport({ edge, report: r }: { edge: EdgeView; report: ReportView
 }
 
 function ReportRow({ edge, report: r, role }: { edge: EdgeView; report: ReportView; role: "sender" | "recipient" }) {
-  const { name, event } = useEvent();
+  const { name, event, currency } = useEvent();
   const act = useAction();
   return (
     <li className="rounded-xl border border-line p-3 text-[15px]">
       <div className="flex items-center gap-2">
         <Icon name={r.method === "CASH" ? "cash" : "qr"} size={18} className="text-muted" />
-        <b className="tnum">{php(r.amount)}</b>
+        <b className="tnum">{sentAmount(r, currency)}</b>
         <span className="text-[13px] text-muted">{timeAgo(r.createdAt)}</span>
         <span className="ml-auto">
           {r.reversal ? <Badge tone="warn">Confirmation undone</Badge> : r.status === "VERIFIED" ? <Badge tone="receive">✓ Received</Badge> : r.status === "REPORTED" ? <Badge tone="warn">Sent</Badge> : r.status === "REJECTED" ? <Badge tone="pay">Didn’t arrive</Badge> : <Badge>Cancelled</Badge>}
         </span>
       </div>
+      {r.paid && <p className="mt-1 text-[13px] text-muted">{paidLine(r, currency)}</p>}
       {r.note && <p className="mt-1 text-[14px] text-muted">“{r.note}”</p>}
       {r.replacesReportId && <p className="mt-1 text-[13px] text-muted">Recorded again after you both agreed. It isn’t new money.</p>}
       {r.rejectReason && <p className="mt-1 text-[14px] text-pay">What happened: {r.rejectReason}</p>}
@@ -397,13 +502,20 @@ function InstructionsEditor() {
   const [file, setFile] = useState<File | null>(null);
   const [removeQr, setRemoveQr] = useState(false);
   const [busy, setBusy] = useState(false);
+  // "I accept" (D58): the settle-up currency always; others the receiver ticks (default: every currency used here).
+  const currencyOptions = [...new Set([event.currency, ...view.fx.used, "PHP"])];
+  const [accepted, setAccepted] = useState<string[]>(cur ? cur.acceptedCurrencies : view.defaultAcceptedCurrencies);
+  const acceptedList = currencyOptions.filter((c) => c === event.currency || accepted.includes(c));
   return (
     <>
       <Card className="flex items-center gap-3">
         <Icon name="wallet" className="text-violet" />
         <div className="min-w-0 flex-1 text-[15px]">
           <p className="font-semibold">How you get paid</p>
-          <p className="text-muted">{cur ? [cur.acceptsCash && "Cash", cur.hasQr && "QR"].filter(Boolean).join(" + ") + ` · v${cur.version}` : "Not shared yet"}</p>
+          <p className="text-muted">
+            {cur ? [cur.acceptsCash && "Cash", cur.hasQr && "QR"].filter(Boolean).join(" + ") + ` · v${cur.version}` : "Not shared yet"}
+            {currencyOptions.length > 1 && ` · ${(cur ? cur.acceptedCurrencies : view.defaultAcceptedCurrencies).join(", ")}`}
+          </p>
         </div>
         <Button variant="secondary" onClick={() => setOpen(true)}>
           {cur ? "Edit" : "Set up"}
@@ -435,9 +547,10 @@ function InstructionsEditor() {
                       fd.set("acceptsCash", String(cash));
                       fd.set("cashNote", cashNote);
                       fd.set("qrLabel", qrLabel);
+                      fd.set("acceptedCurrencies", acceptedList.join(","));
                       return api.post(`/api/events/${event.id}/assets`, fd);
                     }, "Payment details saved")
-                  : await act(() => api.post(`/api/events/${event.id}/instructions`, { acceptsCash: cash, cashNote, qrLabel, keepQr: !removeQr }), "Payment details saved");
+                  : await act(() => api.post(`/api/events/${event.id}/instructions`, { acceptsCash: cash, cashNote, qrLabel, keepQr: !removeQr, acceptedCurrencies: acceptedList }), "Payment details saved");
                 setBusy(false);
                 if (ok) setOpen(false);
               }}
@@ -466,6 +579,25 @@ function InstructionsEditor() {
               <label className="flex min-h-11 items-center gap-2 text-[15px]">
                 <input type="checkbox" className="size-5 accent-[var(--violet)]" checked={removeQr} onChange={(e) => setRemoveQr(e.target.checked)} /> Remove my current QR
               </label>
+            )}
+            {currencyOptions.length > 1 && (
+              <fieldset data-testid="accept-currencies">
+                <legend className="mb-1 text-[15px] font-semibold">I accept</legend>
+                {currencyOptions.map((c) => (
+                  <label key={c} className="flex min-h-11 items-center gap-2 text-[15px]">
+                    <input
+                      type="checkbox"
+                      className="size-5 accent-[var(--violet)]"
+                      checked={c === event.currency || accepted.includes(c)}
+                      disabled={c === event.currency}
+                      onChange={(e) => setAccepted((a) => (e.target.checked ? [...a, c] : a.filter((x) => x !== c)))}
+                    />
+                    {currencyInfo(c).symbol} {currencyInfo(c).name}
+                    {c === event.currency && <span className="text-[13px] text-muted">(the bill’s currency)</span>}
+                  </label>
+                ))}
+                <p className="text-[13px] text-muted">Money sent in another currency counts at the ECB rate of the day it’s sent.</p>
+              </fieldset>
             )}
             <p className="text-[13px] text-muted">Changing these never changes the frozen amounts. Earlier payment reports keep the version they used.</p>
           </div>

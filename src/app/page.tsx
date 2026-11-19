@@ -12,7 +12,7 @@ import { timeAgo } from "@/ui/format";
 import { PHASE_LABEL, type Phase } from "@/domain/event/PhaseMachine";
 import { isInstalledApp } from "@/ui/recovery";
 
-type MyEvent = { eventId: string; title: string; phase: Phase; cancelled: boolean; isOwner: boolean; displayName: string; updatedAt: string };
+type MyEvent = { eventId: string; title: string; phase: Phase; cancelled: boolean; isOwner: boolean; displayName: string; currency?: string; updatedAt: string };
 
 /**
  * Start screen (D48). Returning people see their events first; newcomers see
@@ -47,7 +47,8 @@ export default function Home() {
                     <p className="truncate font-semibold">{e.title}</p>
                     <p className="text-[14px] text-muted">
                       as {e.displayName}
-                      {e.isOwner ? " · organizer" : ""} · {timeAgo(e.updatedAt)}
+                      {e.isOwner ? " · organizer" : ""}
+                      {e.currency && e.currency !== "PHP" ? ` · ${e.currency}` : ""} · {timeAgo(e.updatedAt)}
                     </p>
                   </div>
                   {e.cancelled ? <Badge tone="warn">Cancelled</Badge> : <Badge tone={e.phase === "DONE" ? "receive" : "violet"}>{PHASE_LABEL[e.phase]}</Badge>}

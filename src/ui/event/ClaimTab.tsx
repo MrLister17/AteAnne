@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
 import { ActionError, Avatar, Badge, Button, Card, Disclosure, Notice } from "../components/ui";
-import { php } from "../format";
+import { ExchangeRate } from "@/domain/fx/ExchangeRate";
 import { ReceiptView, useEvent, useInlineAction } from "./EventContext";
 import { EqualReceiptSplit } from "@/domain/receipt/EqualReceiptSplit";
 import { everyoneAnswered } from "./todo";
@@ -84,7 +84,8 @@ function myAck(r: ReceiptView, memberId: string) {
 }
 
 function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptView; readOnly: boolean; onSaved: () => void }) {
-  const { view, me, event, name, seq } = useEvent();
+  const { view, me, event, name, seq, money } = useEvent();
+  const php = (v: string | bigint) => money(v, r.currency);
   const { run, error } = useInlineAction();
   const initial = useMemo(() => {
     const m: Record<string, number> = {};
@@ -107,6 +108,9 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
   const equalShare = r.equalSplit ? (new EqualReceiptSplit().totals(BigInt(r.payable), active.map((m) => m.id)).get(me.memberId) ?? 0n) : null;
   const itemShare = !r.equalSplit && view.calculation.ok && everyoneAnswered(view, r.id) ? view.calculation.receipts.find((x) => x.receiptId === r.id)?.shares.find((s) => s.memberId === me.memberId)?.total : null;
   const share = equalShare ?? (itemShare ? BigInt(itemShare) : null);
+  // The same share in the settle-up currency: exact once the split calculates, else "≈" at the receipt's rate.
+  const settleExact = r.currency !== event.currency && view.calculation.ok ? view.calculation.receipts.find((x) => x.receiptId === r.id)?.settleShares[me.memberId] : undefined;
+  const settleShare = r.currency === event.currency || share === null ? null : settleExact !== undefined ? money(settleExact) : r.rate ? `≈ ${money(ExchangeRate.fromWire(r.rate).convert(share))}` : null;
   const joiningOpen = event.phase === "COLLECTING" && !event.rosterLockedAt;
   const folded = Boolean(ack) && !staleDraft && !dirty;
 
@@ -204,7 +208,7 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
           {r.equalSplit ? " — included in the equal split." : " — split by what each person had."}
         </li>
       )}
-      {r.equalSplit && <li className="px-1 text-[14px] text-muted">Split equally among {active.length} people. Shares can differ by ₱0.01.</li>}
+      {r.equalSplit && <li className="px-1 text-[14px] text-muted">Split equally among {active.length} people. Shares can differ by {php(1n)}.</li>}
     </ul>
   );
 
@@ -238,6 +242,11 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
           <p className="tnum flex items-baseline justify-between text-[16px]" data-testid="my-share">
             <span>Your share</span>
             <b className="text-[20px]">{php(share)}</b>
+          </p>
+        )}
+        {settleShare && (
+          <p className="tnum text-right text-[14px] text-muted" data-testid="my-share-settle">
+            {settleShare}
           </p>
         )}
         <p className="text-[14px] text-muted" data-testid="receipt-progress">

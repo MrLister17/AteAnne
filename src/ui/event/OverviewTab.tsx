@@ -6,8 +6,8 @@ import { api } from "../api";
 import { ShareJoin } from "../components/CredentialReveal";
 import { Icon } from "../components/Icon";
 import { ActionError, BalanceBanner, Blockers, Button, Card, Disclosure, Notice, SectionTitle, useToast } from "../components/ui";
-import { php } from "../format";
 import { useAction, useEvent, useInlineAction } from "./EventContext";
+import { CurrencySwitch } from "./CurrencySwitch";
 import { everyoneAnswered } from "./todo";
 import { ReminderButton } from "./ReminderPanel";
 import { NextCard } from "./NextCard";
@@ -23,7 +23,7 @@ import { myTaskLine, taskLine } from "./next";
  * behind plainly worded rows, never removed.
  */
 export function OverviewTab() {
-  const { view, me, event } = useEvent();
+  const { view, me, event, shown, moneyAbs, viewRate } = useEvent();
   const phase = event.phase;
   const myPos = view.settlement?.positions.find((p) => p.memberId === me.memberId);
   // An estimate only once everyone has answered; until then the first claimant would look like they owe everything.
@@ -34,10 +34,22 @@ export function OverviewTab() {
   return (
     <div className="space-y-4">
       {myPos ? (
-        <BalanceBanner net={myPos.remaining} caption={phase === "DONE" ? "Everything was confirmed received." : `Paid ${php(myPos.funding)} · your share ${php(myPos.cost)} · frozen bill`} />
+        <BalanceBanner
+          net={myPos.remaining}
+          display={shown(myPos.remaining, { abs: true })}
+          exact={viewRate ? moneyAbs(myPos.remaining) : undefined}
+          caption={phase === "DONE" ? "Everything was confirmed received." : `Paid ${shown(myPos.funding)} · your share ${shown(myPos.cost)} · frozen bill`}
+        />
       ) : estimate ? (
-        <BalanceBanner net={estimate.remaining} estimate caption={`Paid ${php(estimate.funding)} · your share so far ${php(estimate.cost)} · can change until everyone is done`} />
+        <BalanceBanner
+          net={estimate.remaining}
+          estimate
+          display={shown(estimate.remaining, { abs: true })}
+          exact={viewRate ? moneyAbs(estimate.remaining) : undefined}
+          caption={`Paid ${shown(estimate.funding)} · your share so far ${shown(estimate.cost)} · can change until everyone is done`}
+        />
       ) : null}
+      {(myPos || estimate) && <CurrencySwitch />}
 
       {deletesSoon && <DeletionNotice />}
 
@@ -98,7 +110,7 @@ function DeletionNotice({ quiet = false }: { quiet?: boolean }) {
 
 /** Your other tasks, after the one in the Next card, folded away (D53). */
 function EverythingLeft() {
-  const { view, me, name } = useEvent();
+  const { view, me, name, currency } = useEvent();
   const mine = view.group.members.find((g) => g.memberId === me.memberId)?.tasks ?? [];
   const rest = mine.slice(1);
   if (!rest.length) return null;
@@ -106,7 +118,7 @@ function EverythingLeft() {
     <Disclosure summary={`Everything left (${mine.length})`} className="px-1">
       <ul className="list-disc space-y-1 pl-5 text-[15px]" data-testid="everything-left">
         {mine.map((t, i) => (
-          <li key={i}>{myTaskLine(t, name)}</li>
+          <li key={i}>{myTaskLine(t, name, currency)}</li>
         ))}
       </ul>
     </Disclosure>
@@ -340,7 +352,7 @@ function GuestsPanel() {
       <SectionTitle>People without a phone</SectionTitle>
       <ul className="card divide-y divide-line p-0" data-testid="guests-panel">
         {guests.map((g) => {
-          const todo = (view.group.members.find((x) => x.memberId === g.id)?.tasks ?? []).map((t) => taskLine(t, name));
+          const todo = (view.group.members.find((x) => x.memberId === g.id)?.tasks ?? []).map((t) => taskLine(t, name, view.event.currency));
           return (
             <li key={g.id} className="space-y-2 px-4 py-3">
               {todo.length === 0 ? (
