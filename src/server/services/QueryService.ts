@@ -3,6 +3,7 @@ import { EventRepository } from "../aggregate/EventRepository";
 import { EventViewBuilder } from "../readmodels/EventViewBuilder";
 import { Caller, callerParts } from "./BaseService";
 import { RateService, receiptDay } from "../fx/RateService";
+import { currencyInfo } from "@/domain/money/Currency";
 
 /** Read side: authorised event view and authenticated statement export. */
 export class QueryService {
@@ -16,31 +17,18 @@ export class QueryService {
   /** The event as `me` sees it; a manager acting for a guest sees it as the guest. */
   async view(caller: Caller, eventId: string) {
     const { actorId, asMemberId } = callerParts(caller);
-    await this.prefetchRates(eventId);
-    const agg = await this.repo.load(this.db, eventId);
-    const by = agg.memberForActor(actorId); // 404 for non-members: no existence leak
+    let agg = await this.repo.load(this.db, eventId);
+    agg.memberForActor(actorId); // 404 for non-members before any other work: no existence leak
+    // Multi-currency events keep today's rate (Show totals in, Pay in) and their open receipts' purchase-day
+    // rates fresh, never inside a lock. Peso-only events skip this entirely: no extra queries per poll.
+    if (this.rates && EventViewBuilder.usesRates(agg)) {
+      const open = agg.phase === "COLLECTING" || agg.phase === "ALLOCATING" || agg.phase === "REVIEWING";
+      const days = open ? agg.record.receipts.filter((r) => r.currency !== agg.currency).map(receiptDay) : [];
+      if (await this.rates.ensureDays([this.rates.today(), ...days])) agg = await this.repo.load(this.db, eventId);
+    }
+    const by = agg.memberForActor(actorId);
     const me = agg.subjectFor(by, asMemberId);
     return this.views.build(agg, me, by);
-  }
-
-  /**
-   * Multi-currency events keep today's rate (for "Show totals in" and paying
-   * in another currency) and their receipts' purchase-day rates fresh. One
-   * small query for peso-only events; never inside a lock.
-   */
-  private async prefetchRates(eventId: string) {
-    if (!this.rates) return;
-    const e = await this.db.event.findUnique({
-      where: { id: eventId },
-      select: { currency: true, phase: true, receipts: { select: { currency: true, purchasedOn: true, createdAt: true } }, members: { select: { instructions: { where: { current: true }, select: { acceptedCurrencies: true } } } } },
-    });
-    if (!e) return;
-    // A frozen or Done bill keeps its rates in the statement; only today's (for the totals switch) can still change.
-    const foreign = e.phase === "COLLECTING" || e.phase === "ALLOCATING" || e.phase === "REVIEWING" ? e.receipts.filter((r) => r.currency !== e.currency) : [];
-    const acceptsOther = e.members.some((m) => m.instructions.some((i) => i.acceptedCurrencies.some((c) => c !== e.currency)));
-    const mixed = e.receipts.some((r) => r.currency !== e.currency);
-    if (!mixed && !acceptsOther && e.currency === "PHP") return;
-    await this.rates.ensureDays([this.rates.today(), ...foreign.map(receiptDay)]);
   }
 
   /** Manual-record export (JSON or CSV). Excludes credentials, images and asset URLs. */
@@ -48,7 +36,7 @@ export class QueryService {
     const view = await this.view(actorId, eventId);
     const name = (id: string) => view.members.find((m) => m.id === id)?.displayName ?? id;
     const ccy = view.event.currency;
-    const exponent = (code: string) => view.fx.supported.find((c) => c.code === code)?.exponent ?? 2;
+    const exponent = (code: string) => currencyInfo(code).exponent;
     /** Plain decimal text in a currency's own units ("1397.00", "12000"), no separators. */
     const amt = (c: string, code = ccy) => {
       const v = BigInt(c);

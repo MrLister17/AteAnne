@@ -51,11 +51,13 @@ export class RateService {
    * Make sure each day has a usable cached answer. Never throws: when the
    * source is down, callers fall back to what's cached (or wait, never guess).
    */
-  async ensureDays(days: Iterable<string>): Promise<void> {
-    if (!this.provider) return;
+  /** Returns how many days were (re)fetched. */
+  async ensureDays(days: Iterable<string>): Promise<number> {
+    if (!this.provider) return 0;
     const today = this.today();
     const wanted = [...new Set(days)].filter((d) => d <= today && d >= addDays(today, -MAX_PURCHASE_AGE_DAYS)).sort();
-    if (!wanted.length) return;
+    if (!wanted.length) return 0;
+    let fetched = 0;
     const rows = await this.db.exchangeRate.findMany({ where: { source: this.provider.source, day: { in: wanted.map(asDate) } } });
     const byDay = new Map(rows.map((r) => [iso(r.day), r]));
     for (const day of wanted) {
@@ -70,10 +72,12 @@ export class RateService {
           create: { source: this.provider.source, day: asDate(day), ...data },
           update: data,
         });
+        fetched++;
       } catch (e) {
         console.warn(`[fx] could not fetch ${day}: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
+    return fetched;
   }
 
   /** Cached rates for these days (ECB preferred over fake rows when both exist). */

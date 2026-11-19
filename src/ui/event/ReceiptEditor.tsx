@@ -6,7 +6,7 @@ import { Icon } from "../components/Icon";
 import { Button, Field, MoneyInput, Notice, Sheet, useToast } from "../components/ui";
 import { money, toMinor, toMinorInput } from "../format";
 import { ReceiptView, todayRate, useAction, useEvent } from "./EventContext";
-import { addDays, currencyInfo, manilaDay, shortDay } from "@/domain/money/Currency";
+import { CURRENCY_CODES, addDays, currencyInfo, manilaDay, shortDay } from "@/domain/money/Currency";
 import { ExchangeRate } from "@/domain/fx/ExchangeRate";
 import type { ScannedDraft } from "@/server/services/ReceiptScanService";
 import { EntryMath } from "@/domain/receipt/EntryMath";
@@ -631,7 +631,7 @@ function CurrencyAndDay({
   const foreign = draft.currency !== event.currency;
   // The rate we already know for this currency and day: the saved receipt's, or today's table for a receipt bought today.
   const known = receipt && receipt.rate && receipt.currency === draft.currency && receipt.purchasedOn === draft.purchasedOn ? ExchangeRate.fromWire(receipt.rate) : draft.purchasedOn === today ? todayRate(view, draft.currency, event.currency) : null;
-  const options = [...new Set([event.currency, ...view.fx.used, ...view.fx.supported.map((c) => c.code)])];
+  const options = [...new Set([event.currency, ...view.fx.used, ...CURRENCY_CODES])];
   return (
     <div className="space-y-2" data-testid="receipt-currency">
       <div className="grid grid-cols-2 gap-2">

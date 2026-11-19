@@ -17,7 +17,7 @@ import {
 } from "../components/ui";
 import { timeAgo } from "../format";
 import { useAction, useEvent } from "./EventContext";
-import { currencyInfo } from "@/domain/money/Currency";
+import { CURRENCY_CODES, currencyInfo } from "@/domain/money/Currency";
 import { useTutorial } from "../tutorial/TutorialProvider";
 
 const AUDIT_TEXT: Record<string, string> = {
@@ -1036,7 +1036,7 @@ function SettleCurrencyCard({ hasReports }: { hasReports: boolean }) {
   const [code, setCode] = useState(event.currency);
   const [busy, setBusy] = useState(false);
   const canChange = event.phase === "COLLECTING" && !event.cancelled && !hasReports;
-  const codes = [...new Set([event.currency, ...view.fx.used, ...view.fx.supported.map((c) => c.code)])];
+  const codes = [...new Set([event.currency, ...view.fx.used, ...CURRENCY_CODES])];
   return (
     <Card className="space-y-3" data-testid="settle-currency">
       <h3 className="font-semibold">Settle-up currency</h3>

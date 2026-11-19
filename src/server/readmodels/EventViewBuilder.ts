@@ -5,7 +5,6 @@ import type { EventService } from "../services/EventService";
 import { RetentionPolicy } from "@/domain/event/RetentionPolicy";
 import { SettlementPlanner } from "@/domain/settlement/SettlementPlanner";
 import { NextActions, toWire, type NextActionInput } from "@/domain/event/NextAction";
-import { CURRENCIES } from "@/domain/money/Currency";
 import { RateService } from "../fx/RateService";
 
 /** Payment sent in another currency, as stored on a report. */
@@ -29,6 +28,11 @@ export class EventViewBuilder {
     private readonly features: { receiptScan: boolean } = { receiptScan: false },
     private readonly rates: RateService | null = null,
   ) {}
+
+  /** True when any money here is not in pesos: only then do rates matter (totals switch, Pay in, conversions). */
+  static usesRates(agg: EventAggregate): boolean {
+    return agg.currenciesUsed().some((c) => c !== "PHP");
+  }
 
   /** `me` is whose view this is; `by` is the signed-in person (differs only when acting for a guest). */
   async build(agg: EventAggregate, me: MemberRecord, by: MemberRecord = me) {
@@ -60,14 +64,12 @@ export class EventViewBuilder {
     const remaining = calc.ok ? agg.remainingNets(calc.positions.map((p) => [p.memberId, p.net] as const)) : new Map<string, bigint>();
     const joinCode = isOwner ? this.events.revealCode(e) : null;
     const today = this.rates?.today() ?? null;
-    const todayRates = today ? ((await RateService.load(this.db, [today])).get(today) ?? null) : null;
+    const todayRates = today && EventViewBuilder.usesRates(agg) ? ((await RateService.load(this.db, [today])).get(today) ?? null) : null;
 
     return {
       features: this.features,
       /** Multi-currency support (D58–D62). */
       fx: {
-        /** Every currency AteAnne supports (code, name, symbol, decimals). */
-        supported: CURRENCIES,
         /** Settle-up currency first, then every receipt currency used here. */
         used: agg.currenciesUsed(),
         /** Today's cached ECB table (per euro), for "Show totals in" and paying in another currency; null when unavailable. */

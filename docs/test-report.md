@@ -14,6 +14,20 @@ Branch `claude/admiring-albattani-yinlr3` from `main` `bb1993f` (v0.8.0). The ow
 | `npm run build` | Passed |
 | `npm run test:e2e` | **75 passed in one full run (2.2 min)**, iPhone 15 + 360px (+4: `currency.spec.ts` in both projects) |
 
+The table above is from the final run on the release commit; the same chain had also passed once before the last two changes (peso-only events skip rate queries; the currency list left the payload).
+
+### Measurements (`npx tsx scripts/measure-db.ts`, local, synthetic peso event: 10 people, 10 receipts × 8 lines)
+
+| Operation | SQL statements v0.8.0 → v0.9.0 | Max pool connections | JSON bytes v0.8.0 → v0.9.0 |
+| --- | --- | --- | --- |
+| Open event (step 1, member) | 17 → 17 | 3 → 3 | 113,040 → 118,229 |
+| Save claims (step 1) | 57 → 57 | 3 → 3 | — |
+| Open event (step 2, organizer) | 17 → 17 | 3 → 3 | 166,400 → 176,205 |
+| Report a payment | 24 → 24 | 1 → 1 | — |
+| Confirm a payment | 22 → 22 | 1 → 1 | — |
+
+Peso-only events run no rate queries and no rate fetches: the statement counts are unchanged, and an integration test checks that the fake provider isn't called. The JSON grows by about 5–10 KB, from the new per-receipt fields (`currency`, `purchasedOn`, `rate`, `settlePayable`) and the per-receipt `settleShares`.
+
 ### What the new tests check
 
 - **Unit (`currency.test.ts`):**
