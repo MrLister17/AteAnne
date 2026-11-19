@@ -40,7 +40,21 @@ Production read-only SQL (storage by image type, table sizes, scans, busiest sta
 - `feedback.spec.ts`: "Saving…" while a save is held, one request for a double tap, **Couldn't save. Try again.** beside the button with picks kept, retry succeeds; Reduce Motion shows a static "…" and no running animations; first-load skeleton text, **Try again** after 10 s and after a 500 (not "isn't a member"); failed manual refresh shows **Couldn't refresh** and the stale line; one GET on return; none once Done.
 - Integration: confirmation-only payments with exact centavos (partial, dispute, record again, done gate); receipt photo upload → 410 with zero new `Asset`/`AssetBlob` rows; legacy photo readable by members, 404 for others, removable, purged at 30 days; RLS on every table; limits ON: one-connection pool works, 31st save → 429 "Try again in 1 minute", 21 wrong codes → 429 and **no** new `Actor`/`Session` rows, wrong recovery key creates nothing, `Retry-After` header.
 
-Screenshots (local, ignored folder): `test-results/screens/s9-*.png`, `30-home-organizer.png`, `31-home-member.png`. Not verified: a real iPhone (press feel, Safari, Reduce Motion), relatives' usability, production numbers.
+Screenshots (local, ignored folder): `test-results/screens/s9-*.png`, `30-home-organizer.png`, `31-home-member.png`.
+
+### Release
+
+- GitHub CI run [44452776502](https://github.com/MrLister17/AteAnne/actions/runs/44452776502) on `1557289`: every step passed (reference, lint, typecheck, unit, integration, build, Playwright install, E2E).
+- `main` fast-forwarded `720e6f7 → 1557289` with the owner's approval. Production `GET /api/health` at 03:48:24 UTC: `{"ok":true,"version":"1557289","receiptScan":"groq"}`, `Cache-Control: no-store`.
+- Production smoke (Playwright, iPhone 15 emulation, organizer light + member dark, synthetic event **"S9 smoke (synthetic)"**):
+  - receipt photo upload → **410 `receipt_photos_off`**
+  - Ana's Claim: `Your share PHP 698.50`, `Everyone confirmed (2 of 2)`, Next card **Did you pay for anything else?**
+  - after **I'm done adding receipts**: **You're done for now · Waiting for Mark to tap Everyone's here.**
+  - Mark: **Is everyone here? · Nobody can join after this. · Everyone's here · Invite more people**; tapping it froze the bill (Step 2 of 3 · Pay); Mark's card **How should Ana pay you?**
+  - Ana's Home: **Pay Mark PHP 698.50 · Ask Mark how to pay. · Pay Mark**
+  - horizontal overflow 0 px; event API `Cache-Control: private, no-store, max-age=0`
+  - synthetic event deleted (DELETE 200, then GET 404). No payment reports, transfers or scanner calls were made.
+- Not verified: the Vercel deployment ID (this session's Vercel API credential was rejected as invalid; the release is identified by the health version), a real iPhone (press feel, Safari, Reduce Motion), relatives' usability, and production database numbers (SQL in `runbooks.md`, not yet run).
 
 ---
 

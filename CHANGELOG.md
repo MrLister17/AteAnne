@@ -10,13 +10,14 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ## Where we left off (2026-11-19 Manila)
 
-- **v0.8.0 (Sprint S9, D53–D57) is implemented and tested on branch `claude/stoic-mendel-qflc6n`**; the owner approved the S9 plan and asked for merge to `main` and deploy. Release status, CI and production evidence: see the v0.8.0 entry below and `docs/test-report.md`.
+- **v0.8.0 (Sprint S9, D53–D57) is merged and live.** Code commit `1557289` fast-forwarded `main` (owner approved the plan and asked for merge + deploy). GitHub CI run [44452776502](https://github.com/MrLister17/AteAnne/actions/runs/44452776502) passed the full chain. https://ateanne.vercel.app/api/health returned `ok:true`, version `1557289`, scanner `groq` at 03:48 UTC.
+- Production smoke (synthetic, then deleted): the "2 of 2 confirmed" Claim screen, done → waiting, organizer **Everyone's here** → automatic freeze, Pay-step cards, receipt-photo upload refused with 410, dark phone layout with no sideways scroll. No payment reports or real transfers were created. The Vercel deployment ID wasn't read: the Vercel API rejected this session's credential.
 - Still to do by a person: run the read-only production SQL in `docs/runbooks.md` ("Database checks") for real storage, scan and connection numbers (needed before follow-up F1/F7); try the "2 of 2 confirmed" → Pay → Done path with relatives on a real iPhone, including Reduce Motion.
 - Follow-up backlog (not started): F1 `ReceiptAck.receiptId`/FK indexes, F2 ETag polling + lazy Activity, F3 private QR caching, F4 coarse write limit/Firewall, F5 orphan actor cleanup, F6 remaining prompts, F7 pool size, F8 return-transfer wording. Earlier deferrals stand: referenced-member deactivation and multi-funder receipts.
 
 ---
 
-## v0.8.0: Claim → Pay → Done, lighter storage (2026-11-19 Manila)
+## v0.8.0: Claim → Pay → Done, lighter storage (2026-11-19 Manila) · merged to `main` and deployed
 
 Sprint **S9**, decisions **D53–D57**, plan [`docs/sprint-s9-plan.md`](docs/sprint-s9-plan.md) (owner approved every recommended decision). Starting point: the owner's screenshot of Claim saying "2 of 2 confirmed" with nothing telling anyone what to do next.
 
@@ -52,7 +53,8 @@ Sprint **S9**, decisions **D53–D57**, plan [`docs/sprint-s9-plan.md`](docs/spr
 - Unit: `next-action.test.ts` (20 cases plus a 128-case "never an empty wait" matrix), `reminders.test.ts` rebuilt on the shared task list.
 - Integration: `payments-flow.test.ts`, `rate-limits.test.ts`, `database-security.test.ts`; image tests rewritten for no new receipt photos (QR pipeline, legacy photo read/remove/purge).
 - E2E: new `next-step.spec.ts` (the "2 of 2 confirmed" walkthrough through partial payment and "It didn't arrive") and `feedback.spec.ts` (busy labels, double tap, inline error and retry, Reduce Motion, first load, refresh failure, polling); `hatian`, `home`, `equal-receipt`, `guests`, `reminders`, `corrections`, `scan` updated. Both new specs also run at 360px.
-- Results: see `docs/test-report.md`.
+- Results: local reference/lint/types, **240 unit**, **64 integration**, build, **71 browser** all passed; GitHub CI run 44452776502 passed on `1557289`; production health and smoke passed. Details in `docs/test-report.md`.
+- **Rollback:** redeploy v0.7.1 (`720e6f7`). No migration and no money-rule change; data written by v0.8.0 is readable by v0.7.1.
 
 ---
 
