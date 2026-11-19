@@ -12,7 +12,7 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 - **v0.9.0 (Sprint S10, D58–D62): mixed currencies, merged to `main` and live.**
   - `main` was fast-forwarded `bb1993f → b040a74` at the owner's request.
-  - Branch CI run [44482869560](https://github.com/MrLister17/AteAnne/actions/runs/44482869560) passed.
+  - Branch CI run [44482869560](https://github.com/MrLister17/AteAnne/actions/runs/44482869560) passed, and so did CI on `main` ([44483504305](https://github.com/MrLister17/AteAnne/actions/runs/44483504305)).
   - Production `/api/health` returned `version` `b040a74` and `fx.ok: true`: the live ECB rate (18 Nov publication) was fetched, and the migration ran.
   - The synthetic production smoke test passed with real rates (THB 1,397.00 at 1.8739802 = PHP 2,617.95) and was then deleted. Details are in `docs/test-report.md`.
 - Still to do by a person:
@@ -83,7 +83,7 @@ Local results: reference PASS, lint, typecheck, **258 unit**, **74 integration**
 
 ### Release
 
-- **Branch CI:** run 44482869560 passed on `b040a74`.
+- **CI:** branch run 44482869560 and `main` run 44483504305 both passed on `b040a74`.
 - **Merge:** `main` was fast-forwarded `bb1993f → b040a74`.
 - **Production health:** `{"ok":true,"version":"b040a74",…,"fx":{"source":"ecb","today":"2026-11-19","latest":{"day":"2026-11-19","effectiveDate":"2026-11-18"},"ok":true}}`.
 - **Production smoke test** (synthetic, then deleted):

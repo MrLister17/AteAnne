@@ -70,7 +70,7 @@ Screenshots (local, ignored folder): `test-results/screens/s10-editor-*.png`, `s
 ### Release
 
 - **Branch CI.** GitHub CI run [44482869560](https://github.com/MrLister17/AteAnne/actions/runs/44482869560) on `b040a74`: every step passed (reference, lint, typecheck, unit, integration, build, Playwright install, E2E).
-- **Merge.** `main` was fast-forwarded `bb1993f → b040a74` on the owner's instruction ("approved everything then merge and deploy"). CI on `main`: run [44483504305](https://github.com/MrLister17/AteAnne/actions/runs/44483504305) (result in `CHANGELOG.md`).
+- **Merge.** `main` was fast-forwarded `bb1993f → b040a74` on the owner's instruction ("approved everything then merge and deploy"). CI on `main`: run [44483504305](https://github.com/MrLister17/AteAnne/actions/runs/44483504305) passed on `b040a74`.
 - **Production health** at 07:57:51 UTC returned `{"ok":true,"version":"b040a74","receiptScan":"groq","fx":{"source":"ecb","today":"2026-11-19","latest":{"day":"2026-11-19","effectiveDate":"2026-11-18"},"ok":true}}`.
   - **The live ECB fetch works:** today's ECB rate wasn't published yet in Manila, so the 18 Nov publication was used.
   - **The migration ran:** health reads the new `ExchangeRate` table.
