@@ -1,4 +1,5 @@
 import { Money } from "../money/Money";
+import { currencyInfo, pow10 } from "../money/Currency";
 
 /**
  * What a receipt reader (e.g. a vision model) says it saw. Amounts are
@@ -16,6 +17,10 @@ export interface RawReceiptReading {
   otherCharges: { label: string; amount: string }[];
   totalDue: string | null;
   unreadableNotes: string[];
+  /** ISO 4217 code the reader saw (symbol, code or country), if any. Untrusted. */
+  currency?: string | null;
+  /** Purchase date printed on the receipt (YYYY-MM-DD), if any. Untrusted. */
+  date?: string | null;
 }
 
 export interface DraftLine {
@@ -90,7 +95,41 @@ function lookalikes(value: bigint): bigint[] {
  * guessed and the warning says how far off the items are.
  */
 export class ReceiptDraftNormalizer {
-  normalize(reading: RawReceiptReading): ReceiptDraft {
+  /**
+   * `currency`: the receipt's currency (default PHP). Amounts are read with two
+   * decimals; the Philippine 12% VAT-discount repair applies to pesos only, and
+   * zero-decimal currencies (JPY, KRW, IDR) are converted to whole units last.
+   */
+  normalize(reading: RawReceiptReading, opts: { currency?: string } = {}): ReceiptDraft {
+    const currency = opts.currency ?? "PHP";
+    const draft = this.normalizeTwoDecimals(reading, currency);
+    return currencyInfo(currency).exponent === 2 ? draft : this.toWholeUnits(draft, currency);
+  }
+
+  /** Two-decimal reading → whole units (exact for real yen/won/rupiah receipts; anything else is rounded with a warning). */
+  private toWholeUnits(draft: ReceiptDraft, currency: string): ReceiptDraft {
+    const unit = pow10(2 - currencyInfo(currency).exponent);
+    let rounded = false;
+    const whole = (v: bigint) => {
+      if (v % unit !== 0n) rounded = true;
+      return (v + unit / 2n) / unit;
+    };
+    const out: ReceiptDraft = {
+      ...draft,
+      lines: draft.lines.map((l) => ({ ...l, amount: whole(l.amount), unitPrice: l.unitPrice === null ? null : whole(l.unitPrice) })),
+      adjustments: draft.adjustments.map((a) => ({ ...a, amount: whole(a.amount) })),
+      payable: whole(draft.payable),
+      computedPayable: whole(draft.computedPayable),
+    };
+    const sum = out.lines.reduce((a, l) => a + l.amount, 0n) - out.adjustments.filter((a) => a.kind === "DISCOUNT").reduce((a, x) => a + x.amount, 0n) + out.adjustments.filter((a) => a.kind !== "DISCOUNT").reduce((a, x) => a + x.amount, 0n);
+    out.computedPayable = sum;
+    out.reconciled = out.lines.length > 0 && sum === out.payable;
+    if (rounded) out.warnings = [...out.warnings, `${currency} has no decimals, so amounts were rounded to whole ${currency}. Check them.`];
+    return out;
+  }
+
+  private normalizeTwoDecimals(reading: RawReceiptReading, currency: string): ReceiptDraft {
+    const vat = currency === "PHP";
     const warnings: string[] = [];
     const money = (raw: string | null | undefined, what: string): bigint | null => {
       if (raw === null || raw === undefined || raw.trim() === "") return null;
@@ -133,7 +172,7 @@ export class ReceiptDraftNormalizer {
     }
 
     const sum = (xs: bigint[]) => xs.reduce((a, b) => a + b, 0n);
-    const php = (c: bigint) => Money.of(c).toString();
+    const php = (c: bigint) => (currency === "PHP" ? Money.of(c).toString() : `${currency} ${Money.of(c).format()}`);
 
     // A quantity is certain when the line total is an exact multiple of the unit price.
     for (const l of lines) {
@@ -170,7 +209,7 @@ export class ReceiptDraftNormalizer {
         // Strict: the discount as printed, or exactly its 12% VAT gross-up (± 2 centavos of rounding).
         const agrees = (chargeTotal: bigint) => {
           const need = printed + chargeTotal - payable!;
-          return need === discounts || (discounts > 0n && isVatGrossUp(need, discounts));
+          return need === discounts || (vat && discounts > 0n && isVatGrossUp(need, discounts));
         };
         if (agrees(charges)) subtotal = printed;
         else {
@@ -195,7 +234,7 @@ export class ReceiptDraftNormalizer {
     // VAT-exclusive discount normalization, measured against the verified subtotal when there is one.
     const basis = subtotal ?? gross;
     const needed = basis + charges - payable; // discount that would make it reconcile
-    if (discounts > 0n && needed !== discounts && needed > discounts && needed <= basis) {
+    if (vat && discounts > 0n && needed !== discounts && needed > discounts && needed <= basis) {
       // Only an exact 12% gross-up counts. A looser window would let a misread amount hide inside the discount.
       if (isVatGrossUp(needed, discounts)) {
         const printed = discounts;
@@ -216,7 +255,7 @@ export class ReceiptDraftNormalizer {
       warnings.push(`The items add up to ${php(gross)}, but the receipt’s printed subtotal is ${php(subtotal)} (${diff > 0n ? "short" : "over"} by ${php(diff < 0n ? -diff : diff)}). An item is probably ${diff > 0n ? "missing or misread" : "misread or listed twice"}; compare each amount with the photo.`);
     } else if (!reconciled) {
       const diff = payable - computedPayable;
-      warnings.push(`The items ${diff > 0n ? "come to less" : "come to more"} than the total by ${Money.of(diff < 0n ? -diff : diff).toString()}. An item may be missing or misread.`);
+      warnings.push(`The items ${diff > 0n ? "come to less" : "come to more"} than the total by ${php(diff < 0n ? -diff : diff)}. An item may be missing or misread.`);
     }
     for (const note of reading.unreadableNotes.slice(0, 5)) warnings.push(`Hard to read: ${note.slice(0, 160)}`);
 

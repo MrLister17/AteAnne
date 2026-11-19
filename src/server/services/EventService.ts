@@ -7,8 +7,9 @@ import { GoneError, NotFoundError } from "../http/HttpError";
 import { JoinCodeCodec, SecretGenerator } from "../security/Crypto";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import { MAX_MEMBERS } from "../aggregate/EventAggregate";
-import { addGuestSchema, createEventSchema, joinSchema, setAdminSchema, transitionSchema, updateMeSchema } from "../validation";
+import { addGuestSchema, createEventSchema, joinSchema, setAdminSchema, setCurrencySchema, transitionSchema, updateMeSchema } from "../validation";
 import { BaseService, Caller } from "./BaseService";
+import { RateService, receiptDay } from "../fx/RateService";
 
 
 /** A browser identity, or a way to create one only when it's actually needed. */
@@ -33,6 +34,7 @@ export class EventService extends BaseService {
     db: Db,
     private readonly codes: JoinCodeCodec,
     private readonly limiter: RateLimiter,
+    private readonly rates: RateService | null = null,
     private readonly secrets = new SecretGenerator(),
   ) {
     super(db);
@@ -56,12 +58,12 @@ export class EventService extends BaseService {
     const recovery = this.newRecoveryKey();
     const join = this.newJoinCode();
     return this.db.$transaction(async (tx) => {
-      const event = await tx.event.create({ data: { title: data.title, note: data.note, nextMemberSeq: 2, ...join.data } });
+      const event = await tx.event.create({ data: { title: data.title, note: data.note, currency: data.currency, nextMemberSeq: 2, ...join.data } });
       const member = await tx.member.create({
         data: { eventId: event.id, seq: 1, actorId, displayName: data.displayName, intent: data.intent, recoveryHash: recovery.hash, recoveryExpiresAt: recovery.expiresAt },
       });
       await tx.event.update({ where: { id: event.id }, data: { ownerMemberId: member.id } });
-      await this.audit(tx, event.id, member.id, "event.created", { title: data.title });
+      await this.audit(tx, event.id, member.id, "event.created", { title: data.title, currency: data.currency });
       return { eventId: event.id, memberId: member.id, recoveryKey: recovery.key, joinCode: join.code };
     });
   }
@@ -267,6 +269,55 @@ export class EventService extends BaseService {
   }
 
   /**
+   * Change the settle-up currency (D59). Organizer only, while receipts can
+   * still change (Add & claim, which a reasoned correction returns to), and
+   * only while nobody has reported a payment in any statement: confirmed
+   * payments are recorded in this currency. Receipts keep their own currency
+   * and numbers; only the conversion target changes.
+   */
+  async setCurrency(actorId: string, eventId: string, input: z.input<typeof setCurrencySchema>): Promise<void> {
+    const data = setCurrencySchema.parse(input);
+    if (this.rates) {
+      const receipts = await this.db.receipt.findMany({ where: { eventId }, select: { currency: true, purchasedOn: true, createdAt: true } });
+      await this.rates.ensureDays(receipts.filter((r) => r.currency !== data.currency).map(receiptDay));
+    }
+    await this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+      agg.assertOwner(me.id);
+      agg.assertNotCancelled();
+      if (agg.record.financialVersion !== data.expectedFinancialVersion) throw new ConflictError("stale_version", "The event changed while you were looking. Refresh and check again.");
+      if (agg.phase !== "COLLECTING") {
+        throw new ConflictError("currency_locked", agg.phase === "DONE" ? "Done events are read-only" : "The bill is frozen. To change its currency, use Correct the bill first.");
+      }
+      if (agg.record.snapshots.some((x) => x.firstReportAt)) {
+        throw new ConflictError("payments_reported", "Payments were already reported in this currency, so it can't change.");
+      }
+      if (agg.currency === data.currency) return;
+      await tx.event.update({ where: { id: eventId }, data: { currency: data.currency } });
+      await this.bumpFinancial(tx, eventId, true);
+      await this.audit(tx, eventId, me.id, "event.currency_changed", { from: agg.currency, to: data.currency });
+      await this.advanceIfReady(tx, eventId);
+    });
+  }
+
+  /**
+   * Daily job: a bill that was ready except for a missing exchange rate
+   * freezes once the rate is cached (nobody else would trigger it). Returns
+   * how many froze.
+   */
+  async freezeWaitingEvents(): Promise<number> {
+    const candidates = await this.db.event.findMany({ where: { phase: "COLLECTING", cancelled: false, rosterLockedAt: { not: null }, snapshots: { none: {} } }, select: { id: true } });
+    let frozen = 0;
+    for (const { id } of candidates) {
+      const phase = await this.db.$transaction(async (tx) => {
+        await this.repo.lock(tx, id);
+        return this.advanceIfReady(tx, id);
+      });
+      if (phase === "SETTLING") frozen++;
+    }
+    return frozen;
+  }
+
+  /**
    * Daily job (D49): close every event whose payments have all been confirmed
    * for at least a day. Done is read-only, so the day is the window to undo a
    * mistaken "Received". Credited to the app ("System"). Returns how many closed.
@@ -374,7 +425,7 @@ export class EventService extends BaseService {
   async listForActor(actorId: string) {
     const members = await this.db.member.findMany({
       where: { actorId, active: true },
-      include: { event: { select: { id: true, title: true, phase: true, cancelled: true, updatedAt: true, ownerMemberId: true } } },
+      include: { event: { select: { id: true, title: true, phase: true, cancelled: true, updatedAt: true, ownerMemberId: true, currency: true } } },
       orderBy: { event: { updatedAt: "desc" } },
     });
     return members.map((m) => ({
@@ -385,6 +436,7 @@ export class EventService extends BaseService {
       isOwner: m.event.ownerMemberId === m.id,
       isAdmin: m.isAdmin,
       displayName: m.displayName,
+      currency: m.event.currency,
       updatedAt: m.event.updatedAt.toISOString(),
     }));
   }

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_RECEIPT_CENTAVOS } from "@/domain/money/Money";
+import { DAY_PATTERN, isCurrency } from "@/domain/money/Currency";
 
 /** Strip control characters; keep the text plain (React escapes on render). */
 const plain = (max: number, min = 0) =>
@@ -13,12 +14,16 @@ export const centavos = z
   .string()
   .regex(/^\d{1,12}$/, "Money must be a decimal string of centavos")
   .transform((s) => BigInt(s))
-  .refine((v) => v <= MAX_RECEIPT_CENTAVOS, "Amount exceeds PHP 1,000,000.00");
+  .refine((v) => v <= MAX_RECEIPT_CENTAVOS, "Amount is too large (at most 100,000,000 of the smallest unit)");
 
 export const positiveCentavos = centavos.refine((v) => v > 0n, "Amount must be positive");
 
 export const id = z.string().min(1).max(40).regex(/^[a-z0-9]+$/i);
 export const intent = z.enum(["WILL_PAY_ONLY", "PAID_EXPENSE"]);
+/** A supported ISO 4217 code (see src/domain/money/Currency.ts). */
+export const currencyCode = z.string().length(3).refine(isCurrency, "That currency isn't supported");
+/** YYYY-MM-DD calendar day. */
+export const calendarDay = z.string().regex(DAY_PATTERN, "Use a YYYY-MM-DD date").refine((d) => !Number.isNaN(Date.parse(`${d}T00:00:00Z`)) && new Date(`${d}T00:00:00Z`).toISOString().startsWith(d), "That date doesn't exist");
 export const displayName = plain(40, 1);
 export const idempotencyKey = z.string().min(8).max(64).regex(/^[A-Za-z0-9_-]+$/);
 
@@ -27,7 +32,11 @@ export const createEventSchema = z.object({
   note: plain(500).default(""),
   displayName,
   intent: intent.default("WILL_PAY_ONLY"),
+  /** Settle-up currency (D58). */
+  currency: currencyCode.default("PHP"),
 });
+
+export const setCurrencySchema = z.object({ currency: currencyCode, expectedFinancialVersion: z.number().int().positive() });
 
 export const joinSchema = z.object({ code: z.string().min(1).max(20), displayName, intent: intent.default("WILL_PAY_ONLY") });
 
@@ -83,6 +92,11 @@ export const receiptSchema = z.object({
   label: plain(80, 1),
   equalSplit: z.boolean().default(false),
   payerMemberId: id,
+  /** The receipt's printed currency (default: the event's settle-up currency on create, unchanged on edit). */
+  currency: currencyCode.optional(),
+  /** The day it was bought (default: today in Manila on create, unchanged on edit). */
+  purchasedOn: calendarDay.optional(),
+  /** Minor units of `currency`. */
   payable: centavos,
   lines: z.array(lineSchema).min(1).max(50),
   adjustments: z.array(adjustmentSchema).max(20).default([]),
@@ -110,10 +124,15 @@ export const instructionsSchema = z.object({
   qrLabel: plain(60).default(""),
   /** Keep the current QR image, or remove it. New QR images arrive via upload. */
   keepQr: z.boolean().default(true),
+  /** Currencies I accept payment in (D58); empty = the event's defaults. */
+  acceptedCurrencies: z.array(currencyCode).max(17).default([]),
 });
 
 export const reportSchema = z.object({
+  /** Credit against the transfer, in the event's settle-up currency. */
   amount: positiveCentavos,
+  /** Sent in another currency (D58): what was sent, and the rate date the phone showed. */
+  paid: z.object({ currency: currencyCode, amount: positiveCentavos, rateDate: calendarDay }).optional(),
   method: z.enum(["CASH", "QR"]),
   note: plain(200).default(""),
   idempotencyKey,

@@ -1,4 +1,5 @@
 import { ConflictError, PermissionError, ValidationError } from "../errors";
+import { formatMinor } from "../money/Currency";
 
 export type ReportStatus = "REPORTED" | "VERIFIED" | "REJECTED" | "CANCELLED";
 
@@ -52,6 +53,8 @@ export class PaymentLedger {
     private readonly edges: readonly LedgerEdge[],
     private readonly reports: readonly LedgerReport[],
     private readonly disputes: readonly LedgerDispute[] = [],
+    /** The event's settle-up currency; amounts are its minor units. Used only in messages. */
+    private readonly currency = "PHP",
   ) {}
 
   edgeStates(): EdgeState[] {
@@ -99,7 +102,7 @@ export class PaymentLedger {
       throw new ConflictError("edge_disputed", "Resolve this before paying again");
     }
     if (amount > s.capacity) {
-      throw new ConflictError("over_report", `At most PHP ${fmt(s.capacity)} can be reported on this transfer right now`, {
+      throw new ConflictError("over_report", `At most ${formatMinor(s.capacity, this.currency)} can be reported on this transfer right now`, {
         capacity: s.capacity.toString(),
       });
     }
@@ -129,10 +132,4 @@ export class PaymentLedger {
     }
     return blockers;
   }
-}
-
-function fmt(c: bigint): string {
-  const neg = c < 0n;
-  const a = neg ? -c : c;
-  return `${neg ? "-" : ""}${(a / 100n).toLocaleString("en-PH")}.${(a % 100n).toString().padStart(2, "0")}`;
 }

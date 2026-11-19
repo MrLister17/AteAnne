@@ -31,6 +31,7 @@ function view(phase: NextActionInput["phase"], extra: Partial<NextActionInput> =
         authorId: "a",
         payerId: "a",
         payable: 10_001n,
+        currency: "PHP",
         equalSplit: false,
         fundingAcknowledged: false,
         reconciled: true,
@@ -71,7 +72,7 @@ describe("manual Messenger reminders", () => {
     expect(rows[0].tasks).toHaveLength(1); // Mark: only the payment confirmation; his claim is current
     expect(rows[1].tasks.join(" ")).toContain("or say you had nothing");
     const paid = view("ALLOCATING", {
-      receipts: [{ id: "r", label: "Cafe", authorId: "a", payerId: "a", payable: 10_001n, equalSplit: false, fundingAcknowledged: true, reconciled: true, answers: [{ memberId: "a", kind: "FINISHED", stale: false }, { memberId: "b", kind: "NONE", stale: true }] }],
+      receipts: [{ id: "r", label: "Cafe", authorId: "a", payerId: "a", payable: 10_001n, currency: "PHP", equalSplit: false, fundingAcknowledged: true, reconciled: true, answers: [{ memberId: "a", kind: "FINISHED", stale: false }, { memberId: "b", kind: "NONE", stale: true }] }],
     });
     expect(remindersFor(paid).map((r) => r.memberId)).toEqual(["b"]);
     expect(remindersFor(paid)[0].tasks[0]).toContain("or say you had nothing");

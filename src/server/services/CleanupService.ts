@@ -2,6 +2,7 @@ import type { Db } from "../db";
 import type { PrivateStorage } from "../storage/PrivateStorage";
 import type { EventService } from "./EventService";
 import { RetentionPolicy } from "@/domain/event/RetentionPolicy";
+import type { RateService } from "../fx/RateService";
 
 /**
  * Daily housekeeping: expired sessions, stale rate-limit buckets, abandoned
@@ -17,6 +18,7 @@ export class CleanupService {
     private readonly storage: PrivateStorage,
     private readonly events: EventService,
     private readonly retention = new RetentionPolicy(),
+    private readonly rates: RateService | null = null,
   ) {}
 
   async run(now = new Date()) {
@@ -43,6 +45,9 @@ export class CleanupService {
     }
     // Fully paid events close a day after their last payment activity (D49).
     const closedEvents = await this.events.closeSettledEvents(now);
-    return { sessions: sessions.count, rateBuckets: buckets.count, orphanAssets: orphans.length, purgedEvents, closedEvents };
+    // Last night's ECB rates (D61), then freeze any bill that was only waiting for one.
+    const rateDays = this.rates ? await this.rates.refreshForOpenEvents() : 0;
+    const frozenEvents = await this.events.freezeWaitingEvents();
+    return { sessions: sessions.count, rateBuckets: buckets.count, orphanAssets: orphans.length, purgedEvents, closedEvents, rateDays, frozenEvents };
   }
 }

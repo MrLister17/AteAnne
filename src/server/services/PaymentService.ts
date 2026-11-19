@@ -7,6 +7,10 @@ import type { EventAggregate } from "../aggregate/EventAggregate";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import { decisionSchema, disputeChoiceSchema, instructionsSchema, rejectSchema, reportSchema, reverseSchema } from "../validation";
 import { BaseService, Caller, callerParts } from "./BaseService";
+import { Decimal, ExchangeRate, rateFromDay } from "@/domain/fx/ExchangeRate";
+import { formatMinor, manilaDay } from "@/domain/money/Currency";
+import { ForeignPayment } from "@/domain/payments/ForeignPayment";
+import { RateService } from "../fx/RateService";
 
 /**
  * Settlement phase: payment instructions, sender reports, recipient-only
@@ -20,8 +24,13 @@ export class PaymentService extends BaseService {
   constructor(
     db: Db,
     private readonly limiter: RateLimiter,
+    private readonly rates: RateService | null = null,
   ) {
     super(db);
+  }
+
+  private today(): string {
+    return this.rates?.today() ?? manilaDay();
   }
 
   private findEdge(agg: EventAggregate, edgeId: string) {
@@ -73,10 +82,11 @@ export class PaymentService extends BaseService {
       if (!data.acceptsCash && !qrAssetId) throw new ValidationError("no_method", "Accept cash, upload a QR, or both");
       const version = (current?.version ?? 0) + 1;
       await tx.paymentInstruction.updateMany({ where: { memberId: me.id, current: true }, data: { current: false } });
+      const acceptedCurrencies = [...new Set(data.acceptedCurrencies)];
       await tx.paymentInstruction.create({
-        data: { memberId: me.id, version, acceptsCash: data.acceptsCash, cashNote: data.cashNote, qrAssetId, qrLabel: data.qrLabel },
+        data: { memberId: me.id, version, acceptsCash: data.acceptsCash, cashNote: data.cashNote, qrAssetId, qrLabel: data.qrLabel, acceptedCurrencies },
       });
-      await this.audit(tx, eventId, me.id, "instructions.updated", { version, cash: data.acceptsCash, qr: Boolean(qrAssetId) });
+      await this.audit(tx, eventId, me.id, "instructions.updated", { version, cash: data.acceptsCash, qr: Boolean(qrAssetId), currencies: acceptedCurrencies });
       void agg;
       return { version };
     });
@@ -87,11 +97,18 @@ export class PaymentService extends BaseService {
     const eventId = await this.eventIdForEdge(edgeId);
     // Counted before the event lock so it never holds a second connection (D57).
     await this.limiter.hit(RATE_RULES.financialSavesPerPerson, `${eventId}:${callerParts(caller).actorId}`);
+    // Today's rate is fetched before the lock too; inside, only the cache is read.
+    if (data.paid && this.rates) await this.rates.ensureDays([this.today()]);
     return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
+      // Sent in the settle-up currency itself: an ordinary report.
+      const paid = data.paid && data.paid.currency !== agg.currency ? data.paid : undefined;
+      if (data.paid && !paid && data.paid.amount !== data.amount) throw new ValidationError("amount_mismatch", "The amount sent and the amount credited must match");
       // Idempotent replay: same sender + key returns the original record.
       const prior = await tx.paymentReport.findUnique({ where: { senderMemberId_idempotencyKey: { senderMemberId: me.id, idempotencyKey: data.idempotencyKey } } });
       if (prior) {
-        if (prior.edgeId !== edgeId || prior.amountCentavos !== data.amount) throw new ConflictError("idempotency_mismatch", "This request key was already used for a different payment");
+        if (prior.edgeId !== edgeId || prior.amountCentavos !== data.amount || (prior.paidCurrency ?? null) !== (paid?.currency ?? null) || (prior.paidMinor ?? null) !== (paid?.amount ?? null)) {
+          throw new ConflictError("idempotency_mismatch", "This request key was already used for a different payment");
+        }
         return { reportId: prior.id, replayed: true };
       }
       agg.machine.assertIn("SETTLING");
@@ -106,9 +123,12 @@ export class PaymentService extends BaseService {
         }
         replaces = data.replacesReportId;
       }
-      ledger.assertCanReport(edgeId, me.id, data.amount, { isAgreedReplacement: Boolean(replaces) });
-
       const instruction = await tx.paymentInstruction.findFirst({ where: { memberId: edge.toMemberId, current: true } });
+      const foreign = paid ? await this.foreignCredit(tx, agg, edge, ledger.edgeState(edgeId).capacity, paid, instruction?.acceptedCurrencies ?? [], replaces) : null;
+      if (foreign && foreign.credit !== data.amount) {
+        throw new ConflictError("rate_changed", `At today's rate, ${formatMinor(paid!.amount, paid!.currency)} counts as ${formatMinor(foreign.credit, agg.currency)}. Check the amount again.`, { rate: foreign.rate.toWire(), credit: foreign.credit.toString() });
+      }
+      ledger.assertCanReport(edgeId, me.id, data.amount, { isAgreedReplacement: Boolean(replaces) });
       if (data.method === "QR" && !instruction?.qrAssetId) throw new ValidationError("no_qr", "The recipient has not shared a payment QR");
       const report = await tx.paymentReport.create({
         data: {
@@ -116,6 +136,9 @@ export class PaymentService extends BaseService {
           senderMemberId: me.id,
           recipientMemberId: edge.toMemberId,
           amountCentavos: data.amount,
+          ...(foreign
+            ? { paidCurrency: paid!.currency, paidMinor: paid!.amount, rate: foreign.rate.rateText(), rateDate: new Date(`${foreign.rate.date}T00:00:00Z`), rateSource: foreign.rate.source }
+            : {}),
           method: data.method,
           instructionId: instruction?.id ?? null,
           note: data.note,
@@ -127,9 +150,50 @@ export class PaymentService extends BaseService {
       if (replaces && openDispute) {
         await tx.dispute.update({ where: { id: openDispute.id }, data: { status: "RESOLVED", resolution: "REPLACEMENT", resolvedAt: new Date() } });
       }
-      await this.audit(tx, eventId, me.id, "payment.reported", { reportId: report.id, edgeId, amount: data.amount.toString(), method: data.method, replaces: replaces ?? null });
+      await this.audit(tx, eventId, me.id, "payment.reported", {
+        reportId: report.id,
+        edgeId,
+        amount: data.amount.toString(),
+        method: data.method,
+        replaces: replaces ?? null,
+        ...(foreign ? { paid: { currency: paid!.currency, amount: paid!.amount.toString(), rate: foreign.rate.rateText(), rateDate: foreign.rate.date } } : {}),
+      });
       return { reportId: report.id, replayed: false };
     });
+  }
+
+  /**
+   * Credit for money sent in another currency (rule 8): the receiver must
+   * accept that currency, the rate is the one for the day it's sent (an
+   * agreed replacement reuses the rejected payment's rate: same money), and
+   * the phone must have shown that same rate.
+   */
+  private async foreignCredit(
+    tx: Parameters<Parameters<BaseService["inEvent"]>[2]>[0]["tx"],
+    agg: EventAggregate,
+    edge: { id: string; toMemberId: string; reports: { id: string; paidCurrency: string | null; rate: string | null; rateDate: Date | null; rateSource: string | null }[] },
+    capacity: bigint,
+    paid: { currency: string; amount: bigint; rateDate: string },
+    accepted: string[],
+    replaces: string | undefined,
+  ): Promise<{ credit: bigint; rate: ExchangeRate }> {
+    if (!agg.acceptedCurrencies(accepted).includes(paid.currency)) {
+      throw new ValidationError("currency_not_accepted", `${agg.member(edge.toMemberId).displayName} doesn't accept ${paid.currency}. Pay in ${agg.currency}, or ask them.`);
+    }
+    let rate: ExchangeRate | null;
+    const rejected = replaces ? edge.reports.find((r) => r.id === replaces) : undefined;
+    if (rejected?.paidCurrency) {
+      if (rejected.paidCurrency !== paid.currency) throw new ValidationError("replacement_currency", `Record the same money: it was sent in ${rejected.paidCurrency}.`);
+      rate = new ExchangeRate(paid.currency, agg.currency, Decimal.parse(rejected.rate!), rejected.rateDate!.toISOString().slice(0, 10), rejected.rateSource!);
+    } else {
+      const today = this.today();
+      rate = rateFromDay((await RateService.load(tx, [today])).get(today), paid.currency, agg.currency);
+      if (!rate) throw new ConflictError("rate_unavailable", `Today's exchange rate isn't available yet. Pay in ${agg.currency}, or try again later.`);
+    }
+    if (rate.date !== paid.rateDate) {
+      throw new ConflictError("rate_changed", `The exchange rate changed (now ${rate.date}). Check the new amount.`, { rate: rate.toWire() });
+    }
+    return { credit: new ForeignPayment(rate).creditFor(paid.amount, capacity), rate };
   }
 
   async cancel(caller: Caller, reportId: string): Promise<void> {

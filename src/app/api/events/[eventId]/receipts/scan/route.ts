@@ -19,5 +19,6 @@ export const POST = route<{ eventId: string }>(async (ctx) => {
   const file = form.get("file");
   if (!(file instanceof Blob)) throw new HttpError(400, "file_required", "Take or choose a photo of the receipt");
   if (file.size > MAX_UPLOAD_BYTES) throw new HttpError(413, "file_too_large", "Images must be 8 MB or smaller");
-  return ctx.app.scans.scan(actorId, ctx.params.eventId, Buffer.from(await file.arrayBuffer()));
+  const hint = form.get("currency");
+  return ctx.app.scans.scan(actorId, ctx.params.eventId, Buffer.from(await file.arrayBuffer()), typeof hint === "string" ? hint : null);
 });

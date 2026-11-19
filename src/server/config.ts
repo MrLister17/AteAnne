@@ -25,6 +25,10 @@ const schema = z.object({
   RECEIPT_SCAN_PROVIDER: z.enum(["auto", "groq", "claude"]).default("auto"),
   /** Test/demo only: deterministic fake reader. Ignored on Vercel production. */
   RECEIPT_SCAN_FAKE: z.enum(["0", "1"]).default("0"),
+  /** Test/demo only: fixed exchange rates instead of the ECB. Ignored on Vercel production. */
+  FX_RATES_FAKE: z.enum(["0", "1"]).default("0"),
+  /** Optional override for the ECB rate source (Frankfurter-compatible base URL). */
+  FX_RATES_URL: z.string().url().optional(),
   /** Set by Vercel Cron; accepted as the cleanup bearer token. */
   CRON_SECRET: z.string().optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -33,7 +37,7 @@ const schema = z.object({
 export type AppConfig = z.infer<typeof schema> & { secureCookies: boolean };
 
 /** Optional settings where a blank value means "not set" (a blank box in a hosting dashboard must not break the app). */
-const OPTIONAL_KEYS = ["APP_ORIGIN", "STORAGE_DRIVER", "PRIVATE_UPLOAD_DIR", "CLEANUP_TOKEN", "EVENT_RETENTION_DAYS", "ANTHROPIC_API_KEY", "RECEIPT_SCAN_MODEL", "GROQ_API_KEY", "GROQ_VISION_MODEL", "RECEIPT_SCAN_PROVIDER", "RECEIPT_SCAN_FAKE", "CRON_SECRET"] as const;
+const OPTIONAL_KEYS = ["APP_ORIGIN", "STORAGE_DRIVER", "PRIVATE_UPLOAD_DIR", "CLEANUP_TOKEN", "EVENT_RETENTION_DAYS", "ANTHROPIC_API_KEY", "RECEIPT_SCAN_MODEL", "GROQ_API_KEY", "GROQ_VISION_MODEL", "RECEIPT_SCAN_PROVIDER", "RECEIPT_SCAN_FAKE", "CRON_SECRET", "FX_RATES_FAKE", "FX_RATES_URL"] as const;
 /** Common ways the Groq key gets named by mistake; compared ignoring case and punctuation. */
 const GROQ_KEY_ALIASES = new Set(["GROQAPIKEY", "GROQKEY", "GROQAPI", "GROQTOKEN", "GROQAPITOKEN", "GROQSECRETKEY", "GROQSECRET", "GROQCLOUDAPIKEY"]);
 const squash = (name: string) => name.toUpperCase().replace(/[^A-Z0-9]/g, "");

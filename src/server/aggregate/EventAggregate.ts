@@ -7,6 +7,9 @@ import type { ReceiptInput } from "@/domain/receipt/types";
 import { PermissionError } from "@/domain/errors";
 import { GuestPolicy } from "@/domain/event/GuestPolicy";
 import { CorrectionLedger } from "@/domain/settlement/CorrectionLedger";
+import { formatMinor } from "@/domain/money/Currency";
+import { DayRates, ExchangeRate, rateFromDay } from "@/domain/fx/ExchangeRate";
+import { receiptDay } from "../fx/RateService";
 import { NotFoundError } from "../http/HttpError";
 import type { EVENT_INCLUDE } from "./EventRepository";
 
@@ -24,6 +27,8 @@ export const MAX_MEMBERS = 20;
 export const MAX_RECEIPTS = 25;
 export const MAX_LINES = 50;
 export const POLICY_VERSION = "ateanne-allocation-v2";
+/** Frozen bills with at least one receipt converted from another currency (D58/D61). */
+export const POLICY_VERSION_FX = "ateanne-allocation-v3";
 
 /**
  * Aggregate root for one event. Wraps the loaded records and answers every
@@ -35,10 +40,49 @@ export class EventAggregate {
   private readonly ledger = new EventLedger();
   private calcCache?: EventCalculation;
 
-  constructor(public readonly record: EventRecord) {}
+  /** `rates`: cached daily ECB tables for the days this event's foreign receipts were bought. */
+  constructor(
+    public readonly record: EventRecord,
+    private readonly rates: ReadonlyMap<string, DayRates> = new Map(),
+  ) {}
 
   get id(): string {
     return this.record.id;
+  }
+
+  /** Every share, balance and transfer is in this currency (D58). */
+  get currency(): string {
+    return this.record.currency;
+  }
+
+  /** The day a receipt was bought (its rate day, D61). */
+  receiptDay(r: ReceiptRecord): string {
+    return receiptDay(r);
+  }
+
+  /** Rate from a receipt's currency to the settle-up currency, for its purchase day; null when the same currency or not cached yet. */
+  receiptRate(r: ReceiptRecord): ExchangeRate | null {
+    if (r.currency === this.currency) return null;
+    return rateFromDay(this.rates.get(this.receiptDay(r)), r.currency, this.currency);
+  }
+
+  /** Every currency used by a receipt here, settle-up currency first. */
+  currenciesUsed(): string[] {
+    return [...new Set([this.currency, ...this.record.receipts.map((r) => r.currency)])];
+  }
+
+  /**
+   * Currencies a receiver takes (D58): what they ticked, or by default the
+   * settle-up currency plus every receipt currency. The settle-up currency is
+   * always accepted: it's the transfer's own currency.
+   */
+  acceptedCurrencies(ticked: readonly string[]): string[] {
+    return ticked.length ? [...new Set([this.currency, ...ticked])] : this.currenciesUsed();
+  }
+
+  /** True once any receipt is converted (the frozen bill then uses policy v3). */
+  hasForeignReceipts(): boolean {
+    return this.record.receipts.some((r) => r.currency !== this.currency);
   }
   get phase(): Phase {
     return this.record.phase;
@@ -118,6 +162,7 @@ export class EventAggregate {
       label: r.label,
       payerId: r.payerMemberId,
       payable: r.payableCentavos,
+      ...(r.currency !== this.currency ? { conversion: { currency: r.currency, day: this.receiptDay(r), rate: this.receiptRate(r) } } : {}),
       ...(r.equalSplit ? { equalSplit: { memberIds: this.activeMembers().map((m) => m.id) } } : {}),
       lines: r.lines.map((l) => ({
         id: l.id,
@@ -184,7 +229,7 @@ export class EventAggregate {
       for (const issue of rec.issues) blockers.push(`${r.label}: ${issue.message}`);
       const payer = this.member(r.payerMemberId);
       if (!payer.active) blockers.push(`${r.label}: the payer is no longer on the roster.`);
-      if (!this.fundingAcknowledged(r)) blockers.push(`${r.label}: ${payer.displayName} has not confirmed paying PHP ${fmt(r.payableCentavos)}.`);
+      if (!this.fundingAcknowledged(r)) blockers.push(`${r.label}: ${payer.displayName} has not confirmed paying ${formatMinor(r.payableCentavos, r.currency)}.`);
     }
     return { ready: blockers.length === 0, blockers };
   }
@@ -257,7 +302,7 @@ export class EventAggregate {
     const disputes: LedgerDispute[] = snapshot.edges.flatMap((e) =>
       e.disputes.map((d) => ({ edgeId: e.id, open: d.status !== "RESOLVED", awaitingReplacement: d.status === "AWAITING_REPLACEMENT" })),
     );
-    return new PaymentLedger(edges, reports, disputes);
+    return new PaymentLedger(edges, reports, disputes, this.currency);
   }
 
   /** Latest money event on the active statement; the daily job closes a paid event a day after it (D49). */
@@ -284,9 +329,9 @@ export class EventAggregate {
     const blockers: string[] = [];
     for (const s of this.paymentLedger(snapshot)!.edgeStates()) {
       const label = `${name(s.edge.from)} → ${name(s.edge.to)}`;
-      if (s.pending > 0n) blockers.push(`${label}: PHP ${fmt(s.pending)} awaiting confirmation.`);
+      if (s.pending > 0n) blockers.push(`${label}: ${formatMinor(s.pending, this.currency)} awaiting confirmation.`);
       if (s.disputed) blockers.push(`${label}: a rejected report is unresolved.`);
-      if (s.outstanding > 0n) blockers.push(`${label}: PHP ${fmt(s.outstanding)} not yet confirmed received.`);
+      if (s.outstanding > 0n) blockers.push(`${label}: ${formatMinor(s.outstanding, this.currency)} not yet confirmed received.`);
     }
     const remaining = this.remainingNets(snapshot.shares.map((s) => [s.memberId, s.netCentavos] as const));
     for (const [id, amount] of remaining) if (amount !== 0n) blockers.push(`${name(id)}: a non-zero balance remains.`);

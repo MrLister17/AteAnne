@@ -1,4 +1,7 @@
+import type { ExchangeRate } from "../fx/ExchangeRate";
+import { shortDay } from "../money/Currency";
 import { ReceiptCalculator } from "../receipt/ReceiptCalculator";
+import { ReceiptConverter } from "../receipt/ReceiptConverter";
 import { CalculationIssue, MemberReceiptShare, ReceiptInput } from "../receipt/types";
 import { SettlementPlanner, TransferEdge } from "../settlement/SettlementPlanner";
 
@@ -16,8 +19,16 @@ export interface ReceiptStatement {
   receiptId: string;
   label: string;
   payerId: string;
+  /** In the receipt's own currency. */
   payable: bigint;
+  /** In the receipt's own currency. */
   shares: Map<string, MemberReceiptShare>;
+  /** The rate used to reach the settle-up currency; null when the receipt is already in it. */
+  rate: ExchangeRate | null;
+  /** Payable in the settle-up currency (= payable when rate is null). */
+  settlePayable: bigint;
+  /** Each person's total share in the settle-up currency; Σ = settlePayable. */
+  settleShares: Map<string, bigint>;
 }
 
 export type EventCalculation =
@@ -25,7 +36,9 @@ export type EventCalculation =
   | { ok: false; issues: CalculationIssue[] };
 
 /**
- * Aggregates every receipt in an event into per-member funding, cost and net,
+ * Aggregates every receipt in an event into per-member funding, cost and net
+ * (in the settle-up currency: receipts in other currencies are converted at
+ * the rate of the day they were bought, D61),
  * checks conservation (Σ funding = Σ cost, Σ net = 0) and proposes the
  * deterministic transfer edges.
  */
@@ -33,6 +46,7 @@ export class EventLedger {
   constructor(
     private readonly calculator = new ReceiptCalculator(),
     private readonly planner = new SettlementPlanner(),
+    private readonly converter = new ReceiptConverter(),
   ) {}
 
   calculate(receipts: readonly ReceiptInput[], memberOrder: readonly string[]): EventCalculation {
@@ -40,8 +54,27 @@ export class EventLedger {
     const statements: ReceiptStatement[] = [];
     for (const receipt of receipts) {
       const result = this.calculator.calculate(receipt, memberOrder);
-      if (!result.ok) issues.push(...result.issues);
-      else statements.push({ receiptId: receipt.id, label: receipt.label, payerId: receipt.payerId, payable: receipt.payable, shares: result.shares });
+      if (!result.ok) {
+        issues.push(...result.issues);
+        continue;
+      }
+      const conversion = receipt.conversion;
+      if (conversion && !conversion.rate) {
+        issues.push({ code: "RATE_UNAVAILABLE", receiptId: receipt.id, message: `Waiting for the ${shortDay(conversion.day)} ${conversion.currency} exchange rate.` });
+        continue;
+      }
+      const rate = conversion?.rate ?? null;
+      const settle = this.converter.convert(receipt.payable, result.shares, memberOrder, rate);
+      statements.push({
+        receiptId: receipt.id,
+        label: receipt.label,
+        payerId: receipt.payerId,
+        payable: receipt.payable,
+        shares: result.shares,
+        rate,
+        settlePayable: settle.payable,
+        settleShares: settle.shares,
+      });
     }
     if (issues.length) return { ok: false, issues };
 
@@ -49,11 +82,11 @@ export class EventLedger {
     for (const st of statements) {
       const payer = positions.get(st.payerId);
       if (!payer) throw new Error(`Receipt ${st.receiptId} payer is not on the roster`);
-      payer.funding += st.payable;
-      for (const share of st.shares.values()) {
-        const p = positions.get(share.memberId);
+      payer.funding += st.settlePayable;
+      for (const [memberId, total] of st.settleShares) {
+        const p = positions.get(memberId);
         if (!p) throw new Error(`Receipt ${st.receiptId} allocates to a non-roster member`);
-        p.cost += share.total;
+        p.cost += total;
       }
     }
     let funding = 0n;

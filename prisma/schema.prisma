@@ -100,6 +100,9 @@ model Event {
   note                String     @default("") @db.VarChar(500)
   phase               Phase      @default(COLLECTING)
   cancelled           Boolean    @default(false)
+  /// Settle-up currency (D58): every share, balance and transfer is in it.
+  /// Receipts in other currencies convert at the rate of the day they were bought.
+  currency            String     @default("PHP") @db.Char(3)
   ownerMemberId       String?    @unique
   /// HMAC-SHA256(JOIN_CODE_HASH_KEY, normalized code). Null once joins close.
   joinCodeHash        String?    @unique
@@ -182,7 +185,13 @@ model Receipt {
   payerMemberId    String
   payer            Member    @relation("ReceiptPayer", fields: [payerMemberId], references: [id], onDelete: Restrict)
   label            String    @db.VarChar(80)
+  /// Minor units of `currency` (the name predates multi-currency support).
   payableCentavos  BigInt
+  /// The currency printed on the receipt (D58).
+  currency         String    @default("PHP") @db.Char(3)
+  /// The day it was bought (Asia/Manila calendar); null = the day it was entered.
+  /// Its exchange rate is that day's ECB rate (D61).
+  purchasedOn      DateTime? @db.Date
   /// Everyone on the locked roster explicitly accepts the whole receipt equally.
   equalSplit       Boolean   @default(false)
   /// Bumped on every edit; claims/acks from older versions become stale drafts.
@@ -349,6 +358,8 @@ model PaymentInstruction {
   qrAssetId  String?
   qrAsset    Asset?         @relation(fields: [qrAssetId], references: [id], onDelete: Restrict)
   qrLabel    String         @default("") @db.VarChar(60)
+  /// Currencies this person accepts payment in; empty = the event's defaults.
+  acceptedCurrencies String[] @default([])
   current    Boolean        @default(true)
   createdAt  DateTime       @default(now())
 
@@ -365,7 +376,15 @@ model PaymentReport {
   sender             Member         @relation("ReportSender", fields: [senderMemberId], references: [id], onDelete: Restrict)
   recipientMemberId  String
   recipient          Member         @relation("ReportRecipient", fields: [recipientMemberId], references: [id], onDelete: Restrict)
+  /// Credit against the transfer, in the event's settle-up currency.
   amountCentavos     BigInt
+  /// Set only when the money was sent in another currency (D58): what was sent,
+  /// and the rate locked for the day it was sent ("1 paidCurrency = rate settle-up").
+  paidCurrency       String?        @db.Char(3)
+  paidMinor          BigInt?
+  rate               String?        @db.VarChar(40)
+  rateDate           DateTime?      @db.Date
+  rateSource         String?        @db.VarChar(20)
   method             PaymentMethod
   instructionId      String?
   instruction        PaymentInstruction? @relation(fields: [instructionId], references: [id], onDelete: Restrict)
@@ -450,6 +469,20 @@ model AuditEvent {
   createdAt      DateTime @default(now())
 
   @@index([eventId, createdAt])
+}
+
+/// Daily ECB reference rates, cached per asked-for day (Asia/Manila calendar).
+/// `perEur` holds decimal strings exactly as published ({"PHP": "61.54", ...}).
+/// Not event data: shared by every event, never deleted by the retention job.
+model ExchangeRate {
+  source         String   @db.VarChar(20)
+  day            DateTime @db.Date
+  /// The ECB publication date used for `day` (the same day, or the latest before it).
+  effectiveDate  DateTime @db.Date
+  perEur         Json
+  fetchedAt      DateTime @default(now())
+
+  @@id([source, day])
 }
 
 /// Fixed-window rate limit counters (DB-backed, survives restarts).

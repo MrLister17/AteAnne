@@ -22,7 +22,9 @@ export interface NextActionInput {
     label: string;
     authorId: string;
     payerId: string;
+    /** In the receipt's own currency. */
     payable: bigint;
+    currency: string;
     equalSplit: boolean;
     fundingAcknowledged: boolean;
     reconciled: boolean;
@@ -39,7 +41,8 @@ export interface NextActionInput {
     settled: boolean;
     disputed: boolean;
     dispute: { status: string; senderChoice: string | null; recipientChoice: string | null } | null;
-    pendingReports: { id: string; amount: bigint; version: number }[];
+    /** `amount` is the credit (settle-up currency); `paid` is set when the money was sent in another currency. */
+    pendingReports: { id: string; amount: bigint; version: number; paid?: { currency: string; amount: bigint } | null }[];
   }[];
   /** Members who have shared how they want to be paid (cash or QR). */
   withPaymentDetails: string[];
@@ -50,14 +53,14 @@ export interface NextActionInput {
 /** One thing one person can do now. */
 export type Task =
   | { kind: "recheck"; receiptId: string; label: string }
-  | { kind: "confirmPaid"; receiptId: string; label: string; amount: bigint }
+  | { kind: "confirmPaid"; receiptId: string; label: string; amount: bigint; currency: string }
   | { kind: "claim"; receiptId: string; label: string }
   | { kind: "fixReceipt"; receiptId: string; label: string; reason: "doesntAddUp" | "disagreed" }
   | { kind: "doneAdding" }
   | { kind: "everyoneHere" }
   | { kind: "freeze"; corrected: boolean }
   | { kind: "sortOut"; transferId: string; withId: string; amount: bigint; recordAgain: boolean }
-  | { kind: "confirmReceived"; transferId: string; reportId: string; reportVersion: number; fromId: string; amount: bigint }
+  | { kind: "confirmReceived"; transferId: string; reportId: string; reportVersion: number; fromId: string; amount: bigint; paid?: { currency: string; amount: bigint } | null }
   | { kind: "shareDetails" }
   | { kind: "pay"; transferId: string; toId: string; amount: bigint; received: bigint };
 
@@ -161,7 +164,7 @@ export class NextActions {
       }
     }
     for (const r of f.receipts) {
-      if (r.payerId === memberId && !r.fundingAcknowledged && r.reconciled) out.push({ kind: "confirmPaid", receiptId: r.id, label: r.label, amount: r.payable });
+      if (r.payerId === memberId && !r.fundingAcknowledged && r.reconciled) out.push({ kind: "confirmPaid", receiptId: r.id, label: r.label, amount: r.payable, currency: r.currency });
     }
     if (claimsOpen) {
       for (const r of f.receipts) {
@@ -200,7 +203,7 @@ export class NextActions {
     }
     for (const t of f.transfers) {
       if (t.to !== memberId) continue;
-      for (const r of t.pendingReports) out.push({ kind: "confirmReceived", transferId: t.id, reportId: r.id, reportVersion: r.version, fromId: t.from, amount: r.amount });
+      for (const r of t.pendingReports) out.push({ kind: "confirmReceived", transferId: t.id, reportId: r.id, reportVersion: r.version, fromId: t.from, amount: r.amount, ...(r.paid ? { paid: r.paid } : {}) });
     }
     if (!f.withPaymentDetails.includes(memberId) && f.transfers.some((t) => t.to === memberId && !t.settled)) out.push({ kind: "shareDetails" });
     for (const t of f.transfers) {

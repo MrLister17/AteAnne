@@ -5,6 +5,14 @@ import type { EventService } from "../services/EventService";
 import { RetentionPolicy } from "@/domain/event/RetentionPolicy";
 import { SettlementPlanner } from "@/domain/settlement/SettlementPlanner";
 import { NextActions, toWire, type NextActionInput } from "@/domain/event/NextAction";
+import { CURRENCIES } from "@/domain/money/Currency";
+import { RateService } from "../fx/RateService";
+
+/** Payment sent in another currency, as stored on a report. */
+function paidView(r: { paidCurrency: string | null; paidMinor: bigint | null; rate: string | null; rateDate: Date | null; rateSource: string | null }) {
+  if (!r.paidCurrency || r.paidMinor === null || !r.rate || !r.rateDate) return null;
+  return { currency: r.paidCurrency, amount: r.paidMinor.toString(), rate: r.rate, rateDate: r.rateDate.toISOString().slice(0, 10), source: r.rateSource ?? "ecb" };
+}
 
 const s = (v: bigint) => v.toString();
 
@@ -19,6 +27,7 @@ export class EventViewBuilder {
     private readonly events: EventService,
     private readonly retention = new RetentionPolicy(),
     private readonly features: { receiptScan: boolean } = { receiptScan: false },
+    private readonly rates: RateService | null = null,
   ) {}
 
   /** `me` is whose view this is; `by` is the signed-in person (differs only when acting for a guest). */
@@ -50,9 +59,23 @@ export class EventViewBuilder {
     const calc = agg.calculation();
     const remaining = calc.ok ? agg.remainingNets(calc.positions.map((p) => [p.memberId, p.net] as const)) : new Map<string, bigint>();
     const joinCode = isOwner ? this.events.revealCode(e) : null;
+    const today = this.rates?.today() ?? null;
+    const todayRates = today ? ((await RateService.load(this.db, [today])).get(today) ?? null) : null;
 
     return {
       features: this.features,
+      /** Multi-currency support (D58–D62). */
+      fx: {
+        /** Every currency AteAnne supports (code, name, symbol, decimals). */
+        supported: CURRENCIES,
+        /** Settle-up currency first, then every receipt currency used here. */
+        used: agg.currenciesUsed(),
+        /** Today's cached ECB table (per euro), for "Show totals in" and paying in another currency; null when unavailable. */
+        today: todayRates,
+        /** Today in Manila (the day a payment's rate is for). */
+        day: today,
+        source: this.rates?.source ?? "off",
+      },
       me: {
         memberId: me.id,
         isOwner,
@@ -71,6 +94,8 @@ export class EventViewBuilder {
         id: e.id,
         title: e.title,
         note: e.note,
+        /** Settle-up currency: positions and transfers are in it. */
+        currency: e.currency,
         phase: e.phase,
         cancelled: e.cancelled,
         financialVersion: e.financialVersion,
@@ -101,11 +126,21 @@ export class EventViewBuilder {
       })),
       receipts: e.receipts.map((r) => {
         const rec = agg.reconciliation(r);
+        const rate = agg.receiptRate(r);
+        const foreign = r.currency !== e.currency;
         return {
           id: r.id,
           label: r.label,
           payerId: r.payerMemberId,
           authorId: r.authorMemberId,
+          /** The receipt's own currency; every amount on this receipt is in it. */
+          currency: r.currency,
+          purchasedOn: agg.receiptDay(r),
+          /** Purchase-day rate to the settle-up currency (D61); null when already in it or not cached yet. */
+          rate: rate ? rate.toWire() : null,
+          rateMissing: foreign && !rate,
+          /** Payable in the settle-up currency, when convertible. */
+          settlePayable: rate ? s(rate.convert(r.payableCentavos)) : foreign ? null : s(r.payableCentavos),
           payable: s(r.payableCentavos),
           equalSplit: r.equalSplit,
           version: r.version,
@@ -167,6 +202,11 @@ export class EventViewBuilder {
             edges: new SettlementPlanner().plan([...remaining]).map((x) => ({ from: x.from, to: x.to, amount: s(x.amount) })),
             receipts: calc.receipts.map((st) => ({
               receiptId: st.receiptId,
+              rate: st.rate ? st.rate.toWire() : null,
+              settlePayable: s(st.settlePayable),
+              /** Each person's share in the settle-up currency (Σ = settlePayable). */
+              settleShares: Object.fromEntries([...st.settleShares].map(([k, v]) => [k, s(v)])),
+              /** In the receipt's own currency. */
               shares: [...st.shares.values()].map((sh) => ({
                 memberId: sh.memberId,
                 lines: Object.fromEntries([...sh.lineShares].map(([k, v]) => [k, s(v)])),
@@ -195,7 +235,7 @@ export class EventViewBuilder {
       })),
       paymentHistory: e.snapshots.filter((x) => x.status === "SUPERSEDED").flatMap((snap) => snap.edges.flatMap((edge) => edge.reports.map((r) => ({
         id: r.id, snapshotId: snap.id, financialVersion: snap.financialVersion,
-        from: edge.fromMemberId, to: edge.toMemberId, amount: s(r.amountCentavos),
+        from: edge.fromMemberId, to: edge.toMemberId, amount: s(r.amountCentavos), paid: paidView(r),
         method: r.method, note: r.note, status: r.status, createdAt: r.createdAt.toISOString(),
         decidedAt: r.decidedAt?.toISOString() ?? null,
         reversal: r.reversal ? { reason: r.reversal.reason, createdAt: r.reversal.createdAt.toISOString() } : null,
@@ -204,9 +244,22 @@ export class EventViewBuilder {
       instructions: Object.fromEntries(
         instructions.map((i) => [
           i.memberId,
-          { id: i.id, version: i.version, acceptsCash: i.acceptsCash, cashNote: i.cashNote, qrLabel: i.qrLabel, hasQr: Boolean(i.qrAssetId), qrAssetId: i.qrAssetId && qrVisibleFor(i.memberId) ? i.qrAssetId : null },
+          {
+            id: i.id,
+            version: i.version,
+            acceptsCash: i.acceptsCash,
+            cashNote: i.cashNote,
+            qrLabel: i.qrLabel,
+            hasQr: Boolean(i.qrAssetId),
+            qrAssetId: i.qrAssetId && qrVisibleFor(i.memberId) ? i.qrAssetId : null,
+            /** What they ticked (empty = defaults) and what that means now. */
+            tickedCurrencies: i.acceptedCurrencies,
+            acceptedCurrencies: agg.acceptedCurrencies(i.acceptedCurrencies),
+          },
         ]),
       ),
+      /** Accepted currencies for someone who hasn't set payment details. */
+      defaultAcceptedCurrencies: agg.acceptedCurrencies([]),
       audit: audit.map((a) => {
         const d = a.detail && typeof a.detail === "object" && !Array.isArray(a.detail) ? (a.detail as Record<string, unknown>) : {};
         return {
@@ -238,6 +291,7 @@ export class EventViewBuilder {
         authorId: r.authorId,
         payerId: r.payerId,
         payable: BigInt(r.payable),
+        currency: r.currency,
         equalSplit: r.equalSplit,
         fundingAcknowledged: r.fundingAcknowledged,
         reconciled: r.reconciliation.reconciled,
@@ -254,7 +308,7 @@ export class EventViewBuilder {
         settled: e.settled,
         disputed: e.disputed,
         dispute: e.dispute ? { status: e.dispute.status, senderChoice: e.dispute.senderChoice, recipientChoice: e.dispute.recipientChoice } : null,
-        pendingReports: e.reports.filter((r) => r.status === "REPORTED").map((r) => ({ id: r.id, amount: BigInt(r.amount), version: r.version })),
+        pendingReports: e.reports.filter((r) => r.status === "REPORTED").map((r) => ({ id: r.id, amount: BigInt(r.amount), version: r.version, paid: r.paid ? { currency: r.paid.currency, amount: BigInt(r.paid.amount) } : null })),
       })),
       withPaymentDetails: Object.keys(view.instructions),
       freezeBlockers: view.gates.freeze?.blockers ?? [],
@@ -289,7 +343,10 @@ export class EventViewBuilder {
           involvesMe: edge.fromMemberId === me.id || edge.toMemberId === me.id,
           reports: edge.reports.map((r) => ({
             id: r.id,
+            /** Credit in the settle-up currency. */
             amount: s(r.amountCentavos),
+            /** Set when the money was sent in another currency: what was sent and the locked rate. */
+            paid: paidView(r),
             method: r.method,
             note: r.note,
             status: r.status,

@@ -1,6 +1,7 @@
 import type { Tx } from "../db";
 import { NotFoundError } from "../http/HttpError";
 import { EventAggregate } from "./EventAggregate";
+import { RateService, receiptDay } from "../fx/RateService";
 
 /** Everything needed to evaluate one event; scoped strictly by event ID. */
 export const EVENT_INCLUDE = {
@@ -40,6 +41,8 @@ export class EventRepository {
   async load(tx: Tx, eventId: string): Promise<EventAggregate> {
     const event = await tx.event.findUnique({ where: { id: eventId }, include: EVENT_INCLUDE });
     if (!event) throw new NotFoundError("Event not found");
-    return new EventAggregate(event);
+    // Only events with receipts in another currency need rates; the read stays on this transaction.
+    const days = event.receipts.filter((r) => r.currency !== event.currency).map(receiptDay);
+    return new EventAggregate(event, days.length ? await RateService.load(tx, days) : new Map());
   }
 }

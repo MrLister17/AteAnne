@@ -4,7 +4,7 @@ import type { Phase } from "@/domain/event/PhaseMachine";
 import { ConflictError } from "@/domain/errors";
 import { SettlementPlanner } from "@/domain/settlement/SettlementPlanner";
 import type { Db, Tx } from "../db";
-import { EventAggregate, MemberRecord, POLICY_VERSION } from "../aggregate/EventAggregate";
+import { EventAggregate, MemberRecord, POLICY_VERSION, POLICY_VERSION_FX } from "../aggregate/EventAggregate";
 import { EventRepository } from "../aggregate/EventRepository";
 
 export interface LockedContext {
@@ -109,6 +109,8 @@ export abstract class BaseService {
     const remaining = agg.remainingNets(calc.positions.map((p) => [p.memberId, p.net] as const));
     const edges = new SettlementPlanner().plan([...remaining]);
     const facts = {
+      /** Settle-up currency: positions and transfers are in it (D58). */
+      currency: agg.currency,
       carriedPayments: agg.confirmedTransfers().map((p) => ({ from: p.from, to: p.to, amount: p.amount.toString() })),
       receipts: agg.record.receipts.map((r) => {
         const st = calc.receipts.find((s) => s.receiptId === r.id)!;
@@ -117,6 +119,13 @@ export abstract class BaseService {
           label: r.label,
           payerId: r.payerMemberId,
           version: r.version,
+          /** The receipt's own currency; `payable`, lines, adjustments and `shares` are in it. */
+          currency: r.currency,
+          purchasedOn: agg.receiptDay(r),
+          /** The purchase-day rate to the settle-up currency, fixed here (D61); null when already in it. */
+          rate: st.rate ? st.rate.toWire() : null,
+          settlePayable: st.settlePayable.toString(),
+          settleShares: Object.fromEntries([...st.settleShares].filter(([, v]) => v > 0n).map(([k, v]) => [k, v.toString()])),
           payable: r.payableCentavos.toString(),
           equalSplit: r.equalSplit,
           lines: r.lines.map((l) => ({ id: l.id, label: l.label, quantity: l.quantity, amount: l.amountCentavos.toString(), mode: l.mode })),
@@ -141,7 +150,7 @@ export abstract class BaseService {
       data: {
         eventId: agg.id,
         financialVersion: agg.record.financialVersion,
-        policyVersion: POLICY_VERSION,
+        policyVersion: agg.hasForeignReceipts() ? POLICY_VERSION_FX : POLICY_VERSION,
         facts,
         shares: { create: calc.positions.map((p) => ({ memberId: p.memberId, fundingCentavos: p.funding, costCentavos: p.cost, netCentavos: p.net })) },
         edges: { create: edges.map((e, i) => ({ position: i, fromMemberId: e.from, toMemberId: e.to, amountCentavos: e.amount })) },

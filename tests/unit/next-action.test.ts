@@ -19,6 +19,7 @@ function receipt(over: Partial<Receipt> = {}): Receipt {
     authorId: MARK,
     payerId: MARK,
     payable: 139_700n,
+    currency: "PHP",
     equalSplit: true,
     fundingAcknowledged: true,
     reconciled: true,
@@ -83,7 +84,7 @@ describe("step 1: the screen after “2 of 2 confirmed”", () => {
 
   it("a receipt someone else entered for you asks you to confirm paying it", () => {
     const snacks = receipt({ id: "snacks", label: "Snacks", authorId: MARK, payerId: ANA, payable: 50_000n, fundingAcknowledged: false });
-    expect(next(input({ receipts: [receipt(), snacks] }), ANA)).toEqual({ kind: "confirmPaid", receiptId: "snacks", label: "Snacks", amount: 50_000n });
+    expect(next(input({ receipts: [receipt(), snacks] }), ANA)).toEqual({ kind: "confirmPaid", receiptId: "snacks", label: "Snacks", amount: 50_000n, currency: "PHP" });
   });
 
   it("a changed receipt asks you to check it again first", () => {

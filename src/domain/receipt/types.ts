@@ -1,3 +1,5 @@
+import type { ExchangeRate } from "../fx/ExchangeRate";
+
 export type ShareMode = "SHARED" | "UNITS";
 export type AdjustmentKind = "DISCOUNT" | "SERVICE" | "CHARGE";
 
@@ -34,7 +36,14 @@ export interface ReceiptInput {
   id: string;
   label: string;
   payerId: string;
+  /** In the receipt's own currency (minor units). */
   payable: bigint;
+  /**
+   * Set when the receipt is in a currency other than the event's settle-up
+   * currency (D58/D61): the rate of the day it was bought, or null while no
+   * rate is available (the bill then waits).
+   */
+  conversion?: { currency: string; day: string; rate: ExchangeRate | null };
   /** Explicit receipt-wide equal policy; every listed participant must accept all lines. */
   equalSplit?: { memberIds: string[] };
   lines: LineInput[];
@@ -51,7 +60,8 @@ export interface CalculationIssue {
     | "UNITS_OVER_ALLOCATED"
     | "NO_LINES"
     | "UNKNOWN_LINE_SCOPE"
-    | "EQUAL_SPLIT_UNCONFIRMED";
+    | "EQUAL_SPLIT_UNCONFIRMED"
+    | "RATE_UNAVAILABLE";
   message: string;
   receiptId: string;
   lineId?: string;

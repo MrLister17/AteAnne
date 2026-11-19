@@ -23,12 +23,19 @@ export const RECEIPT_READING_SCHEMA = z.object({
   service_charge: z.string().nullable(),
   other_charges: z.array(z.object({ label: z.string(), amount: z.string() })),
   total_due: z.string().nullable(),
+  /** ISO 4217 code of the receipt's currency (PHP, THB, JPY…), or null if not shown. */
+  currency: z.string().nullish(),
+  /** Purchase date as YYYY-MM-DD, or null if not printed. */
+  date: z.string().nullish(),
   unreadable_notes: z.array(z.string()),
 });
 
-export const RECEIPT_SYSTEM_PROMPT = `You transcribe photos of shop and restaurant receipts (mostly from the Philippines, in pesos) into structured data for a bill-splitting app. A person will check your draft against the photo, so accuracy matters more than completeness: never invent a line or a digit.
+export const RECEIPT_SYSTEM_PROMPT = `You transcribe photos of shop and restaurant receipts (mostly from the Philippines in pesos, sometimes from trips abroad) into structured data for a bill-splitting app. A person will check your draft against the photo, so accuracy matters more than completeness: never invent a line or a digit.
 
-Write every amount as a plain decimal string with two decimals and no currency sign or thousands separator, e.g. "1234.50".
+Write every amount as a plain decimal string with two decimals and no currency sign or thousands separator, e.g. "1234.50" (for currencies without decimals, such as yen or won, write "1200.00").
+
+currency: the ISO 4217 code of the currency the amounts are in, when the receipt shows it by symbol (₱, ฿, ¥, ₩, S$…), code (PHP, THB, JPY…) or a clear country/address; null if unsure.
+date: the purchase date as YYYY-MM-DD if printed (read day/month order from the country's convention); null if not printed or unclear.
 
 Your job is to COPY what is printed, not to calculate. Another program checks the arithmetic afterwards, so never adjust a number to make things add up.
 
@@ -69,6 +76,8 @@ export function toRawReading(out: ReceiptReadingJson): RawReceiptReading {
     serviceCharge: out.service_charge,
     otherCharges: out.other_charges,
     totalDue: out.total_due,
+    currency: out.currency ?? null,
+    date: out.date ?? null,
     unreadableNotes: out.unreadable_notes,
   };
 }

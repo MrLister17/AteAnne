@@ -7,6 +7,8 @@ import { EventAggregate, MAX_LINES, MAX_RECEIPTS, MemberRecord } from "../aggreg
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import { claimsSchema, fundingAckSchema, receiptSchema, updateReceiptSchema } from "../validation";
 import { BaseService, Caller, callerParts } from "./BaseService";
+import { addDays, manilaDay } from "@/domain/money/Currency";
+import { MAX_PURCHASE_AGE_DAYS, RateService } from "../fx/RateService";
 
 type ReceiptPayload = z.output<typeof receiptSchema>;
 
@@ -23,8 +25,31 @@ export class ReceiptService extends BaseService {
   constructor(
     db: Db,
     private readonly limiter: RateLimiter,
+    private readonly rates: RateService | null = null,
   ) {
     super(db);
+  }
+
+  /**
+   * A receipt in another currency needs the rate of the day it was bought
+   * (D61). Fetched here, before the event lock (D57); the freeze reads it from
+   * the cache.
+   */
+  private async prefetchRate(eventId: string, data: ReceiptPayload, existing?: { currency: string; purchasedOn: Date | null }) {
+    if (!this.rates) return;
+    const event = await this.db.event.findUnique({ where: { id: eventId }, select: { currency: true } });
+    const currency = data.currency ?? existing?.currency ?? event?.currency;
+    if (!event || !currency || currency === event.currency) return;
+    const day = data.purchasedOn ?? (existing?.purchasedOn ? existing.purchasedOn.toISOString().slice(0, 10) : manilaDay());
+    await this.rates.ensureDays([day]);
+  }
+
+  /** The purchase day must be a real day within the last year and not in the future (Manila calendar). */
+  private checkPurchaseDay(day: string | undefined) {
+    if (!day) return;
+    const today = manilaDay();
+    if (day > today) throw new ValidationError("purchase_in_future", "The purchase date can't be after today");
+    if (day < addDays(today, -MAX_PURCHASE_AGE_DAYS)) throw new ValidationError("purchase_too_old", "The purchase date must be within the last year");
   }
 
   /** One financial save for this real person in this event, counted before the event lock (D57). */
@@ -60,18 +85,22 @@ export class ReceiptService extends BaseService {
 
   async create(caller: Caller, eventId: string, input: z.input<typeof receiptSchema>): Promise<{ receiptId: string }> {
     const data = receiptSchema.parse(input);
+    this.checkPurchaseDay(data.purchasedOn);
     await this.countSave(caller, eventId);
+    await this.prefetchRate(eventId, data);
     return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       this.assertCanEdit(agg, me);
       if (agg.record.receipts.length >= MAX_RECEIPTS) throw new ConflictError("too_many_receipts", `At most ${MAX_RECEIPTS} receipts per event`);
       this.validatePayload(agg, data);
       const position = Math.max(-1, ...agg.record.receipts.map((r) => r.position)) + 1;
+      const currency = data.currency ?? agg.currency;
+      const purchasedOn = data.purchasedOn ?? manilaDay();
       const receipt = await tx.receipt.create({
-        data: { eventId, authorMemberId: me.id, payerMemberId: data.payerMemberId, label: data.label, payableCentavos: data.payable, equalSplit: data.equalSplit, position },
+        data: { eventId, authorMemberId: me.id, payerMemberId: data.payerMemberId, label: data.label, payableCentavos: data.payable, equalSplit: data.equalSplit, position, currency, purchasedOn: new Date(`${purchasedOn}T00:00:00Z`) },
       });
       await this.writeLinesAndAdjustments(tx, receipt.id, [], data);
       await this.bumpFinancial(tx, eventId);
-      await this.audit(tx, eventId, me.id, "receipt.created", { receiptId: receipt.id, label: data.label, payable: data.payable.toString(), equalSplit: data.equalSplit });
+      await this.audit(tx, eventId, me.id, "receipt.created", { receiptId: receipt.id, label: data.label, payable: data.payable.toString(), currency, purchasedOn, equalSplit: data.equalSplit });
       await this.payerSavedOwnReceipt(tx, eventId, me, receipt.id, data.payerMemberId, 1, data.payable);
       await this.advanceIfReady(tx, eventId);
       return { receiptId: receipt.id };
@@ -80,8 +109,11 @@ export class ReceiptService extends BaseService {
 
   async update(caller: Caller, receiptId: string, input: z.input<typeof updateReceiptSchema>): Promise<{ version: number }> {
     const data = updateReceiptSchema.parse(input);
+    this.checkPurchaseDay(data.purchasedOn);
     const eventId = await this.eventIdForReceipt(receiptId);
     await this.countSave(caller, eventId);
+    const existing = await this.db.receipt.findUnique({ where: { id: receiptId }, select: { currency: true, purchasedOn: true } });
+    await this.prefetchRate(eventId, data, existing ?? undefined);
     return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       this.assertCanEdit(agg, me);
       const receipt = agg.receipt(receiptId);
@@ -89,13 +121,22 @@ export class ReceiptService extends BaseService {
       if (!isAuthor && !agg.isOwner(me.id)) throw new PermissionError("not_author", "Only the person who entered this receipt, or the organizer, can correct it");
       if (receipt.version !== data.expectedVersion) throw new ConflictError("stale_receipt", "Someone else changed this receipt. Reload it and re-apply your edit.");
       this.validatePayload(agg, data);
+      const currency = data.currency ?? receipt.currency;
+      const purchasedOn = data.purchasedOn ?? agg.receiptDay(receipt);
       await tx.receipt.update({
         where: { id: receiptId },
-        data: { label: data.label, payerMemberId: data.payerMemberId, payableCentavos: data.payable, equalSplit: data.equalSplit, version: { increment: 1 } },
+        data: { label: data.label, payerMemberId: data.payerMemberId, payableCentavos: data.payable, equalSplit: data.equalSplit, currency, purchasedOn: new Date(`${purchasedOn}T00:00:00Z`), version: { increment: 1 } },
       });
       await this.writeLinesAndAdjustments(tx, receiptId, receipt.lines.map((l) => l.id), data);
       await this.bumpFinancial(tx, eventId);
-      await this.audit(tx, eventId, me.id, isAuthor ? "receipt.updated" : "receipt.organizer_correction", { receiptId, label: data.label, fromVersion: receipt.version, equalSplit: data.equalSplit });
+      await this.audit(tx, eventId, me.id, isAuthor ? "receipt.updated" : "receipt.organizer_correction", {
+        receiptId,
+        label: data.label,
+        fromVersion: receipt.version,
+        equalSplit: data.equalSplit,
+        ...(currency !== receipt.currency ? { currency: { from: receipt.currency, to: currency } } : {}),
+        ...(purchasedOn !== agg.receiptDay(receipt) ? { purchasedOn: { from: agg.receiptDay(receipt), to: purchasedOn } } : {}),
+      });
       await this.payerSavedOwnReceipt(tx, eventId, me, receiptId, data.payerMemberId, receipt.version + 1, data.payable);
       await this.advanceIfReady(tx, eventId);
       return { version: receipt.version + 1 };

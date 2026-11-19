@@ -16,6 +16,8 @@ import { ReceiptScanService } from "./services/ReceiptScanService";
 import { ClaudeReceiptReader, FakeReceiptReader, type ReceiptReader } from "./scan/ReceiptReader";
 import { GroqReceiptReader } from "./scan/GroqReceiptReader";
 import { DatabaseStorage, LocalDiskStorage, PrivateStorage } from "./storage/PrivateStorage";
+import { EcbRateProvider, FakeRateProvider, type RateProvider } from "./fx/RateProvider";
+import { RateService } from "./fx/RateService";
 
 /**
  * Composition root: wires services with their dependencies once per process.
@@ -32,6 +34,7 @@ export class AppContainer {
   readonly queries: QueryService;
   readonly cleanup: CleanupService;
   readonly scans: ReceiptScanService;
+  readonly rates: RateService;
 
   constructor(
     readonly db: Db,
@@ -39,18 +42,20 @@ export class AppContainer {
     joinCodeKey: string,
     readonly retention = new RetentionPolicy(),
     receiptReader: ReceiptReader | null = null,
+    rateProvider: RateProvider | null = null,
   ) {
     const codes = new JoinCodeCodec(joinCodeKey);
     this.limiter = new RateLimiter(db);
     this.sessions = new SessionManager(db);
-    this.events = new EventService(db, codes, this.limiter);
-    this.receipts = new ReceiptService(db, this.limiter);
-    this.payments = new PaymentService(db, this.limiter);
+    this.rates = new RateService(db, rateProvider);
+    this.events = new EventService(db, codes, this.limiter, this.rates);
+    this.receipts = new ReceiptService(db, this.limiter, this.rates);
+    this.payments = new PaymentService(db, this.limiter, this.rates);
     this.recovery = new RecoveryService(db, this.limiter);
     this.assets = new AssetService(db, storage, this.limiter);
-    this.cleanup = new CleanupService(db, storage, this.events, retention);
+    this.cleanup = new CleanupService(db, storage, this.events, retention, this.rates);
     this.scans = new ReceiptScanService(db, this.assets, this.limiter, receiptReader);
-    this.queries = new QueryService(db, new EventViewBuilder(db, this.events, retention, { receiptScan: this.scans.enabled }));
+    this.queries = new QueryService(db, new EventViewBuilder(db, this.events, retention, { receiptScan: this.scans.enabled }, this.rates), this.rates);
   }
 }
 
@@ -61,7 +66,7 @@ export function container(): AppContainer {
     const cfg = config();
     const db = prisma();
     const storage = cfg.STORAGE_DRIVER === "disk" ? new LocalDiskStorage(cfg.PRIVATE_UPLOAD_DIR) : new DatabaseStorage(db);
-    g.__ateanneContainer = new AppContainer(db, storage, cfg.JOIN_CODE_HASH_KEY, new RetentionPolicy(cfg.EVENT_RETENTION_DAYS), chooseReceiptReader(cfg));
+    g.__ateanneContainer = new AppContainer(db, storage, cfg.JOIN_CODE_HASH_KEY, new RetentionPolicy(cfg.EVENT_RETENTION_DAYS), chooseReceiptReader(cfg), chooseRateProvider(cfg));
   }
   return g.__ateanneContainer;
 }
@@ -74,4 +79,10 @@ export function chooseReceiptReader(cfg: Pick<ReturnType<typeof config>, "RECEIP
   if (cfg.RECEIPT_SCAN_PROVIDER === "groq") return groq?.() ?? null;
   if (cfg.RECEIPT_SCAN_PROVIDER === "claude") return claude?.() ?? null;
   return groq?.() ?? claude?.() ?? null;
+}
+
+/** Fake fixed rates (tests and demos, never Vercel production) → ECB via Frankfurter (default). */
+export function chooseRateProvider(cfg: Pick<ReturnType<typeof config>, "FX_RATES_FAKE" | "FX_RATES_URL">): RateProvider {
+  if (cfg.FX_RATES_FAKE === "1" && process.env.VERCEL_ENV !== "production") return new FakeRateProvider();
+  return cfg.FX_RATES_URL ? new EcbRateProvider([cfg.FX_RATES_URL]) : new EcbRateProvider();
 }

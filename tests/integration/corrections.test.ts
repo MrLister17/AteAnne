@@ -53,7 +53,7 @@ describe("post-payment bill corrections", () => {
     expect(frozenAfter.edges).toEqual(frozenBefore.edges);
     expect(frozenAfter.status).toBe("SUPERSEDED");
     const exported = JSON.parse((await app.queries.export(mark.actorId, ctx.eventId, "json")).body);
-    expect(exported.priorPaymentHistory[0]).toMatchObject({ reportId: paid.reportId, amountPhp: "50.00", status: "VERIFIED" });
+    expect(exported.priorPaymentHistory[0]).toMatchObject({ reportId: paid.reportId, amount: "50.00", currency: "PHP", status: "VERIFIED" });
     expect(exported.supersededStatements[0].facts).toEqual(frozenBefore.facts);
     await expect(move("DONE")).rejects.toThrow(/not everything|Not everything/);
     const returned = await app.payments.report(mark.actorId, corrected.settlement!.edges[0].id, { amount: "5000", method: "CASH", idempotencyKey: "correction-return-payment" });
