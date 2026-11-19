@@ -8,7 +8,7 @@ _Last updated: 2026-11-19 Manila (v0.8.0)_
 - **Preserve S9:** one next step per person from `src/domain/event/NextAction.ts` via `view.next`/`view.group`, shown in the **Next for you** card on Home, Claim and Pay; the tab dot, guest list, "See what's left" and reminders read the same list. New receipt photos are never stored (410 `receipt_photos_off`); older ones stay viewable/removable until their event is purged. Payment wording is Sent / Received / Didn't arrive. Rate-limit counters run before event transactions; join/recover create identities only after their checks pass; 429s carry Retry-After.
 - **Preserve v0.7.1 / v0.7.0 / v0.6.1:** compact People roster and focused sheets (D52); Add & claim → Pay → Done, automatic first freeze, manual corrected freeze, next-day close (D49–D51); focused Home reading order (D48).
 - No migration in S9. Production schema is unchanged since `20261118150000_equal_receipt_split`.
-- **Pending: S10 multi-currency plan** (`docs/sprint-s10-plan.md`), drafted 2026-11-19 and waiting for the owner's decisions (D58–D62). Not implemented.
+- **Pending: S10 multi-currency plan, revision 2** (`docs/sprint-s10-plan.md`). The owner answered D58–D62 on 2026-11-19 (mixed currencies, purchase-day rate, daily rate for views, ECB). Waiting for the go-ahead to build. Not implemented.
 
 **Verification:** local 240 unit / 64 integration / 71 browser plus reference, lint, types and build; GitHub CI 44452776502; production health and smoke. Before/after measurements are in `test-report.md`. Production SQL numbers (storage by image type, scans, connections, RLS/grants) have **not** been collected yet; the queries are in `runbooks.md`.
 
