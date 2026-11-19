@@ -12,7 +12,10 @@ _Last updated: 2026-11-19 Manila (v0.9.0)_
   - **Pay in** lets someone send another currency the receiver accepts, at the rate of the day it's sent, locked into the payment.
   - Migration `20261119120000_currencies` is additive.
   - Rates come from Frankfurter/ECB, fetched only outside event locks. `/api/health` reports `fx`.
-  - Local full chain passed (258 unit / 74 integration / 75 browser). Release status is in `CHANGELOG.md`.
+  - Local full chain passed (258 unit / 74 integration / 75 browser).
+  - Live on `main` `b040a74`. Branch CI 44482869560 passed.
+  - Production health: `fx.ok: true`, with a real ECB rate fetched.
+  - The synthetic production smoke test passed and its event was deleted.
 - **Preserve S10:**
   - The money engine still sees integers only. Conversion is once per receipt, then a largest-remainder split.
   - Only `PaymentReport.amountCentavos` (the settle-up credit) enters the ledger.

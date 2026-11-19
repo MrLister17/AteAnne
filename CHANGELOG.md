@@ -10,7 +10,11 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ## Where we left off (2026-11-19 Manila)
 
-- **v0.9.0 (Sprint S10, D58–D62): mixed currencies.** The owner approved every decision and asked for merge and deploy. The full local chain passed (see `docs/test-report.md`). Release status, CI and production checks are recorded under v0.9.0 below.
+- **v0.9.0 (Sprint S10, D58–D62): mixed currencies, merged to `main` and live.**
+  - `main` was fast-forwarded `bb1993f → b040a74` at the owner's request.
+  - Branch CI run [44482869560](https://github.com/MrLister17/AteAnne/actions/runs/44482869560) passed.
+  - Production `/api/health` returned `version` `b040a74` and `fx.ok: true`: the live ECB rate (18 Nov publication) was fetched, and the migration ran.
+  - The synthetic production smoke test passed with real rates (THB 1,397.00 at 1.8739802 = PHP 2,617.95) and was then deleted. Details are in `docs/test-report.md`.
 - Still to do by a person:
   - Try a real mixed-currency trip on an iPhone: a baht receipt, **Show totals in**, **Pay in** baht.
   - Run the read-only production SQL in `docs/runbooks.md` (needed before follow-ups F1/F7).
@@ -21,7 +25,7 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ---
 
-## v0.9.0: Receipts in any currency (2026-11-19 Manila)
+## v0.9.0: Receipts in any currency (2026-11-19 Manila) · merged to `main` and deployed
 
 Sprint **S10**, decisions **D58–D62**, plan [`docs/sprint-s10-plan.md`](docs/sprint-s10-plan.md).
 
@@ -77,9 +81,23 @@ The owner asked to see a THB bill in pesos and to pay in a chosen currency at th
 
 Local results: reference PASS, lint, typecheck, **258 unit**, **74 integration**, build, **75 browser** tests, all passed. New: unit `currency.test.ts`, integration `currency.test.ts`, E2E `currency.spec.ts` at iPhone 15 and 360px. Details are in `docs/test-report.md`.
 
+### Release
+
+- **Branch CI:** run 44482869560 passed on `b040a74`.
+- **Merge:** `main` was fast-forwarded `bb1993f → b040a74`.
+- **Production health:** `{"ok":true,"version":"b040a74",…,"fx":{"source":"ecb","today":"2026-11-19","latest":{"day":"2026-11-19","effectiveDate":"2026-11-18"},"ok":true}}`.
+- **Production smoke test** (synthetic, then deleted):
+  - real ECB rate 1 THB = 1.8739802 PHP, with Breakfast THB 1,397.00 converting to PHP 2,617.95
+  - frozen with policy v3, transfer PHP 1,008.97
+  - "Show totals in THB" shows ≈ −THB 538.41
+  - "Pay in Thai baht" shows Send THB 538.41
+  - no sideways scroll
+  - no payment reports were created
+- **Not verified:** the Vercel deployment ID and a real iPhone.
+
 ### Rollback
 
-The migration is additive. Once any non-peso receipt or event exists, v0.8.0 would show its amounts as pesos without converting them. From then on, use forward fixes only.
+Redeploy v0.8.0 (`bb1993f`) only while no non-peso receipt or event exists. The migration is additive, but once one exists, v0.8.0 would show its amounts as pesos without converting them. From then on, use forward fixes only.
 
 ---
 

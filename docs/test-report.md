@@ -64,8 +64,27 @@ Screenshots (local, ignored folder): `test-results/screens/s10-editor-*.png`, `s
 
 ### Not verified locally
 
-- **The live ECB fetch.** This container's proxy refuses `api.frankfurter.dev` (403 on CONNECT). Production `/api/health` now fetches today's rate and reports `fx`; see the release notes below.
+- **The live ECB fetch.** This container's proxy refuses `api.frankfurter.dev` (403 on CONNECT). It was verified on production instead; see Release below.
 - **A real iPhone and real relatives.**
+
+### Release
+
+- **Branch CI.** GitHub CI run [44482869560](https://github.com/MrLister17/AteAnne/actions/runs/44482869560) on `b040a74`: every step passed (reference, lint, typecheck, unit, integration, build, Playwright install, E2E).
+- **Merge.** `main` was fast-forwarded `bb1993f → b040a74` on the owner's instruction ("approved everything then merge and deploy"). CI on `main`: run [44483504305](https://github.com/MrLister17/AteAnne/actions/runs/44483504305) (result in `CHANGELOG.md`).
+- **Production health** at 07:57:51 UTC returned `{"ok":true,"version":"b040a74","receiptScan":"groq","fx":{"source":"ecb","today":"2026-11-19","latest":{"day":"2026-11-19","effectiveDate":"2026-11-18"},"ok":true}}`.
+  - **The live ECB fetch works:** today's ECB rate wasn't published yet in Manila, so the 18 Nov publication was used.
+  - **The migration ran:** health reads the new `ExchangeRate` table.
+- **Production smoke test** (Playwright, iPhone 15 emulation, organizer in light mode, member in dark mode, synthetic event **"S10 smoke (synthetic)"**):
+  - **Breakfast receipt:** THB 1,397.00 bought 2026-11-18 got the real ECB rate (PHP 69.832 and THB 37.264 per euro), giving **1 THB = 1.8739802 PHP** (`source: "ecb"`).
+  - **Converted total:** `settlePayable` 261795, i.e. **PHP 2,617.95**. Checked by hand: 1,397 × 1.8739802 = 2,617.950…
+  - **Freeze:** after both claimed and Everyone's here, the bill froze with policy `ateanne-allocation-v3`. The facts hold the same rate and converted shares 130898 / 130897, and the transfer is **PHP 1,008.97**.
+  - **Mark's receipt row:** "THB 1,397.00 · PHP 2,617.95".
+  - **Ana's Home with Show totals in → THB:** "≈ −THB 538.41 · PHP 1,008.97".
+  - **Ana's Pay → Pay in Thai baht:** "At today's rate: 1 THB = 1.8739802 PHP (ECB, 18 Nov) · Send THB 538.41".
+  - **Layout:** 0 px sideways overflow.
+  - **Cleanup:** the synthetic event was deleted (DELETE 200, then GET 404).
+  - **Not exercised in production:** no payment report, transfer or scanner call was made. Paying in baht is covered by the local integration and browser tests.
+- **Not verified:** the Vercel deployment ID (the release is identified by the health `version`), a real iPhone, and relatives' usability.
 
 ## Sprint S9 — Claim → Pay → Done, lighter storage (v0.8.0, 2026-11-19 Manila)
 
