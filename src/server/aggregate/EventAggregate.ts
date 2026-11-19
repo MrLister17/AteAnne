@@ -178,7 +178,7 @@ export class EventAggregate {
   allocationGate(): Gate {
     const blockers: string[] = [];
     if (this.record.receipts.length === 0) blockers.push("Add at least one receipt.");
-    for (const m of this.activeMembers()) if (!m.entryComplete) blockers.push(`${m.displayName} hasn’t ticked “I’ve entered every receipt I paid”.`);
+    for (const m of this.activeMembers()) if (!m.entryComplete) blockers.push(`${m.displayName} isn’t done adding receipts yet.`);
     for (const r of this.record.receipts) {
       const rec = this.reconciliation(r);
       for (const issue of rec.issues) blockers.push(`${r.label}: ${issue.message}`);

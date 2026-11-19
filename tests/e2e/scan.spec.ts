@@ -1,10 +1,10 @@
-/** Scan a receipt photo → reviewed draft → saved receipt with the photo attached (fake reader). */
+/** Scan a receipt photo → reviewed draft → saved receipt; the photo itself is never uploaded or kept (D54, fake reader). */
 import { expect, test } from "@playwright/test";
 import sharp from "sharp";
 import path from "node:path";
 import { writeFileSync, mkdirSync } from "node:fs";
 
-test("scan a receipt, check the draft, save it with the photo", async ({ page }) => {
+test("scan a receipt, check the draft, save only the details (no photo kept)", async ({ page }) => {
   await page.addInitScript(() => { localStorage.setItem("ateanne.tutorial.v1", "asked"); sessionStorage.setItem("ateanne.install.browser.v1", "1"); });
   mkdirSync("test-results/screens", { recursive: true });
   const photoPath = path.join("test-results", "synthetic-receipt.jpg");
@@ -36,16 +36,23 @@ test("scan a receipt, check the draft, save it with the photo", async ({ page })
   await expect(editor.getByLabel("Total paid to the merchant")).toHaveValue("665.50");
   await expect(editor.getByRole("status")).toContainText("matches");
   await expect(editor.getByAltText("The receipt photo you scanned")).toBeVisible();
+  await expect(editor.getByText("We don’t keep this photo. Only what you save is kept.")).toBeVisible();
   await page.screenshot({ path: "test-results/screens/14-scan-draft.png", animations: "disabled" });
 
-  // The person corrects a misread line before saving.
+  // The person corrects a misread line before saving. Saving sends only the details: no upload request.
+  const uploads: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "POST" && /\/api\/events\/[^/]+\/assets$/.test(new URL(r.url()).pathname)) uploads.push(r.url());
+  });
   await editor.getByLabel("Item 2 name").fill("Garlic rice");
   await editor.getByRole("button", { name: "Save receipt" }).click();
-  await expect(page.getByRole("button", { name: /Sample Kainan/ })).toContainText("photo");
+  await expect(page.getByRole("button", { name: /Sample Kainan/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Sample Kainan/ })).not.toContainText("photo");
   await page.getByRole("button", { name: /Sample Kainan/ }).click();
   await expect(page.getByText("Garlic rice")).toBeVisible();
-  await page.getByRole("button", { name: "View photo" }).click();
-  await expect(page.getByAltText(/Photo of Sample Kainan/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "View photo" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Attach photo|Replace photo/ })).toHaveCount(0);
+  expect(uploads).toEqual([]);
 });
 
 test("the Add-receipt form itself offers 'Fill in from a photo'", async ({ page }) => {

@@ -1,5 +1,49 @@
 # Test report
 
+## Sprint S9 — Claim → Pay → Done, lighter storage (v0.8.0, 2026-11-19 Manila)
+
+Branch `claude/stoic-mendel-qflc6n` from `main` `720e6f7` (v0.7.1). Owner approved the S9 plan with every recommended decision (D53–D57). Local Linux run: Node 22.23.5, PostgreSQL 16.15 (local cluster, isolated `ateanne_test`), pre-installed Playwright Chromium. Synthetic data only. Before any change, the v0.7.1 baseline also passed lint, typecheck, 92 unit and 49 integration tests in this container.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run test:reference` | PASS, no fixture diff |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run test:unit` | **11 files, 240 passed** (92 before; +148 in `next-action.test.ts`, of which 128 are the "never an empty wait" matrix; `reminders.test.ts` rebuilt) |
+| `npm run test:integration` | **12 files, 64 passed** (new: `payments-flow`, `rate-limits`, `database-security`; image tests rewritten) |
+| `npm run build` | Passed |
+| `npm run test:e2e` | **71 passed in one full run (2.1 min)**, iPhone 15 + 360px (new: `next-step.spec.ts`, `feedback.spec.ts`, both projects) |
+
+**Regression proof for D57:** with `ReceiptService`, `PaymentService`, `RateLimiter` and `HttpError` temporarily restored to v0.7.1, the new one-connection test failed with `Error: timeout exceeded when trying to connect`; with the S9 code it passes.
+
+### S9.4a measurements (local, synthetic; production not yet measured)
+
+`npx tsx scripts/measure-db.ts`: 10 people, 10 receipts × 8 lines, 9 transfers, 9 payment reports. Times are one local run each and vary by a few ms between runs; statement and connection counts are exact.
+
+| Operation | SQL statements before → after | Max pool connections at once before → after | JSON bytes before → after |
+| --- | --- | --- | --- |
+| Open event (step 1, member) | 17 → 17 | 3 → 3 | 112,190 → 113,040 (+`next`/`group`) |
+| Save claims (step 1)¹ | 57 → 57 | 3 → 3 | — |
+| Open event (step 2, organizer) | 17 → 17 | 3 → 3 | 164,542 → 166,400 |
+| Report a payment | 24 → 24 | **2 → 1** | — |
+| Confirm a payment | 22 → 22 | 1 → 1 | — |
+
+¹ The measured step also opens the event first (to read versions); Prisma loads its relations in parallel, which is where the 3 connections come from. The write itself no longer takes a second connection.
+
+Polling from one open phone (`next start` build, 120 s visible, then one "return to the app"): **before 8 GETs + 2 on return; after 8 GETs + 1 on return.** On a Done event the new `feedback.spec.ts` sees **0** GETs in 60 s. Event payload size and query count per poll are unchanged: lighter polling (ETag/304, lazy Activity) is follow-up F2, pending production numbers.
+
+Production read-only SQL (storage by image type, table sizes, scans, busiest statements, connections, RLS/grants) is in `runbooks.md`; **not run yet** (needs the owner's Supabase access).
+
+### What the new tests check
+
+- `next-step.spec.ts`: after "2 of 2 confirmed", Ana sees **Did you pay for anything else?** with exactly one primary button in view at 360×640, the share once, lines behind **See items**; then **You're done for now · Waiting for Mark to tap Everyone's here.**; Mark sees **Is everyone here?**; Everyone's here freezes the bill (**Bill frozen. Time to pay.**); **How should Ana pay you?** → details; **Pay Mark PHP 698.50** with the dot on Pay; a ₱400 partial (**Sent PHP 400.00 · Waiting for Mark**, **PHP 298.50 left**); Mark's card updates by itself to **Did PHP 400.00 from Ana arrive?**; **Yes, I got it**; **Mark got PHP 400.00 so far.**; **It didn't arrive** asks why in a sheet and leads to **Sort this out with Ana**.
+- `feedback.spec.ts`: "Saving…" while a save is held, one request for a double tap, **Couldn't save. Try again.** beside the button with picks kept, retry succeeds; Reduce Motion shows a static "…" and no running animations; first-load skeleton text, **Try again** after 10 s and after a 500 (not "isn't a member"); failed manual refresh shows **Couldn't refresh** and the stale line; one GET on return; none once Done.
+- Integration: confirmation-only payments with exact centavos (partial, dispute, record again, done gate); receipt photo upload → 410 with zero new `Asset`/`AssetBlob` rows; legacy photo readable by members, 404 for others, removable, purged at 30 days; RLS on every table; limits ON: one-connection pool works, 31st save → 429 "Try again in 1 minute", 21 wrong codes → 429 and **no** new `Actor`/`Session` rows, wrong recovery key creates nothing, `Retry-After` header.
+
+Screenshots (local, ignored folder): `test-results/screens/s9-*.png`, `30-home-organizer.png`, `31-home-member.png`. Not verified: a real iPhone (press feel, Safari, Reduce Motion), relatives' usability, production numbers.
+
+---
+
 ## Sprint S8 — People progressive disclosure (v0.7.1, 2026-11-19 Manila)
 
 Branch: `feature/people-screen`, integrating latest `main` commit `42da456` (v0.7.0). User requested less information overload with visible, familiar destinations. The People change itself affects only UI/shared sheet behavior, tests, version and documentation; upstream v0.7.0 workflow changes are preserved; no schema or financial service changes.

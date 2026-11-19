@@ -1,13 +1,12 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
-import { Avatar, Badge, Button, Card, Notice, Sheet, useToast } from "../components/ui";
+import { ActionError, Avatar, Badge, Button, Card, Notice, Sheet } from "../components/ui";
 import { php } from "../format";
-import { MAX_CLIENT_UPLOAD_BYTES, prepareImage, uploadName } from "../image";
 import { ReceiptEditor } from "./ReceiptEditor";
-import { ReceiptView, useAction, useEvent } from "./EventContext";
+import { ReceiptView, useAction, useEvent, useInlineAction } from "./EventContext";
 import { useReceiptScanner } from "./useReceiptScanner";
 import { ScanOffNote, ScanPanel } from "./ScanPanel";
 import type { ScannedDraft } from "@/server/services/ReceiptScanService";
@@ -25,7 +24,14 @@ export function ReceiptsTab() {
     }
   };
 
-  const [openId, setOpenId] = useState<string | null>(null);
+  // Opened from a Next card ("Check and confirm", "Fix Lunch").
+  const { focus } = useEvent();
+  const [openId, setOpenId] = useState<string | null>(() => focus?.receiptId ?? null);
+  const [seenFocus, setSeenFocus] = useState(focus?.seq ?? 0);
+  if (focus && focus.seq !== seenFocus) {
+    setSeenFocus(focus.seq);
+    if (focus.receiptId && view.receipts.some((r) => r.id === focus.receiptId)) setOpenId(focus.receiptId);
+  }
   const open = view.receipts.find((r) => r.id === openId) ?? null;
   const canAdd = event.phase === "COLLECTING" && !event.cancelled && view.receipts.length < 25;
   const total = view.receipts.reduce((a, r) => a + BigInt(r.payable), 0n);
@@ -73,7 +79,7 @@ export function ReceiptsTab() {
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {r.reconciliation.reconciled ? <Badge tone="receive">✓ Adds up</Badge> : <Badge tone="pay">✗ Doesn’t add up</Badge>}
-                  {r.fundingAcknowledged ? <Badge tone="receive">✓ Payer confirmed</Badge> : <Badge tone="warn">Payer to confirm</Badge>}
+                  {r.fundingAcknowledged ? <Badge tone="receive">✓ Paid the store</Badge> : <Badge tone="warn">Payer to confirm</Badge>}
                   {r.equalSplit && <Badge tone="violet">Everyone splits equally</Badge>}
                 </div>
               </div>
@@ -104,12 +110,11 @@ export function ReceiptsTab() {
 function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; onClose: () => void; onEdit: () => void }) {
   const { view, me, event, name } = useEvent();
   const act = useAction();
-  const toast = useToast();
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
+  const funding = useInlineAction();
   const [showPhoto, setShowPhoto] = useState(false);
   const isPayer = r.payerId === me.memberId;
-  const canPhoto = event.phase !== "DONE" && (r.authorId === me.memberId || isPayer || me.isOwner);
+  // New receipt photos aren't saved (D54). Old ones can still be viewed, or removed by whoever could attach them.
+  const canRemovePhoto = Boolean(r.imageAssetId) && event.phase !== "DONE" && (r.authorId === me.memberId || isPayer || me.isOwner);
 
   return (
     <Sheet
@@ -118,14 +123,17 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
       title={r.label}
       footer={
         event.phase === "COLLECTING" && isPayer && !r.fundingAcknowledged ? (
-          <Button full variant="receive" icon="check" disabled={!r.reconciliation.reconciled} onClick={() => act(() => api.post(`/api/receipts/${r.id}/funding`, { receiptVersion: r.version, amount: r.payable }), "Thanks — funding confirmed")}>
-            I paid {php(r.payable)} for this
-          </Button>
+          <div className="space-y-2">
+            <ActionError message={funding.error} />
+            <Button full variant="receive" icon="check" busyLabel="Confirming…" disabled={!r.reconciliation.reconciled} onClick={() => funding.run(() => api.post(`/api/receipts/${r.id}/funding`, { receiptVersion: r.version, amount: r.payable }), "Marked as paid")}>
+              Yes, I paid {php(r.payable)}
+            </Button>
+          </div>
         ) : undefined
       }
     >
       <div className="space-y-4">
-        {r.equalSplit && <Notice tone="info" title="Split equally among everyone">All items, discounts and charges are included. Each person must confirm their own share before review; totals can differ by one centavo.</Notice>}
+        {r.equalSplit && <Notice tone="info" title="Split equally among everyone">All items, discounts and charges are included. Each person confirms their own share; shares can differ by ₱0.01.</Notice>}
         <div className="flex items-center justify-between">
           <p className="text-muted">
             Paid by <b className="text-ink">{name(r.payerId)}</b> · entered by {name(r.authorId)} · v{r.version}
@@ -186,45 +194,30 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
               {showPhoto ? "Hide photo" : "View photo"}
             </Button>
           )}
-          {canPhoto && (
-            <>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="sr-only"
-                aria-label="Attach receipt photo"
-                onChange={async (e) => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  setUploading(true);
-                  const img = await prepareImage(f, "RECEIPT");
-                  if (img.size > MAX_CLIENT_UPLOAD_BYTES) {
-                    setUploading(false);
-                    e.target.value = "";
-                    toast("That photo is too large to upload. Try a smaller photo or a screenshot of it.", "error");
-                    return;
-                  }
-                  const fd = new FormData();
-                  fd.set("file", img, uploadName(img));
-                  fd.set("kind", "RECEIPT");
-                  fd.set("receiptId", r.id);
-                  await act(() => api.post(`/api/events/${event.id}/assets`, fd), "Photo attached (private to this event)");
-                  setUploading(false);
-                  e.target.value = "";
-                }}
-              />
-              <Button variant="tonal" icon="camera" busy={uploading} onClick={() => fileRef.current?.click()}>
-                {r.imageAssetId ? "Replace photo" : "Attach photo"}
-              </Button>
-            </>
+          {canRemovePhoto && (
+            <Button
+              variant="tonal"
+              icon="trash"
+              busyLabel="Removing…"
+              onClick={() => {
+                if (!confirm("Remove this photo? The receipt details stay.")) return;
+                return act(() => api.del(`/api/receipts/${r.id}/image`), "Photo removed");
+              }}
+            >
+              Remove photo
+            </Button>
           )}
           {r.canEdit && (
             <Button
               variant="danger"
               icon="trash"
+              busyLabel="Deleting…"
               onClick={() => {
-                if (confirm(`Delete “${r.label}”? Claims on it are removed.`)) void act(() => api.del(`/api/receipts/${r.id}`), "Receipt deleted").then(onClose);
+                if (!confirm(`Delete “${r.label}”? Claims on it are removed.`)) return;
+                return act(() => api.del(`/api/receipts/${r.id}`), "Receipt deleted").then((ok) => {
+                  if (ok !== undefined) onClose();
+                  return ok;
+                });
               }}
             >
               Delete
@@ -234,7 +227,7 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
         {showPhoto && r.imageAssetId && (
           <img src={`/api/assets/${r.imageAssetId}`} alt={`Photo of ${r.label} receipt`} className="w-full rounded-2xl border border-line" />
         )}
-        <p className="text-[13px] text-muted">Photos are supporting evidence only — the typed amounts are what count. Only people in this event can see them.</p>
+        {r.imageAssetId && <p className="text-[13px] text-muted">Older receipts may have a photo. The typed amounts are what count. Only people in this event can see it, and it’s deleted with the event.</p>}
         {(view.event.phase === "COLLECTING" || view.event.phase === "ALLOCATING") && <ClaimProgress r={r} />}
       </div>
     </Sheet>

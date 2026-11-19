@@ -104,4 +104,4 @@ Read [docs/architecture.md](docs/architecture.md) for the class, ER, lifecycle a
 
 ## Scope boundaries (v1)
 
-One actual payer per receipt (many receipts may have different payers). No pooled advances or multiple funders on one receipt. PHP only. Manual entry is the source of truth; photos are supporting evidence. Once any payment is reported, the bill is frozen. Done events are read-only. Kulayan and the Lucena commute guide are separate projects.
+One actual payer per receipt (many receipts may have different payers). No pooled advances or multiple funders on one receipt. PHP only. Manual entry is the source of truth; receipt photos are only used to draft a receipt and are not stored (since v0.8.0). Once any payment is reported, the bill is frozen. Done events are read-only. Kulayan and the Lucena commute guide are separate projects.

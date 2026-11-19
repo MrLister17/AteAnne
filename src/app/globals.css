@@ -255,6 +255,39 @@ button {
   opacity: 0.8;
   cursor: progress;
 }
+/* Idle and busy labels ("Save" / "Saving…") share one grid cell, so the button keeps its width. */
+.btn-label {
+  display: inline-grid;
+}
+.btn-label > * {
+  grid-area: 1 / 1;
+}
+/* Spinner (Button, loading screens). Reduce Motion swaps it for a static "…" below. */
+.spinner {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Loading placeholders: the screen's shape before its data arrives. */
+.skeleton {
+  background: var(--surface-2);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
 /* Dashed "add another" row: obviously tappable, clearly secondary to Save. */
 .btn-add {
   width: 100%;
@@ -480,5 +513,32 @@ a.card:active {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  /* Without motion the label ("Saving…") and colour carry the state; never leave a frozen spinner. */
+  .spinner {
+    width: auto;
+    height: auto;
+    border: 0;
+    animation: none !important;
+  }
+  .spinner::after {
+    content: "…";
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+  /* A solid bar instead of a gradient frozen mid-sweep. */
+  .activity-bar {
+    animation: none !important;
+    background: var(--violet);
+  }
+  .animate-scanline {
+    display: none;
+  }
+  /* Pressed buttons change colour instead of shrinking. */
+  button:not(:disabled):active,
+  a[class*="min-h-"]:active,
+  a.btn:active,
+  a.card:active {
+    transform: none;
   }
 }

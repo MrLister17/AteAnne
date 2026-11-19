@@ -56,9 +56,6 @@ test("organizer acts for a guest without a phone and shows her the amount", asyn
   await expect(page.getByRole("button", { name: /I paid PHP 120.00/ })).toHaveCount(0);
   await page.getByRole("dialog", { name: "Bakery" }).getByRole("button", { name: "Close" }).click();
 
-  await tab(page, "Home");
-  await page.getByLabel("I’ve entered every receipt I paid").check();
-  await expect(page.getByLabel("I’ve entered every receipt I paid")).toBeChecked();
   await page.reload();
   await expect(page.getByText("Step 1 of 3 · Add & claim")).toBeVisible();
 
@@ -67,6 +64,10 @@ test("organizer acts for a guest without a phone and shows her the amount", asyn
   await page.getByRole("switch", { name: "I had some Ensaymada" }).click();
   await page.getByRole("button", { name: /Save my items/ }).click();
   await expect(page.getByText("1 of 1 receipts answered")).toBeVisible();
+  // Answered: the receipt folds away and the Next card asks the next thing (D53).
+  await expect(page.getByText("You had: Ensaymada")).toBeVisible();
+  await page.getByTestId("next-card").getByRole("button", { name: "I’m done adding receipts" }).click();
+  await expect(page.getByTestId("next-status")).toHaveText("Is everyone here?");
 
   await tab(page, "Home");
   await expect(page.getByTestId("guests-panel")).toContainText("Lola");

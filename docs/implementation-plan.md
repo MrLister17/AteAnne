@@ -43,6 +43,21 @@ Owner request: reduce the amount of information and controls shown at once in Pe
 
 Decision: D52. Requirements: S8-01–S8-04 in `requirements.md`. Validation uses the full `CLAUDE.md` command chain; record actual results in `test-report.md` before marking this sprint complete. Source CI44420961707 and the full local92-unit/49-integration/61-browser chain passed. Merged as `b7d317f`; production READY and live People browser smoke passed, synthetic event deleted. Root handoff and changelog track release evidence.
 
+## Sprint S9 — Claim → Pay → Done, lighter storage (v0.8.0, 2026-11-19 Manila)
+
+Owner approved the S9 plan ([`sprint-s9-plan.md`](sprint-s9-plan.md)) with every recommended decision. Starting point: the screen where Claim says "2 of 2 confirmed" and nothing says what's next.
+
+| Slice | Acceptance criteria | Status |
+| --- | --- | --- |
+| S9.4a Baseline first | Local measurement script and polling count recorded before any change; production read-only SQL handed to the owner | Local numbers recorded (`test-report.md`); production SQL pending the owner |
+| S9.3a Feedback building blocks | Busy labels, inline errors, polite/assertive toasts, busy state on every action, Reduce Motion cues | Complete; see test report |
+| S9.1 One next action | `NextAction` domain class, `view.next`/`view.group`, Next card on Home/Claim/Pay, Claim summary + See items, one tab dot, reminders and guests from the same tasks, Close-it-now confirmation | Complete; see test report |
+| S9.2 No new receipt photos; confirmation-only payments | 410 for receipt photos with no rows stored; older photos viewable/removable and purged with the event; Pay/receive wording, "It didn't arrive" sheet, partial-payment status | Complete; see test report |
+| S9.3b Loading, refresh, retry | Skeleton + Try again, error states split, refresh failure shown, one request on return, polling stops on Done/cancelled | Complete; see test report |
+| S9.4b–d Database checks | RLS regression test, rate-limit counters outside the transaction, no identity before join/recover checks, Retry-After | Complete; see test report |
+
+Decisions: D53–D57. Requirements: S9-01–S9-07. Follow-up after production numbers: F1 (`ReceiptAck.receiptId` and FK indexes), F2 (ETag/304 polling, lazy Activity), F3 (private browser cache for QR bytes), F4 (coarse write limit, Firewall), F5 (orphan actor cleanup), F6 (remaining prompts), F7 (pool size), F8 (return-transfer wording).
+
 ## Next (P1 backlog)
 
 1. Deactivate a member who has financial references (redact access, keep money). Gap from FR-18 / AT-19.

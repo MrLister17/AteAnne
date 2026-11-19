@@ -10,6 +10,10 @@ import { MAX_MEMBERS } from "../aggregate/EventAggregate";
 import { addGuestSchema, createEventSchema, joinSchema, setAdminSchema, transitionSchema, updateMeSchema } from "../validation";
 import { BaseService, Caller } from "./BaseService";
 
+
+/** A browser identity, or a way to create one only when it's actually needed. */
+export type ActorSource = string | (() => Promise<string>);
+
 export const JOIN_CODE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const RECOVERY_TTL_MS = 180 * 24 * 60 * 60 * 1000;
 
@@ -62,8 +66,13 @@ export class EventService extends BaseService {
     });
   }
 
-  /** Exchange a join code for membership. Returns null recoveryKey if already a member. */
-  async join(actorId: string, input: z.input<typeof joinSchema>, ipHash: string): Promise<Omit<Credentials, "recoveryKey"> & { recoveryKey: string | null }> {
+  /**
+   * Exchange a join code for membership. Returns null recoveryKey if already a member.
+   * `actor` may be a function that creates a browser identity: it runs only
+   * after the IP check passes and the code matches, so blocked or wrong
+   * attempts never create Actor or Session rows (D57).
+   */
+  async join(actor: ActorSource, input: z.input<typeof joinSchema>, ipHash: string): Promise<Omit<Credentials, "recoveryKey"> & { recoveryKey: string | null }> {
     const data = joinSchema.parse(input);
     await this.limiter.check(RATE_RULES.failedCodePerIp, ipHash);
     const normalized = this.codes.normalize(data.code);
@@ -76,6 +85,7 @@ export class EventService extends BaseService {
       throw new GoneError("code_expired", "This join code has expired. Ask the organizer for a new one.");
     }
     await this.limiter.hit(RATE_RULES.joinsPerEvent, event.id);
+    const actorId = typeof actor === "string" ? actor : await actor();
 
     return this.db.$transaction(async (tx) => {
       await this.repo.lock(tx, event.id);

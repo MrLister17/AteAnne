@@ -9,7 +9,7 @@ Source: *AteAnne — Full SDLC & Financial Specification v1.0* ([docs/spec/](spe
 | FR-01 | Event title 1–80, note ≤500, PHP; ≤20 people, ≤25 receipts, ≤50 lines | Done | `validation.ts`, `EventAggregate` limits, `EventService.join` | `integration/security.test.ts` (20-person limit), E2E create |
 | FR-02 | Join by random code + name; separate session and recovery credentials; code grants no authority | Done | `JoinCodeCodec`, `SessionManager`, `EventService.join` | security tests: rotated code, no owner authority, hash-only storage |
 | FR-03 | Intent guides UI only; anyone can fund and consume | Done | `IntentPicker`, domain has no roles | `unit/domain.test.ts` "payer can also owe", E2E (Mark pays and eats) |
-| FR-04 | Manual receipt: label, one payer, lines (qty, exact total), adjustments, payable, optional private photo | Done | `ReceiptService`, `ReceiptEditor`, `AssetService` | workflow + E2E + image tests |
+| FR-04 | Manual receipt: label, one payer, lines (qty, exact total), adjustments, payable. Photos: no longer stored since v0.8.0 (D54); older ones stay viewable until the event is deleted | Done | `ReceiptService`, `ReceiptEditor`, `AssetService` | workflow + E2E + image tests |
 | FR-05 | Named payer confirms funding for the exact receipt version | Done | `ReceiptService.acknowledgeFunding`, `FundingAck` unique per version | workflow: only payer; organizer edit makes ack stale |
 | FR-06 | Entry gate: all complete, reconciled, payer-confirmed; owner locks roster | Done | `EventAggregate.allocationGate`, `EventService.transition` | workflow "entry gate…locks the roster" |
 | FR-07 | Each member answers every receipt; None ≠ unanswered; progress saved | Done | `ReceiptService.saveClaims` (finish/none/draft), `ReceiptAck` | workflow (Paolo unanswered blocks review), E2E |
@@ -87,3 +87,17 @@ See `test-report.md` for actual command outcomes; presence of a test file alone 
 | S8-04 | One shared sheet has visible Back/Close controls, returns follow-up actions to their parent, and supports keyboard dismissal; roster/settings fit iPhone and 360px widths with ≥44px touch targets in light/dark mode | Shared `Sheet` and `PeopleTab.tsx`; `e2e/people.spec.ts` Back/Close/Escape, focus return, touch targets, overflow and screenshots |
 
 This sprint changes presentation and navigation only and preserves v0.7.0’s three-step workflow with no approval round. See `test-report.md` for actual check results and `implementation-plan.md` for completion status.
+
+## Sprint S9 Claim → Pay → Done, lighter storage (D53–D57, v0.8.0)
+
+Plan: [`sprint-s9-plan.md`](sprint-s9-plan.md).
+
+| ID | Acceptance requirement | Implementation / evidence |
+| --- | --- | --- |
+| S9-01 | One next step per person from one pure domain source; for every state where the bill can't freeze, each person gets a task or a wait that names a person or reason | `src/domain/event/NextAction.ts`, `EventViewBuilder` (`view.next`, `view.group`); `unit/next-action.test.ts` (incl. 128-case matrix), `integration/payments-flow.test.ts` |
+| S9-02 | Home, Claim and Pay show one **Next for you** card with one primary action; Claim folds answered receipts behind **See items**; the tab dot is on the tab the card opens; reminders and guest lists read the same tasks | `NextCard.tsx`, `ClaimTab.tsx`, `OverviewTab.tsx`, `EventApp.tsx`, `reminders.ts`; `e2e/next-step.spec.ts`, `unit/reminders.test.ts` |
+| S9-03 | New receipt photos are never stored (410 `receipt_photos_off`, no `Asset`/`AssetBlob` rows); older photos keep access rules, can be removed, and are purged with their event | `AssetService`, assets route, `ReceiptEditor`, `ReceiptsTab`; `integration/security.test.ts`, `e2e/scan.spec.ts` |
+| S9-04 | Reimbursements are confirmation-only: sender reports, recipient confirms; partial payments, disputes, re-recording and corrections keep exact centavos; wording uses Sent / Received / Didn't arrive | `SettlementSection.tsx`; `integration/payments-flow.test.ts`, `e2e/hatian.spec.ts`, `e2e/next-step.spec.ts` |
+| S9-05 | Every action shows busy, success and failure states beside the button, double taps send one request, and the same cues work with Reduce Motion | `ui.tsx` (`Button busyLabel`, `ActionError`, toasts), `globals.css`; `e2e/feedback.spec.ts` |
+| S9-06 | First load, refresh failures and retries are visible; returning to the app sends one request; Done events stop polling | `EventApp.tsx`; `e2e/feedback.spec.ts` |
+| S9-07 | RLS on every table and no Data API grants are enforced by a test; rate-limit counters run outside the event transaction; wrong join/recovery attempts create no identities; 429s carry Retry-After | `RateLimiter`, `ReceiptService`, `PaymentService`, join/recover routes; `integration/database-security.test.ts`, `integration/rate-limits.test.ts` |

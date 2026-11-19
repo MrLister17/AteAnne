@@ -7,6 +7,7 @@ import { SecretGenerator } from "../security/Crypto";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import { recoverSchema } from "../validation";
 import { RECOVERY_TTL_MS } from "./EventService";
+import type { ActorSource } from "./EventService";
 import { BaseService } from "./BaseService";
 
 export const ASSISTED_RECOVERY_TTL_MS = 15 * 60 * 1000;
@@ -47,10 +48,20 @@ export class RecoveryService extends BaseService {
     });
   }
 
-  async redeem(actorId: string, input: z.input<typeof recoverSchema>, ipHash: string): Promise<{ eventId: string; memberId: string; recoveryKey: string }> {
+  /**
+   * `actor` may create a browser identity lazily: it runs only after the IP
+   * check passes and the key exists, so wrong keys never create rows (D57).
+   */
+  async redeem(actor: ActorSource, input: z.input<typeof recoverSchema>, ipHash: string): Promise<{ eventId: string; memberId: string; recoveryKey: string }> {
     const { key } = recoverSchema.parse(input);
     await this.limiter.check(RATE_RULES.recoveryPerIp, ipHash);
     const hash = this.secrets.sha256(key);
+    // A cheap look before any identity is created; re-checked under the event lock below.
+    if (!(await this.db.member.findUnique({ where: { recoveryHash: hash }, select: { id: true } }))) {
+      await this.limiter.hit(RATE_RULES.recoveryPerIp, ipHash);
+      throw new NotFoundError("That recovery key is not valid");
+    }
+    const actorId = typeof actor === "string" ? actor : await actor();
     return this.db.$transaction(async (tx) => {
       // Find the event, then follow the same event → children lock order as all
       // member/financial writes. Re-read the hash after the lock: another

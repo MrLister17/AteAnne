@@ -1,7 +1,7 @@
 /**
- * The simpler Home screens (D48): your to-do first, one "Next step" for the
- * group, organizer tools below, rarely needed controls one tap away behind a
- * plainly worded row. Checked at iPhone 15 and 360px widths. Synthetic data.
+ * The simpler Home screens (D48, D53): one "Next for you" action first, the
+ * group card, organizer tools below, rarely needed controls one tap away behind
+ * a plainly worded row. Checked at iPhone 15 and 360px widths. Synthetic data.
  */
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
 
@@ -36,7 +36,7 @@ async function expectPhoneFriendly(page: Page) {
   expect(small).toEqual([]);
 }
 
-test("event Home: to-do first, invite + “Everyone’s here”, one next step, only this step’s tabs", async ({ browser }, testInfo) => {
+test("event Home: one next action first, invite + “Everyone’s here”, the group, only this step’s tabs", async ({ browser }, testInfo) => {
   const use = testInfo.project.use as object;
   const mark = await phone(browser, use);
   const juan = await phone(browser, use);
@@ -52,22 +52,28 @@ test("event Home: to-do first, invite + “Everyone’s here”, one next step, 
   const page = await mark.newPage();
   await page.goto(`/e/${created.eventId}`);
   await expect(page.getByText("Step 1 of 3 · Add & claim")).toBeVisible();
-  const todo = page.getByRole("heading", { name: "Your to-do" });
+  const nextHeading = page.getByRole("heading", { name: "Next for you" });
   const invite = page.getByRole("heading", { name: "Invite people" });
-  const next = page.getByRole("heading", { name: "Next step" });
+  const group = page.getByRole("heading", { name: "The group" });
   await expect(invite).toBeVisible();
-  expect(await top(todo)).toBeLessThan(await top(invite));
-  expect(await top(invite)).toBeLessThan(await top(next));
+  expect(await top(nextHeading)).toBeLessThan(await top(invite));
+  expect(await top(invite)).toBeLessThan(await top(group));
 
   // Only this step's tabs: Receipts and Claim, no Money/Pay yet.
   const nav = page.getByRole("navigation", { name: "Event sections" });
   await expect(nav.getByRole("button")).toHaveText([/^Home/, /^Receipts/, /^Claim/, /^People/]);
 
-  // The tick every member needs is in the to-do card, visible without scrolling.
-  await expect(page.getByLabel("I’ve entered every receipt I paid")).toBeInViewport();
+  // One next action, visible without scrolling: Mark already claimed, so it's "done adding receipts" (D53).
+  const card = page.getByTestId("next-card");
+  await expect(card.getByTestId("next-status")).toHaveText("Did you pay for anything else?");
+  await expect(card.getByRole("button", { name: "I’m done adding receipts" })).toBeInViewport();
+  await expect(card.getByRole("button")).toHaveCount(2); // the action + "Add a receipt"
+  // The rest of Mark's list is folded away.
+  await page.getByText("Everything left (2)").click();
+  await expect(page.getByTestId("everything-left")).toContainText("Tap Everyone’s here");
   // No estimate while someone hasn't answered: Mark would look like he paid for himself only.
   await expect(page.getByRole("status").filter({ hasText: /Net to (pay|receive)/ })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Everyone’s here" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Everyone’s here" })).toHaveCount(1);
   await expect(page.getByText("Waiting on", { exact: true })).toBeVisible();
   await expect(page.getByText("The bill freezes by itself once everyone is done.", { exact: false })).toBeVisible();
 
@@ -79,22 +85,33 @@ test("event Home: to-do first, invite + “Everyone’s here”, one next step, 
 
   // The auto-delete date is fine print at the bottom, not a box at the top.
   await expect(page.getByText(/^Auto-deletes /)).toBeVisible();
-  expect(await top(page.getByText(/^Auto-deletes /))).toBeGreaterThan(await top(next));
+  expect(await top(page.getByText(/^Auto-deletes /))).toBeGreaterThan(await top(group));
   await expectPhoneFriendly(page);
   await page.screenshot({ path: "test-results/screens/30-home-organizer.png", fullPage: true, animations: "disabled" });
+
+  // Saying you're done moves Mark's card on to "Is everyone here?" and offers Undo.
+  await card.getByRole("button", { name: "I’m done adding receipts" }).click();
+  await expect(card.getByTestId("next-status")).toHaveText("Is everyone here?");
+  await expect(page.getByRole("button", { name: "Everyone’s here" })).toHaveCount(1); // only in the card now
+  await expect(page.getByRole("button", { name: "Undo" })).toBeVisible();
 
   // ---------------------------------------------------------------- member
   const juanPage = await juan.newPage();
   await juanPage.goto(`/e/${created.eventId}`);
-  await expect(juanPage.getByRole("heading", { name: "Next step" })).toBeVisible();
+  const juanCard = juanPage.getByTestId("next-card");
+  await expect(juanCard.getByTestId("next-status")).toHaveText("Next: Kusina");
+  await expect(juanCard.getByRole("button", { name: "Claim from Kusina" })).toBeInViewport();
+  await expect(juanPage.getByRole("heading", { name: "The group" })).toBeVisible();
   await expect(juanPage.getByText("The bill freezes by itself once everyone is done. Then you’ll see exactly who to pay.")).toBeVisible();
   await expect(juanPage.getByText("Waiting on", { exact: true })).toBeVisible();
-  await expect(juanPage.getByRole("button", { name: /Claim what you had from “Kusina”/ })).toBeInViewport();
-  await expect(juanPage.getByLabel("I’ve entered every receipt I paid")).toBeInViewport();
   await expect(juanPage.getByRole("button", { name: /Everyone’s here/ })).toHaveCount(0);
   await expect(juanPage.getByRole("heading", { name: "Invite people" })).toHaveCount(0);
+  // The one attention dot is on Claim, where the card leads.
+  await expect(juanPage.getByRole("navigation", { name: "Event sections" }).getByRole("button", { name: /^Claim/ }).getByLabel("needs your attention")).toHaveCount(1);
   await expectPhoneFriendly(juanPage);
   await juanPage.screenshot({ path: "test-results/screens/31-home-member.png", fullPage: true, animations: "disabled" });
+  await juanCard.getByRole("button", { name: "Claim from Kusina" }).click();
+  await expect(juanPage.getByRole("switch", { name: "I had some Sisig" })).toBeVisible();
 
   await mark.close();
   await juan.close();

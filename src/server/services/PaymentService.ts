@@ -6,7 +6,7 @@ import { NotFoundError } from "../http/HttpError";
 import type { EventAggregate } from "../aggregate/EventAggregate";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import { decisionSchema, disputeChoiceSchema, instructionsSchema, rejectSchema, reportSchema, reverseSchema } from "../validation";
-import { BaseService, Caller } from "./BaseService";
+import { BaseService, Caller, callerParts } from "./BaseService";
 
 /**
  * Settlement phase: payment instructions, sender reports, recipient-only
@@ -85,8 +85,9 @@ export class PaymentService extends BaseService {
   async report(caller: Caller, edgeId: string, input: z.input<typeof reportSchema>): Promise<{ reportId: string; replayed: boolean }> {
     const data = reportSchema.parse(input);
     const eventId = await this.eventIdForEdge(edgeId);
+    // Counted before the event lock so it never holds a second connection (D57).
+    await this.limiter.hit(RATE_RULES.financialSavesPerPerson, `${eventId}:${callerParts(caller).actorId}`);
     return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
-      await this.limiter.hit(RATE_RULES.financialSavesPerMember, me.id);
       // Idempotent replay: same sender + key returns the original record.
       const prior = await tx.paymentReport.findUnique({ where: { senderMemberId_idempotencyKey: { senderMemberId: me.id, idempotencyKey: data.idempotencyKey } } });
       if (prior) {

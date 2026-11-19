@@ -5,6 +5,7 @@ import { Avatar, BalanceBanner, Card, Notice, SectionTitle, balanceLabel } from 
 import { php, phpAbs } from "../format";
 import { useEvent } from "./EventContext";
 import { SettlementSection } from "./SettlementSection";
+import { NextCard } from "./NextCard";
 
 type ShareLike = { memberId: string; lines: Record<string, string>; discounts: Record<string, string>; charges: Record<string, string>; itemsGross: string; discountTotal: string; chargeTotal: string; total: string };
 type ReceiptLike = { id: string; label: string; payerId: string; payable: string; lines: { id: string; label: string; quantity: number; amount: string; mode: string }[]; adjustments: { id: string; kind: string; label: string; amount: string; scopeAll: boolean }[] };
@@ -29,6 +30,7 @@ export function MoneyTab() {
     return (
       <div className="space-y-3">
         <Header />
+        <NextCard where="pay" />
         <SettlementSection />
         <SectionTitle>Where your share came from</SectionTitle>
         <Breakdown receipts={facts.receipts} sharesFor={(rid) => facts.receipts.find((r) => r.id === rid)?.shares ?? []} />
@@ -105,7 +107,7 @@ function Breakdown({ receipts, sharesFor }: { receipts: ReceiptLike[]; sharesFor
         const basisTotal = shares.reduce((a, s) => a + BigInt(s.itemsGross) - BigInt(s.discountTotal), 0n);
         const myBasis = mine ? BigInt(mine.itemsGross) - BigInt(mine.discountTotal) : 0n;
         return (
-          <details key={r.id} className="card group overflow-hidden p-0" open={receipts.length <= 2}>
+          <details key={r.id} className="card group overflow-hidden p-0">
             <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{r.label}</p>

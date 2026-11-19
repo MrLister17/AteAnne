@@ -113,7 +113,7 @@ describe("Add & claim", () => {
     const late = await newActor(app);
     await expect(app.events.join(late, { code: ctx.joinCode, displayName: "Late" }, "ip2")).rejects.toThrow();
     const view = await app.queries.view(P().Mark.actorId, ctx.eventId);
-    expect(view.gates.freeze!.blockers.join(" ")).toMatch(/Mark hasn’t ticked “I’ve entered every receipt I paid”/);
+    expect(view.gates.freeze!.blockers.join(" ")).toMatch(/Mark isn’t done adding receipts yet/);
   });
 
   it("matches the reference nets and transfers", async () => {

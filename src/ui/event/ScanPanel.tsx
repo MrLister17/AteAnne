@@ -72,7 +72,7 @@ export function ScanPanel({
               </span>
               <div className="min-w-0">
                 <h3 className={`font-bold text-ink ${variant === "hero" ? "text-[17px]" : "text-[16px]"}`}>{rescan ? "Scan a different photo" : variant === "hero" ? "Scan a receipt" : "Fill in from a photo"}</h3>
-                <p className="text-[14px] text-muted">We read the items and total for you. You check everything before saving.</p>
+                <p className="text-[14px] text-muted">We read the photo, you check the details. The photo isn’t saved.</p>
               </div>
             </div>
           )}

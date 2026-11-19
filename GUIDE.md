@@ -14,8 +14,8 @@ This one page explains what the app does, where everything lives, how to run and
 
 | Step (phase) | What happens | How it moves on |
 | --- | --- | --- |
-| 1. Add & claim (`COLLECTING`) | People join with a code. Whoever paid adds receipts by typing or **scanning a photo**; saving your own receipt counts as "I paid" (a receipt someone typed for you waits for your "I paid"). Everyone claims what they had **as soon as a receipt exists** ("I had some", pieces with − / +, or "I got nothing from this receipt") and ticks "I've entered every receipt I paid". The organizer taps **Everyone's here** once the group is complete (joining closes for good). | **Automatically**: the bill freezes the moment the roster is closed and everyone is done. Claiming is the agreement; there is no approval round (D50). |
-| 2. Pay (`SETTLING`) | Transfers are frozen (e.g. "Juan → Mark ₱495"). Payers send money outside the app and tap "I sent money". Receivers tap "Received" or "Not received". | **Automatically**: the daily job closes it a day after the last payment is confirmed (the day is the window to undo a mistaken "Received"). The organizer may tap **Close it now**. |
+| 1. Add & claim (`COLLECTING`) | People join with a code. Whoever paid adds receipts by typing or **scanning a photo**; saving your own receipt counts as "I paid" (a receipt someone typed for you waits for your "I paid"). Everyone claims what they had **as soon as a receipt exists** ("I had some", pieces with − / +, or "I got nothing from this receipt") and taps **I'm done adding receipts**. Scanned photos are never stored (D54). The organizer taps **Everyone's here** once the group is complete (joining closes for good). | **Automatically**: the bill freezes the moment the roster is closed and everyone is done. Claiming is the agreement; there is no approval round (D50). |
+| 2. Pay (`SETTLING`) | Transfers are frozen (e.g. "Juan → Mark ₱495"). Payers send money outside the app and tap **I sent ₱495** (any part is fine). Receivers answer **Did ₱495 from Juan arrive?** with **Yes, I got it** or **It didn't arrive** (D55). | **Automatically**: the daily job closes it a day after the last payment is confirmed (the day is the window to undo a mistaken confirmation). The organizer may tap **Close it now** (it asks first). |
 | 3. Done (`DONE`) | Read-only record. | — |
 
 Events started before v0.7 may still be in `ALLOCATING`/`REVIEWING`; they show as step 1, claims still work in Allocating, and the organizer can **Freeze the bill now** or reopen receipts. The bottom tab bar shows only the tabs for the current step: Home · Receipts · Claim · People in step 1; Home · Pay · Receipts · People in step 2; Home · Money · Receipts · People when Done.
@@ -26,15 +26,19 @@ Events started before v0.7 may still be in `ALLOCATING`/`REVIEWING`; they show a
 
 **Sprint S7 shortcuts:** install AteAnne on the Home Screen **before** creating/joining (Safari requires its Share menu; other supported browsers show native confirmation). In the receipt editor, choose **Split this receipt equally among everyone**; each person accepts their own share in Claim. Home → Next step → **Copy reminder** refreshes, previews a group/person message, and copies it for you to paste into Messenger. It sends nothing automatically. Home → Next step → *Something wrong with the bill?* → **Correct the bill** starts a reasoned correction before Done, carrying confirmed payments into revised balances; the organizer re-freezes it with **Freeze the corrected bill**. People → tap the person → **Reissue access** lets the organizer check a lost-key member in person and privately hand over a 15-minute key; this trusted-circle power can grant that person’s access, so identity checking matters.
 
+**What's next (v0.8.0, Sprint S9, D53):** every screen asks the server what each person should do next. `src/domain/event/NextAction.ts` (pure) turns the event into an ordered task list per person; the view sends `next` (yours) and `group` (everyone's). Home, Claim and Pay show one **Next for you** card — e.g. **Is everyone here?** → **[Everyone's here]**, **Did you pay for anything else?** → **[I'm done adding receipts]**, **You're done for now · Waiting for Mark to tap Everyone's here.**, **Pay Mark ₱698.50**, **Did ₱400 from Ana arrive?** → **[Yes, I got it]**. The tab dot, "See what's left", the guest list and **Copy reminder** read the same list, so they never disagree. To add a task: add it to `NextAction.ts` (+ a unit test), word it in `next.ts`/`NextCard.tsx`/`reminders.ts`.
+
+**Feedback on every tap (D56):** pass `busyLabel` to `Button` ("Saving…"); use `useInlineAction()` and `<ActionError>` so a failure shows beside the button. Reduce Motion turns spinners into a static "…".
+
 **Finding things in People (v0.7.1, Sprint S8, D52):** the first screen is a compact roster. Tap a person (accessible label **View [name]**) to see the actions you can take for them, such as making them an admin, reissuing access or helping a guest. The labeled rows below the roster open focused sheets: **Your profile & access** for your name, recovery key and big-text amount; **Download event record** for **Spreadsheet (CSV)** and **Full record (JSON)**; **Event settings** for organizer cancellation/deletion; **Help & privacy** for the tutorial and identity/retention explanation; **Activity** for the audit history. **Back** returns from a follow-up action to the person or section you opened it from; **Close** returns to the roster. Those actions keep their existing role and event-phase restrictions.
 
 
 **The two Home screens (v0.6.1, D48)** are laid out in reading order so people know where to look:
 - **Start screen** (`/`): your events first (if any) → **Start a hatian** / **Join with a code** → a lighter **I have a recovery key** row → the install card → *How it works* (open for newcomers, folded once you have events; the full walkthrough button lives inside it). Help is the **?** icon at the top.
-- **Event → Home tab (v0.7):** your balance (estimates only once everyone has answered) → **Your to-do** (only what is left: confirm a receipt someone typed for you, claim each receipt, the *I’ve entered every receipt I paid* tick; "You’re done for now" when finished) → the organizer’s note → **Invite people** (organizer, while joining is open: code, Copy/Share, **Everyone’s here**) → **Next step** (what happens next, what the group is waiting on, **Copy reminder**) → **People without a phone** (organizer/admins) → the auto-delete date as fine print (a warning at the top in the last 7 days).
+- **Event → Home tab (v0.8):** your balance (estimates only once everyone has answered) → **Next for you** (one action; your other tasks under *Everything left (N)*; "You said you’re done adding receipts · Undo") → the organizer’s note → **Invite people** (organizer, while joining is open: code, Copy/Share, **Everyone’s here**) → **The group** (what happens next, what the group is waiting on, **Copy reminder**, *Something wrong with the bill?*) → **People without a phone** (organizer/admins) → the auto-delete date as fine print (a warning at the top in the last 7 days).
 - Rarely needed controls are one tap away behind plainly worded rows, never removed: *Something wrong with the bill?*, *More join options* (New code), each guest’s *N to do* list, and on Claim *Don’t agree with splitting this equally?* / *Change my answer*.
 
-**Other features:** first-visit "First time here?" prompt plus a 10-step tutorial (the **?** button); recovery key to move to a new phone (Home → **I have a recovery key**; pasting it into the join-code box also works); cash/QR payment instructions; private receipt photos; CSV/JSON export; events auto-delete **30 days after creation**; "preview mode" when no database is connected.
+**Other features:** first-visit "First time here?" prompt plus a 10-step tutorial (the **?** button); recovery key to move to a new phone (Home → **I have a recovery key**; pasting it into the join-code box also works); cash/QR payment instructions; receipt photos saved before v0.8.0 stay viewable/removable until the event is deleted (new ones aren't stored); CSV/JSON export; events auto-delete **30 days after creation**; "preview mode" when no database is connected.
 
 ---
 
@@ -77,6 +81,7 @@ src/
     event/GuestPolicy.ts                  who may act for a guest (no-phone person); admins; conflict rule
     receipt/EntryMath.ts                  qty × price and percent helpers for typed receipts
     event/RetentionPolicy.ts              30-day auto-delete date
+    event/NextAction.ts                   each person's next step and task list (D53)
     settlement/SettlementPlanner.ts       who pays whom (transfer list)
     payments/PaymentLedger.ts             pending/confirmed/disputed payment rules
     errors.ts                             ValidationError / ConflictError / PermissionError
@@ -115,19 +120,21 @@ src/
     components/ui.tsx         Button, Field, Card, Sheet (pop-up), Notice, BalanceBanner…
     components/Icon.tsx       all icons (inline SVG)
     event/EventApp.tsx        header, phase bar, bottom tab bar
-    event/OverviewTab.tsx     "Home" tab: to-do (+ entry tick), Next step card, Invite people, guests, deletion line
-    event/ReminderPanel.tsx   "Copy reminder" button + sheet (inside the Next step card)
-    event/ReceiptsTab.tsx     receipt list + Scan button
+    event/OverviewTab.tsx     "Home" tab: Next card, Everything left, Invite people, The group card, guests, deletion line
+    event/NextCard.tsx        "Next for you": one status, one action (Home, Claim, Pay), "See what's left" sheet
+    event/next.ts             task wording, tab for a task, "Waiting for …" sentences
+    event/ReminderPanel.tsx   "Copy reminder" button + sheet
+    event/ReceiptsTab.tsx     receipt list + Scan button; old photos: View / Remove (new ones aren't stored)
     event/ReceiptEditor.tsx   add/edit receipt form (+ "Fill in from a photo"; auto totals, % charges)
     event/PersonScreen.tsx    big-text "show this to them" screen (amount owed/owed to, items)
-    event/todo.ts             what a guest is still waiting on (Home → People without a phone)
-    event/ClaimTab.tsx        claiming wizard
+    event/todo.ts             everyoneAnswered (estimates only once everyone has answered)
+    event/ClaimTab.tsx        claiming wizard (summary, See items, Next card after you answer)
     event/MoneyTab.tsx        frozen split, breakdown and payments
     event/SettlementSection.tsx  paying, confirming, disputes, QR/cash setup
     event/PeopleTab.tsx       compact roster; person actions and profile/export/settings/help/activity sheets
     event/ScanPanel.tsx       the "Take photo / Upload photo" block, progress, errors
     event/useReceiptScanner.ts   shared scan logic (shrink, send, cancel, time-out)
-    tutorial/steps.tsx        THE 12 TUTORIAL STEPS (text + pictures)
+    tutorial/steps.tsx        THE 10 TUTORIAL STEPS (text + pictures)
     tutorial/TutorialProvider.tsx first-visit prompt + tutorial pop-up
     pwa/                      install prompt, service worker, preview banner
     format.ts, image.ts, api.ts  helpers (peso formatting, photo shrinking, API client)

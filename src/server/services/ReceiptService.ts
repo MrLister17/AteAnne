@@ -6,7 +6,7 @@ import { NotFoundError } from "../http/HttpError";
 import { EventAggregate, MAX_LINES, MAX_RECEIPTS, MemberRecord } from "../aggregate/EventAggregate";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import { claimsSchema, fundingAckSchema, receiptSchema, updateReceiptSchema } from "../validation";
-import { BaseService, Caller } from "./BaseService";
+import { BaseService, Caller, callerParts } from "./BaseService";
 
 type ReceiptPayload = z.output<typeof receiptSchema>;
 
@@ -25,6 +25,11 @@ export class ReceiptService extends BaseService {
     private readonly limiter: RateLimiter,
   ) {
     super(db);
+  }
+
+  /** One financial save for this real person in this event, counted before the event lock (D57). */
+  private countSave(caller: Caller, eventId: string) {
+    return this.limiter.hit(RATE_RULES.financialSavesPerPerson, `${eventId}:${callerParts(caller).actorId}`);
   }
 
   async eventIdForReceipt(receiptId: string): Promise<string> {
@@ -55,8 +60,8 @@ export class ReceiptService extends BaseService {
 
   async create(caller: Caller, eventId: string, input: z.input<typeof receiptSchema>): Promise<{ receiptId: string }> {
     const data = receiptSchema.parse(input);
+    await this.countSave(caller, eventId);
     return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
-      await this.limiter.hit(RATE_RULES.financialSavesPerMember, me.id);
       this.assertCanEdit(agg, me);
       if (agg.record.receipts.length >= MAX_RECEIPTS) throw new ConflictError("too_many_receipts", `At most ${MAX_RECEIPTS} receipts per event`);
       this.validatePayload(agg, data);
@@ -76,8 +81,8 @@ export class ReceiptService extends BaseService {
   async update(caller: Caller, receiptId: string, input: z.input<typeof updateReceiptSchema>): Promise<{ version: number }> {
     const data = updateReceiptSchema.parse(input);
     const eventId = await this.eventIdForReceipt(receiptId);
+    await this.countSave(caller, eventId);
     return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
-      await this.limiter.hit(RATE_RULES.financialSavesPerMember, me.id);
       this.assertCanEdit(agg, me);
       const receipt = agg.receipt(receiptId);
       const isAuthor = receipt.authorMemberId === me.id;
@@ -180,8 +185,8 @@ export class ReceiptService extends BaseService {
   async saveClaims(caller: Caller, receiptId: string, input: z.input<typeof claimsSchema>): Promise<{ claimVersion: number }> {
     const data = claimsSchema.parse(input);
     const eventId = await this.eventIdForReceipt(receiptId);
+    await this.countSave(caller, eventId);
     return this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
-      await this.limiter.hit(RATE_RULES.financialSavesPerMember, me.id);
       agg.machine.assertIn("COLLECTING", "ALLOCATING");
       agg.assertNotCancelled();
       const receipt = agg.receipt(receiptId);

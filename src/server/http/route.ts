@@ -5,7 +5,7 @@ import { DomainError } from "@/domain/errors";
 import { config, configProblems } from "../config";
 import { container, AppContainer } from "../container";
 import { SESSION_COOKIE, SESSION_TTL_MS } from "../auth/SessionManager";
-import { HttpError, UnauthenticatedError, statusFor } from "./HttpError";
+import { HttpError, RateLimitedError, UnauthenticatedError, statusFor } from "./HttpError";
 
 const MAX_JSON_BYTES = 64 * 1024;
 
@@ -161,5 +161,6 @@ function errorResponse(error: unknown, requestId: string): NextResponse {
   }
   const res = new NextResponse(serialize(body), { status, headers: { "content-type": "application/json" } });
   privateHeaders(res.headers);
+  if (error instanceof RateLimitedError) res.headers.set("Retry-After", String(error.retryAfterSeconds));
   return res;
 }

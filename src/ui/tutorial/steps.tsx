@@ -175,13 +175,13 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Everyone",
     title: "Say you’re done; the bill freezes by itself",
     points: [
-      "Everyone ticks “I’ve entered every receipt I paid” on Home, even if they paid nothing.",
+      "Everyone taps “I’m done adding receipts” on Home, even if they paid nothing.",
       "The organizer taps “Everyone’s here” once everyone who shared the bill has joined. Nobody new can join after this.",
       "The moment everyone is done, AteAnne freezes the bill and shows simple transfers, e.g. “Juan → Mark ₱495.00”.",
     ],
     art: (
       <Phone>
-        <Row left={<span className="flex items-center gap-2"><span className="inline-flex size-4 items-center justify-center rounded bg-violet text-violet-ink"><Icon name="check" size={12} /></span> I’ve entered every receipt I paid</span>} />
+        <Pill><Icon name="check" size={14} /> I’m done adding receipts</Pill>
         <Pill><Icon name="lock" size={14} /> Everyone’s here</Pill>
         <Row left="Juan → Mark" right="₱495.00" />
         <Row left="Paolo → Mark" right="₱211.00" />
@@ -194,15 +194,15 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Pay outside the app, then report it",
     points: [
       "People getting paid back set up how they want to be paid in Money: cash and/or their own QR.",
-      "Send the money with cash or your e-wallet/bank, then tap “I sent money” and enter the amount. Partial payments are fine.",
-      "Your payment shows as “Pending” — it doesn’t count yet.",
+      "Send the money with cash or your e-wallet/bank, then tap “I sent” and enter the amount. Sending part of it is fine.",
+      "Your payment shows as “Sent” until the other person confirms it arrived. It doesn’t count yet.",
     ],
     art: (
       <Phone>
         <Row left={<span className="flex items-center gap-2"><Icon name="qr" size={16} className="text-violet" /> QR — Mark</span>} />
         <Row left={<span className="flex items-center gap-2"><Icon name="cash" size={16} className="text-receive" /> Cash accepted</span>} />
-        <Pill><Icon name="arrowUp" size={14} /> I sent money</Pill>
-        <Row left="₱200.00 · cash" right={<span className="text-warn">Pending</span>} tone="warn" />
+        <Pill><Icon name="arrowUp" size={14} /> I sent ₱200.00</Pill>
+        <Row left="₱200.00 · cash" right={<span className="text-warn">Sent</span>} tone="warn" />
       </Phone>
     ),
   },
@@ -211,16 +211,16 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Person receiving",
     title: "The receiver confirms",
     points: [
-      "The person who received the money checks their cash or e-wallet and taps “Received”. Only then does the balance go down.",
-      "Nothing arrived? Tap “Not received”. You both then pick what happened — nobody else can decide for you.",
+      "The person getting the money checks their cash or e-wallet and taps “Yes, I got it”. Only then does the balance go down.",
+      "Not there yet? Leave it and check later. Really didn’t arrive? Tap “It didn’t arrive”. You both then pick what happened — nobody else can decide for you.",
       "Confirmed by mistake? You can undo it once, with a reason, until the hatian closes.",
     ],
     art: (
       <Phone>
-        <Row left="Juan sent ₱200.00 · cash" right={<span className="text-warn">Pending</span>} />
+        <Row left="Did ₱200.00 from Juan arrive?" right={<span className="text-warn">Sent</span>} />
         <div className="grid grid-cols-2 gap-2">
-          <Pill tone="receive"><Icon name="check" size={14} /> Received</Pill>
-          <Pill tone="pay">Not received</Pill>
+          <Pill tone="receive"><Icon name="check" size={14} /> Yes, I got it</Pill>
+          <Pill tone="pay">It didn’t arrive</Pill>
         </div>
         <Row left="Confirmed" right={<span className="text-receive">₱200.00</span>} tone="receive" />
       </Phone>

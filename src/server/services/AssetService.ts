@@ -1,7 +1,7 @@
 import sharp, { type Metadata } from "sharp";
 import { ConflictError, PermissionError, ValidationError } from "@/domain/errors";
 import type { Db } from "../db";
-import { HttpError, NotFoundError } from "../http/HttpError";
+import { GoneError, HttpError, NotFoundError } from "../http/HttpError";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
 import type { PrivateStorage } from "../storage/PrivateStorage";
 import { BaseService, Caller, callerParts } from "./BaseService";
@@ -57,8 +57,15 @@ export class AssetService extends BaseService {
     }
   }
 
-  /** Upload and attach. RECEIPT → receipt image (author/payer/organizer); QR → caller's own instructions. */
-  async upload(caller: Caller, eventId: string, kind: "RECEIPT" | "QR", file: Buffer, receiptId?: string): Promise<{ assetId: string }> {
+  /**
+   * Upload and attach a payment QR to the caller's own instructions.
+   * Receipt photos are no longer kept (D54): the receipt's typed details are
+   * the record, so a RECEIPT upload is refused before any rate-limit hit or
+   * image decoding. Existing receipt photos stay readable until their event
+   * is deleted.
+   */
+  async upload(caller: Caller, eventId: string, kind: "RECEIPT" | "QR", file: Buffer): Promise<{ assetId: string }> {
+    if (kind === "RECEIPT") throw new GoneError("receipt_photos_off", "Receipt photos aren’t saved anymore. Your typed details are kept.");
     // Authorise before doing expensive decoding (acting for a guest is re-checked inside the event lock).
     const { actorId } = callerParts(caller);
     const member = await this.db.member.findFirst({ where: { eventId, actorId, active: true } });
@@ -69,26 +76,10 @@ export class AssetService extends BaseService {
     try {
       return await this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
         if (agg.phase === "DONE") throw new ConflictError("event_done", "Done events are read-only");
-        let replaced: string | null = null;
-        if (kind === "RECEIPT") {
-          if (!receiptId) throw new ValidationError("receipt_required", "Choose the receipt this photo belongs to");
-          const r = agg.receipt(receiptId);
-          if (r.authorMemberId !== me.id && r.payerMemberId !== me.id && !agg.isOwner(me.id)) {
-            throw new PermissionError("not_author", "Only the author, payer or organizer can attach a photo");
-          }
-          replaced = r.imageAssetId;
-        }
         const asset = await tx.asset.create({
           data: { eventId, ownerMemberId: me.id, kind, storageKey: key, mimeType: image.mimeType, byteSize: image.bytes.byteLength, width: image.width, height: image.height },
         });
-        if (kind === "RECEIPT") {
-          await tx.receipt.update({ where: { id: receiptId! }, data: { imageAssetId: asset.id } });
-          if (replaced) {
-            const old = await tx.asset.delete({ where: { id: replaced } });
-            await this.storage.delete(old.storageKey).catch(() => undefined);
-          }
-        }
-        await this.audit(tx, eventId, me.id, "asset.uploaded", { kind, assetId: asset.id, receiptId: receiptId ?? null });
+        await this.audit(tx, eventId, me.id, "asset.uploaded", { kind, assetId: asset.id, receiptId: null });
         return { assetId: asset.id };
       });
     } catch (e) {

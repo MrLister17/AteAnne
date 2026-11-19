@@ -1,18 +1,19 @@
 # Handoff
 
-_Last updated: 2026-11-19 Manila_
+_Last updated: 2026-11-19 Manila (v0.8.0)_
 
 ## Current state
 
-- **Remote `main` / production: v0.7.1**, code merge `b7d317f`, based on v0.7.0 commit `42da456`. https://ateanne.vercel.app is live; deployment `dpl_BiDM3F9WgMac7WdX3uDextQiu7SE` READY, health `ok:true`, version `b7d317f`, scanner `groq`.
-- **Sprint S8 / D52 complete:** People has a compact roster and focused sheets for each person, add-guest, profile/access, downloads, event settings, help/privacy and activity. Shared Sheet restores focus and supports Back without stacking modals. No new migration or changes to v0.7.0 server/domain logic.
-- **Preserve v0.7.0 (D49–D51):** Add & claim → Pay → Done; claims work while receipts are collected; saving the payer’s own receipt confirms funding; **Everyone’s here** closes joining. The first bill freezes automatically when everyone is done, with no approval round. After a correction the organizer uses **Freeze the corrected bill**. A paid event closes a day after its last payment activity through the existing daily cleanup, or the organizer may **Close it now**. Tabs remain specific to the current step.
-- **Preserve v0.6.1 Simpler Home (D48):** the start screen and event Home retain their focused reading order, current to-do, Next step and plainly labeled disclosures. Its original merge and green GitHub CI run `44370348564` are historical release evidence.
-- Migration `20261118150000_equal_receipt_split` was applied by the v0.6.0 production build and verified in Supabase at 14:53:08 UTC on 2026-11-18: boolean, NOT NULL, default false. S8 requires no new migration.
+- **v0.8.0 (Sprint S9, D53–D57)** is implemented on `claude/stoic-mendel-qflc6n` from `main` `720e6f7` (v0.7.1). The owner approved the S9 plan with every recommended decision and asked for merge to `main` and deploy; merge/deploy evidence is recorded in `CHANGELOG.md` and `test-report.md`.
+- **Preserve S9:** one next step per person from `src/domain/event/NextAction.ts` via `view.next`/`view.group`, shown in the **Next for you** card on Home, Claim and Pay; the tab dot, guest list, "See what's left" and reminders read the same list. New receipt photos are never stored (410 `receipt_photos_off`); older ones stay viewable/removable until their event is purged. Payment wording is Sent / Received / Didn't arrive. Rate-limit counters run before event transactions; join/recover create identities only after their checks pass; 429s carry Retry-After.
+- **Preserve v0.7.1 / v0.7.0 / v0.6.1:** compact People roster and focused sheets (D52); Add & claim → Pay → Done, automatic first freeze, manual corrected freeze, next-day close (D49–D51); focused Home reading order (D48).
+- No migration in S9. Production schema is unchanged since `20261118150000_equal_receipt_split`.
 
-**Verification:** local reference, lint, typecheck, **92 unit**, **49 PostgreSQL integration**, build and **61 browser tests** passed. Full GitHub CI passed on source `7b1d8a5` (run44420961707); merge `b7d317f` has the same tree. Production browser smoke verified hidden-by-default actions and every People group, with a dark phone viewport; synthetic event deleted. Test details and screenshots are recorded in `test-report.md`. No real iPhone or human usability study is claimed.
+**Verification:** see `test-report.md` for the full local chain and the before/after measurements. Production SQL numbers (storage by image type, scans, connections, RLS/grants) have **not** been collected yet; the queries are in `runbooks.md`.
 
 ## What changed
+
+0. S9 (v0.8.0): **Next for you** card everywhere (one action), Claim summary + **See items**, no new receipt photos, Sent / Received / Didn't arrive payment wording with a reason sheet, busy/error/retry feedback that also works with Reduce Motion, one refresh on return and none once Done, rate limits outside transactions, no identities for wrong join/recover attempts, RLS regression test.
 
 1. Mobile create/join still starts with Home Screen installation guidance and an explicit browser fallback. Safari requires Share → Add to Home Screen. Recovery is never blocked by installation.
 2. Organizer replacement access is still a private 15-minute single-use key after checking identity in person. It preserves the member, roles and financial records; redemption revokes the old browser’s event access.
@@ -28,6 +29,8 @@ Use README setup, an isolated PostgreSQL test database and Node 22. Commands: re
 **Rollback:** once correction statements exist, v0.5 is not accounting-compatible even though the migration is additive. Use a compatible forward fix; never reset money/history to roll back.
 
 ## Remaining human checks
+
+- v0.8.0: hand a phone to someone new at the "2 of 2 confirmed" screen and ask what they'd do next, without coaching. Try **I'm done adding receipts**, **Everyone's here**, a partial **I sent**, **Yes, I got it** and **It didn't arrive** on a real iPhone, including with Reduce Motion on. Run the read-only production SQL in `runbooks.md` and record the numbers before any index or pool change (follow-up F1/F7).
 
 - v0.7.0: run one real hatian with relatives. Do people claim right away without waiting, does the organizer find **Everyone’s here**, and is the automatic freeze understood ("Everyone’s done — time to pay")? The daily close relies on the existing Vercel cron (03:17 Manila); check that a fully paid test event closes the next day.
 - v0.7.0 trade-off to watch (D50): with no approval round, mistakes are caught by each person’s own claims and by *Something wrong with the bill?*. If groups freeze wrong bills often, revisit.

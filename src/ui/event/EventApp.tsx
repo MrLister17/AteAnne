@@ -7,7 +7,7 @@ import { api, ApiError } from "../api";
 import { Icon, IconName } from "../components/Icon";
 import { Badge, Button, Spinner, ToastProvider, useToast } from "../components/ui";
 import { phpAbs } from "../format";
-import { EventContext, TabId, View } from "./EventContext";
+import { EventContext, FocusTarget, TabId, View } from "./EventContext";
 import { OverviewTab } from "./OverviewTab";
 import { ReceiptsTab } from "./ReceiptsTab";
 import { ClaimTab } from "./ClaimTab";
@@ -16,9 +16,14 @@ import { PeopleTab } from "./PeopleTab";
 import { TutorialButton } from "../tutorial/TutorialProvider";
 import { PersonScreen } from "./PersonScreen";
 import { everyoneAnswered } from "./todo";
+import { tabForNext } from "./next";
 
 /** Increments per view request, so a slow older reply never overwrites a newer one (e.g. after switching who you act for). */
 let viewRequestSeq = 0;
+/** The refresh on its way, if any: background refreshes wait for it instead of sending another request. */
+let viewInFlight: Promise<boolean> | null = null;
+/** When the view last loaded, for "Offline · showing 3:42 PM". */
+let viewLoadedAt: Date | null = null;
 
 const actingKey = (eventId: string) => `ateanne:acting:${eventId}`;
 function readActing(eventId: string): string | null {
@@ -51,7 +56,7 @@ export function tabsFor(phase: Phase): { id: TabId; label: string; icon: IconNam
 
 /** Said once when the step changes under you (your own action or someone else's). */
 const STEP_NEWS: Partial<Record<Phase, string>> = {
-  SETTLING: "Everyone’s done — the bill is frozen. Time to pay.",
+  SETTLING: "Bill frozen. Time to pay.",
   COLLECTING: "The organizer reopened the bill to fix it.",
   DONE: "This hatian is closed. Everything was paid.",
 };
@@ -75,6 +80,8 @@ function EventLoader({ eventId }: { eventId: string }) {
   // Leaving the event (back to Home) ends acting; a page refresh keeps it.
   useEffect(
     () => () => {
+      viewLoadedAt = null;
+      viewInFlight = null;
       try {
         sessionStorage.removeItem(actingKey(eventId));
       } catch {
@@ -90,15 +97,21 @@ function EventLoader({ eventId }: { eventId: string }) {
     return () => api.setActingAs(null);
   }, [actingAs]);
 
-  const reload = useCallback(async () => {
+  const [stale, setStale] = useState<{ since: string; offline: boolean } | null>(null);
+
+  /** Fetch the latest view. Resolves true when it worked; never throws. */
+  const fetchView = useCallback(async (): Promise<boolean> => {
     const mine = ++viewRequestSeq;
     try {
       const next = await api.get<View>(`/api/events/${eventId}`);
-      if (mine !== viewRequestSeq) return; // a newer request wins
+      if (mine !== viewRequestSeq) return true; // a newer request wins
       setView(next);
       setError(null);
+      setStale(null);
+      viewLoadedAt = new Date();
+      return true;
     } catch (e) {
-      if (mine !== viewRequestSeq) return;
+      if (mine !== viewRequestSeq) return false;
       if (actingAs && e instanceof ApiError && [400, 403, 404].includes(e.status)) {
         // The guest took over with their own phone, or was removed: go back to being yourself.
         try {
@@ -107,11 +120,29 @@ function EventLoader({ eventId }: { eventId: string }) {
           /* private mode */
         }
         setActingAs(null);
-        return;
+        return false;
       }
       if (e instanceof ApiError) setError(e);
+      // Keep showing what we had, and say so, when the connection or the server is the problem.
+      const transient = !(e instanceof ApiError) || e.status === 0 || e.status === 408 || e.status === 429 || e.status >= 500;
+      if (viewLoadedAt && transient) {
+        setStale({ since: viewLoadedAt.toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Manila" }), offline: e instanceof ApiError && e.status === 0 });
+      }
+      return false;
     }
   }, [eventId, actingAs]);
+
+  /** Explicit refresh (after a write, a tap, coming back): always asks the server. */
+  const reload = useCallback(() => {
+    const run = fetchView().finally(() => {
+      if (viewInFlight === run) viewInFlight = null;
+    });
+    viewInFlight = run;
+    return run;
+  }, [fetchView]);
+
+  /** Background refresh: skipped while another refresh is still on its way. */
+  const refreshQuietly = useCallback(() => viewInFlight ?? reload(), [reload]);
 
   const actAs = useCallback(
     (memberId: string | null) => {
@@ -137,28 +168,60 @@ function EventLoader({ eventId }: { eventId: string }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- browser-only value read after hydration
     if (TABS.some((t) => t.id === h)) setTabState(h);
   }, []);
-  const setTab = useCallback((t: TabId) => {
+  const showTab = useCallback((t: TabId) => {
     setTabState(t);
     history.replaceState(null, "", `#${t}`);
     window.scrollTo({ top: 0 });
   }, []);
+  const [focus, setFocus] = useState<(FocusTarget & { seq: number }) | null>(null);
+  /** A plain tab change (tab bar, links) forgets any earlier "open at" target. */
+  const setTab = useCallback(
+    (t: TabId) => {
+      setFocus((f) => (f ? { seq: f.seq + 1 } : f));
+      showTab(t);
+    },
+    [showTab],
+  );
+  const goTo = useCallback(
+    (t: TabId, target: FocusTarget = {}) => {
+      showTab(t);
+      setFocus((f) => ({ ...target, seq: (f?.seq ?? 0) + 1 }));
+      const anchor = target.transferId ? `transfer-${target.transferId}` : target.invite ? "invite" : null;
+      if (anchor) setTimeout(() => document.getElementById(anchor)?.scrollIntoView({ block: "start", behavior: "smooth" }), 60);
+    },
+    [showTab],
+  );
 
-  // Live-ish updates: refresh on focus and every 15s while visible.
+  // First load, and a quick refresh when you come back to the app.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch from the server (external system)
     void reload();
-    const onFocus = () => document.visibilityState === "visible" && void reload();
-    document.addEventListener("visibilitychange", onFocus);
-    window.addEventListener("focus", onFocus);
-    const t = setInterval(() => document.visibilityState === "visible" && void reload(), 15000);
-    return () => {
-      document.removeEventListener("visibilitychange", onFocus);
-      window.removeEventListener("focus", onFocus);
-      clearInterval(t);
+    let lastReturn = 0;
+    const onReturn = () => {
+      if (document.visibilityState !== "visible") return;
+      // Coming back fires both "visibilitychange" and "focus": one refresh is enough.
+      const now = Date.now();
+      if (now - lastReturn < 1500) return;
+      lastReturn = now;
+      void refreshQuietly();
     };
-  }, [reload]);
+    document.addEventListener("visibilitychange", onReturn);
+    window.addEventListener("focus", onReturn);
+    return () => {
+      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", onReturn);
+    };
+  }, [reload, refreshQuietly]);
 
-  const ctx = useMemo(() => (view ? { view, reload, setTab, actAs, showPerson: setPersonFor } : null), [view, reload, setTab, actAs]);
+  // Every 15 s while visible, until the event can no longer change (Done or cancelled).
+  const settled = view ? view.event.phase === "DONE" || view.event.cancelled : false;
+  useEffect(() => {
+    if (settled) return;
+    const t = setInterval(() => document.visibilityState === "visible" && void refreshQuietly(), 15000);
+    return () => clearInterval(t);
+  }, [settled, refreshQuietly]);
+
+  const ctx = useMemo(() => (view ? { view, reload, setTab, goTo, focus, actAs, showPerson: setPersonFor } : null), [view, reload, setTab, goTo, focus, actAs]);
 
   // Tell people when the group moved on, e.g. the bill froze because the last person finished.
   const toast = useToast();
@@ -172,11 +235,29 @@ function EventLoader({ eventId }: { eventId: string }) {
   }, [phase, toast]);
 
   if (error && !view) {
+    const noAccess = error.status === 403 || error.status === 404 || error.status === 401;
+    if (!noAccess) {
+      return (
+        <main className="safe-top mx-auto max-w-[520px] px-4 pt-16 text-center" data-testid="load-error">
+          <Icon name="alert" size={40} className="mx-auto text-muted" />
+          <h1 className="mt-4 text-[22px] font-bold">{error.status === 0 ? "You’re offline" : "Couldn’t load this event"}</h1>
+          <p className="mt-2 text-muted">{error.status === 0 ? "Check your connection, then try again." : "Something went wrong on our side. Nothing was changed."}</p>
+          <div className="mt-6 grid gap-2">
+            <Button full icon="refresh" busyLabel="Trying again…" onClick={() => reload()}>
+              Try again
+            </Button>
+            <Link href="/" className="min-h-12 rounded-2xl border border-line px-5 py-3 font-semibold">
+              All events
+            </Link>
+          </div>
+        </main>
+      );
+    }
     return (
       <main className="safe-top mx-auto max-w-[520px] px-4 pt-16 text-center">
         <Icon name="lock" size={40} className="mx-auto text-muted" />
-        <h1 className="mt-4 text-[22px] font-bold">{error.status === 0 ? "You’re offline" : "You can’t open this event here"}</h1>
-        <p className="mt-2 text-muted">{error.status === 0 ? error.message : "This phone isn’t a member of that event. Join with the code, or recover access with your personal key."}</p>
+        <h1 className="mt-4 text-[22px] font-bold">You can’t open this event here</h1>
+        <p className="mt-2 text-muted">This phone isn’t a member of that event. Join with the code, or recover access with your personal key.</p>
         <div className="mt-6 grid gap-2">
           <Link href="/join" className="min-h-12 rounded-2xl bg-violet px-5 py-3 font-semibold text-violet-ink">
             Join with a code
@@ -188,21 +269,14 @@ function EventLoader({ eventId }: { eventId: string }) {
       </main>
     );
   }
-  if (!ctx) {
-    return (
-      <main className="flex min-h-[100dvh] items-center justify-center text-violet" aria-busy>
-        <Spinner />
-        <span className="sr-only">Loading event</span>
-      </main>
-    );
-  }
+  if (!ctx) return <LoadingEvent onRetry={reload} />;
 
   // A tab that isn't part of this step (old link, or the step just changed) falls back to Home.
   const shown: TabId = tabsFor(ctx.view.event.phase).some((t) => t.id === tab) ? tab : "overview";
 
   return (
     <EventContext.Provider value={ctx}>
-      <Header view={ctx.view} onRefresh={reload} onStopActing={() => actAs(null)} onShow={() => setPersonFor(ctx.view.me.memberId)} />
+      <Header view={ctx.view} stale={stale} onRefresh={reload} onStopActing={() => actAs(null)} onShow={() => setPersonFor(ctx.view.me.memberId)} />
       <main className="pb-tabbar mx-auto w-full max-w-[520px] px-4 pt-3">
         {shown === "overview" && <OverviewTab />}
         {shown === "receipts" && <ReceiptsTab />}
@@ -217,7 +291,45 @@ function EventLoader({ eventId }: { eventId: string }) {
 }
 
 /** Sticky header: title, phase progress and my balance — never covers content or buttons. */
-function Header({ view, onRefresh, onStopActing, onShow }: { view: View; onRefresh: () => Promise<void>; onStopActing: () => void; onShow: () => void }) {
+/** First load: the screen's shape right away, words that say what's happening, and a way out if it hangs. */
+function LoadingEvent({ onRetry }: { onRetry: () => Promise<boolean> }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 10_000);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <main className="safe-top mx-auto w-full max-w-[520px] px-4 pt-4" aria-busy="true" data-testid="event-loading">
+      <div className="flex items-center gap-3" aria-hidden>
+        <span className="skeleton size-11 rounded-full" />
+        <span className="flex-1 space-y-2">
+          <span className="skeleton block h-4 w-2/3 rounded-full" />
+          <span className="skeleton block h-3 w-1/3 rounded-full" />
+        </span>
+      </div>
+      <div className="mt-6 space-y-3" aria-hidden>
+        <span className="skeleton block h-28 rounded-2xl" />
+        <span className="skeleton block h-40 rounded-2xl" />
+      </div>
+      <div className="mt-6 text-center" role="status">
+        <p className="flex items-center justify-center gap-2 font-semibold text-violet">
+          <Spinner /> Loading your event…
+        </p>
+        {slow && <p className="mt-1 text-[14px] text-muted">Still loading. Check your connection.</p>}
+      </div>
+      {slow && (
+        <div className="mt-3">
+          <Button full variant="secondary" icon="refresh" busyLabel="Trying again…" onClick={() => onRetry()}>
+            Try again
+          </Button>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function Header({ view, stale, onRefresh, onStopActing, onShow }: { view: View; stale: { since: string; offline: boolean } | null; onRefresh: () => Promise<boolean>; onStopActing: () => void; onShow: () => void }) {
+  const toast = useToast();
   const step = stepOf(view.event.phase);
   const myNet = view.settlement?.positions.find((p) => p.memberId === view.me.memberId)?.remaining ?? (view.calculation.ok && everyoneAnswered(view) ? view.calculation.positions.find((p) => p.memberId === view.me.memberId)?.remaining : null);
   const frozen = Boolean(view.settlement);
@@ -244,7 +356,17 @@ function Header({ view, onRefresh, onStopActing, onShow }: { view: View; onRefre
           </div>
         )}
         <TutorialButton variant="icon" />
-        <Button variant="ghost" className="!min-h-11 !min-w-11 !rounded-full !px-2" aria-label="Refresh" onClick={() => onRefresh().then(() => true)}>
+        <Button
+          variant="ghost"
+          className="!min-h-11 !min-w-11 !rounded-full !px-2"
+          aria-label="Refresh"
+          onClick={() =>
+            onRefresh().then((ok) => {
+              if (!ok) toast("Couldn’t refresh. Check your connection.", "error");
+              return ok;
+            })
+          }
+        >
           <Icon name="refresh" size={20} />
         </Button>
       </div>
@@ -262,6 +384,15 @@ function Header({ view, onRefresh, onStopActing, onShow }: { view: View; onRefre
       {view.event.cancelled && (
         <div className="mx-auto max-w-[520px] px-4 pb-2">
           <Badge tone="warn">Cancelled — not settled</Badge>
+        </div>
+      )}
+      {stale && (
+        <div className="mx-auto flex max-w-[520px] items-center gap-2 px-4 pb-2 text-[13px] text-muted" role="status" data-testid="stale-banner">
+          <Icon name="alert" size={16} className="shrink-0 text-warn" />
+          <span className="min-w-0 flex-1">{stale.offline ? "Offline" : "Couldn’t refresh"} · showing {stale.since}</span>
+          <button type="button" className="min-h-11 px-2 font-semibold text-violet underline underline-offset-2" onClick={() => void onRefresh()}>
+            Try again
+          </button>
         </div>
       )}
       {view.actingFor && (
@@ -286,15 +417,9 @@ function Header({ view, onRefresh, onStopActing, onShow }: { view: View; onRefre
 }
 
 function TabBar({ tab, setTab, view }: { tab: TabId; setTab: (t: TabId) => void; view: View }) {
-  const me = view.me.memberId;
-  const stepOne = view.event.phase === "COLLECTING" || view.event.phase === "ALLOCATING";
-  const attention: Partial<Record<TabId, boolean>> = {
-    claim: stepOne && view.receipts.some((r) => !r.acks.find((a) => a.memberId === me && a.kind && !a.stale)),
-    money:
-      view.event.phase === "SETTLING" &&
-      Boolean(view.settlement?.edges.some((e) => (e.to === me && e.reports.some((r) => r.status === "REPORTED")) || (e.from === me && !e.settled && e.pending === "0" && !e.disputed))),
-    receipts: stepOne && view.receipts.some((r) => r.payerId === me && !r.fundingAcknowledged),
-  };
+  // One dot, on the tab where your next step is (D53). Home needs none: the Next card is there.
+  const dot = tabForNext(view.next);
+  const attention: Partial<Record<TabId, boolean>> = dot && dot !== "overview" ? { [dot]: true } : {};
   const tabs = tabsFor(view.event.phase);
   return (
     <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-line bg-surface/95 backdrop-blur-md" aria-label="Event sections">

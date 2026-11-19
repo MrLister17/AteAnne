@@ -4,6 +4,7 @@ import { JoinCodeCodec } from "../security/Crypto";
 import type { EventService } from "../services/EventService";
 import { RetentionPolicy } from "@/domain/event/RetentionPolicy";
 import { SettlementPlanner } from "@/domain/settlement/SettlementPlanner";
+import { NextActions, toWire, type NextActionInput } from "@/domain/event/NextAction";
 
 const s = (v: bigint) => v.toString();
 
@@ -22,6 +23,19 @@ export class EventViewBuilder {
 
   /** `me` is whose view this is; `by` is the signed-in person (differs only when acting for a guest). */
   async build(agg: EventAggregate, me: MemberRecord, by: MemberRecord = me) {
+    const view = await this.base(agg, me, by);
+    // One source of "what's next" for every screen (D53). Built from this same view, so it can never disagree with it.
+    const next = new NextActions(this.nextInput(view, agg.record.ownerMemberId));
+    return {
+      ...view,
+      /** The one thing to show the viewer first. */
+      next: toWire(next.nextFor(me.id)),
+      /** Every active person's tasks, in roster order; `reasons` when nobody in particular is holding things up. */
+      group: { members: toWire(next.group()), reasons: next.unattributed() },
+    };
+  }
+
+  private async base(agg: EventAggregate, me: MemberRecord, by: MemberRecord) {
     const e = agg.record;
     const isOwner = agg.isOwner(me.id);
     const acting = by.id !== me.id;
@@ -205,6 +219,45 @@ export class EventViewBuilder {
           detail: a.detail,
         };
       }),
+    };
+  }
+
+  private nextInput(view: Awaited<ReturnType<EventViewBuilder["base"]>>, ownerId: string | null): NextActionInput {
+    return {
+      phase: view.event.phase,
+      cancelled: view.event.cancelled,
+      rosterLocked: Boolean(view.event.rosterLockedAt),
+      autoFreeze: view.gates.autoFreeze,
+      freezeReady: Boolean(view.gates.freeze?.ready),
+      doneReady: Boolean(view.gates.done?.ready),
+      ownerId,
+      members: view.members.map((m) => ({ id: m.id, active: m.active, entryComplete: m.entryComplete })),
+      receipts: view.receipts.map((r) => ({
+        id: r.id,
+        label: r.label,
+        authorId: r.authorId,
+        payerId: r.payerId,
+        payable: BigInt(r.payable),
+        equalSplit: r.equalSplit,
+        fundingAcknowledged: r.fundingAcknowledged,
+        reconciled: r.reconciliation.reconciled,
+        answers: r.acks.map((a) => ({ memberId: a.memberId, kind: a.kind, stale: a.stale })),
+      })),
+      transfers: (view.settlement?.edges ?? []).map((e) => ({
+        id: e.id,
+        from: e.from,
+        to: e.to,
+        amount: BigInt(e.amount),
+        verified: BigInt(e.verified),
+        pending: BigInt(e.pending),
+        capacity: BigInt(e.capacity),
+        settled: e.settled,
+        disputed: e.disputed,
+        dispute: e.dispute ? { status: e.dispute.status, senderChoice: e.dispute.senderChoice, recipientChoice: e.dispute.recipientChoice } : null,
+        pendingReports: e.reports.filter((r) => r.status === "REPORTED").map((r) => ({ id: r.id, amount: BigInt(r.amount), version: r.version })),
+      })),
+      withPaymentDetails: Object.keys(view.instructions),
+      freezeBlockers: view.gates.freeze?.blockers ?? [],
     };
   }
 

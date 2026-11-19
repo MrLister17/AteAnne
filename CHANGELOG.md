@@ -2,7 +2,7 @@
 
 This file records every release of AteAnne, what changed and why, and where work stopped. It is written so a person or another AI can pick the project up cold.
 
-**Read in this order:** this file → [`CLAUDE.md`](CLAUDE.md) (rules for coding agents) → [`GUIDE.md`](GUIDE.md) (map of the app and how to change it) → [`docs/decisions.md`](docs/decisions.md) (why things are the way they are, D1–D52) → [`docs/test-report.md`](docs/test-report.md) (what was really run).
+**Read in this order:** this file → [`CLAUDE.md`](CLAUDE.md) (rules for coding agents) → [`GUIDE.md`](GUIDE.md) (map of the app and how to change it) → [`docs/decisions.md`](docs/decisions.md) (why things are the way they are, D1–D57) → [`docs/test-report.md`](docs/test-report.md) (what was really run).
 
 Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from the git history; the code only started carrying a version number (`package.json`) at 0.5.0.
 
@@ -10,12 +10,49 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ## Where we left off (2026-11-19 Manila)
 
-- **v0.7.1 People redesign is merged and live**, code merge `b7d317f`, preserving v0.7.0’s three-step workflow. Public URL: https://ateanne.vercel.app.
-- Production deployment `dpl_BiDM3F9WgMac7WdX3uDextQiu7SE` reached READY. Health HTTP200 returned `ok: true`, version `b7d317f`, scanner `groq`.
-- Sprint S8 / D52: compact roster, per-person actions, and labeled profile/access, download, event settings, help/privacy and activity layers. No server/domain/schema changes relative to v0.7.0; no new migration.
-- Local and GitHub checks passed: reference, lint, types, **92 unit**, **49 PostgreSQL integration**, build and **61 browser tests**. CI source run [44420961707](https://github.com/MrLister17/AteAnne/actions/runs/44420961707). The merge has exactly the tested source tree.
-- Production browser smoke passed the compact default, person/profile actions, downloads/settings/help/activity sheets and dark mobile layout. Its synthetic event was deleted. No real transfer or payment report was created.
-- Next human check: watch a relative find their own recovery key, another person’s options, downloads and help without coaching. Real iPhone Safari installation/storage and next-day automatic close remain human checks. Referenced-member deactivation and multi-funder receipts remain deferred.
+- **v0.8.0 (Sprint S9, D53–D57) is implemented and tested on branch `claude/stoic-mendel-qflc6n`**; the owner approved the S9 plan and asked for merge to `main` and deploy. Release status, CI and production evidence: see the v0.8.0 entry below and `docs/test-report.md`.
+- Still to do by a person: run the read-only production SQL in `docs/runbooks.md` ("Database checks") for real storage, scan and connection numbers (needed before follow-up F1/F7); try the "2 of 2 confirmed" → Pay → Done path with relatives on a real iPhone, including Reduce Motion.
+- Follow-up backlog (not started): F1 `ReceiptAck.receiptId`/FK indexes, F2 ETag polling + lazy Activity, F3 private QR caching, F4 coarse write limit/Firewall, F5 orphan actor cleanup, F6 remaining prompts, F7 pool size, F8 return-transfer wording. Earlier deferrals stand: referenced-member deactivation and multi-funder receipts.
+
+---
+
+## v0.8.0: Claim → Pay → Done, lighter storage (2026-11-19 Manila)
+
+Sprint **S9**, decisions **D53–D57**, plan [`docs/sprint-s9-plan.md`](docs/sprint-s9-plan.md) (owner approved every recommended decision). Starting point: the owner's screenshot of Claim saying "2 of 2 confirmed" with nothing telling anyone what to do next.
+
+### Added: one next action (D53)
+
+- `src/domain/event/NextAction.ts` (pure) works out every person's ordered tasks and their next step. The event view sends `next` (yours) and `group` (everyone's). Home, Claim and Pay show one **Next for you** card: one status line, at most one sentence, one primary button, at most one secondary link.
+- After "2 of 2 confirmed": the organizer sees **Is everyone here?** · *Nobody can join after this.* · **[Everyone's here]** · Invite more people. Someone with a task sees e.g. **Did you pay for anything else?** · **[I'm done adding receipts]** · Add a receipt, or **Next: Lunch** · **[Claim from Lunch]**. Someone done sees **You're done for now** · *Waiting for Mark to tap Everyone's here.* · See what's left.
+- Claim folds an answered receipt into a summary (**✓ Share confirmed**, **Your share**, *Everyone confirmed (2 of 2)*) with the lines behind **See items**. After a save it jumps to the next receipt you still owe an answer, if any.
+- Home: the Next card replaces the to-do list (others under **Everything left (N)**; *You said you're done adding receipts · Undo*). The group card is now **The group**. **Close it now** asks first.
+- The tab dot, guest list, "See what's left" and **Copy reminder** read the same task list (the four separate copies are gone).
+
+### Changed: no new receipt photos; payment wording (D54, D55)
+
+- Scanning still drafts a receipt, but the photo is never uploaded or kept: *We don't keep this photo. Only what you save is kept.* "Attach/Replace photo" is gone; `POST /api/events/:id/assets` answers 410 `receipt_photos_off` for receipt photos before any rate-limit hit or decoding. Older photos keep their access rules, can be removed (**Remove photo**) and are deleted with their event at 30 days.
+- Pay: **Pay Mark ₱698.50** → **I sent ₱698.50** (amount editable) → **Sent ₱400 · Waiting for Mark**, *₱298.50 left*. Recipient: **Did ₱400 from Ana arrive?** → **Yes, I got it** / **It didn't arrive** (*Not there yet? Leave this and check later.*). "It didn't arrive" opens a reason sheet instead of a browser prompt. One status line per transfer; history behind **See payments (N)**. Ledger, partial payments, disputes, reversals and corrections are unchanged.
+
+### Changed: every tap answers back (D56)
+
+- `Button busyLabel` ("Saving…", "Confirming…", "Sending…"), errors beside the button (`ActionError`), polite success toasts and assertive error toasts; actions that showed no busy state now do.
+- First load shows a skeleton with *Loading your event…* and **Try again** after 10 s. Load errors distinguish offline, server trouble and no access. A failed manual refresh no longer shows ✓, and a failed background refresh shows *Offline · showing 3:42 PM · Try again*.
+- Polling: one request when you come back (it was two), skipped while a refresh is running, stopped on Done and cancelled events.
+- Reduce Motion: static "…" instead of a frozen spinner, solid activity bar, presses change colour instead of shrinking.
+
+### Fixed: database and rate limits (D57)
+
+- Receipt saves, claims and payment reports counted their rate limit on a second pool connection while holding the event lock. On a one-connection pool v0.7.1 failed with "timeout exceeded when trying to connect"; the count now runs before the transaction, keyed by real person per event.
+- Wrong join codes and recovery keys no longer create `Actor`/`Session` rows. 429 responses say how long to wait (`retryAfterSeconds`, `Retry-After`, "Too many tries. Try again in N minutes.").
+- New `integration/database-security.test.ts` fails CI if any table lacks Row Level Security or the Data API roles gain privileges.
+- `scripts/measure-db.ts` measures SQL statements, pool connections and JSON size on the test database; the runbook has the read-only production SQL.
+
+### Tests
+
+- Unit: `next-action.test.ts` (20 cases plus a 128-case "never an empty wait" matrix), `reminders.test.ts` rebuilt on the shared task list.
+- Integration: `payments-flow.test.ts`, `rate-limits.test.ts`, `database-security.test.ts`; image tests rewritten for no new receipt photos (QR pipeline, legacy photo read/remove/purge).
+- E2E: new `next-step.spec.ts` (the "2 of 2 confirmed" walkthrough through partial payment and "It didn't arrive") and `feedback.spec.ts` (busy labels, double tap, inline error and retry, Reduce Motion, first load, refresh failure, polling); `hatian`, `home`, `equal-receipt`, `guests`, `reminders`, `corrections`, `scan` updated. Both new specs also run at 360px.
+- Results: see `docs/test-report.md`.
 
 ---
 

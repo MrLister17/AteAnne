@@ -152,48 +152,54 @@ describe("private images", () => {
   it("re-encodes, strips metadata, rejects non-images and blocks cross-event reads", async () => {
     const a = await eventWith(app, ["Img1", "Img2"]);
     const b = await eventWith(app, ["Other"]);
-    const { receiptId } = await app.receipts.create(a.people.Img1.actorId, a.eventId, {
-      label: "Photo receipt",
-      payerMemberId: a.people.Img1.memberId,
-      payable: "100",
-      lines: [{ label: "x", quantity: 1, amount: "100", mode: "SHARED" }],
-      adjustments: [],
-    });
     const jpeg = await sharp({ create: { width: 64, height: 64, channels: 3, background: "#ff8800" } })
       .jpeg()
       .withMetadata({ exif: { IFD0: { Copyright: "SECRET-GPS-MARKER" } } })
       .toBuffer();
     expect(jpeg.includes(Buffer.from("SECRET-GPS-MARKER"))).toBe(true);
-    const { assetId } = await app.assets.upload(a.people.Img1.actorId, a.eventId, "RECEIPT", jpeg, receiptId);
-    const read = await app.assets.read(a.people.Img2.actorId, assetId);
-    expect(read.mimeType).toBe("image/jpeg");
+    // Payment QR is now the only image people upload (D54); it goes through the same safe pipeline.
+    const { assetId } = await app.assets.upload(a.people.Img1.actorId, a.eventId, "QR", jpeg);
+    const read = await app.assets.read(a.people.Img1.actorId, assetId);
+    expect(read.mimeType).toBe("image/png");
     expect(read.bytes.includes(Buffer.from("SECRET-GPS-MARKER"))).toBe(false);
     await expect(app.assets.read(b.people.Other.actorId, assetId)).rejects.toThrow(/not found/i);
-    await expect(app.assets.upload(a.people.Img1.actorId, a.eventId, "RECEIPT", Buffer.from("<svg onload=alert(1)></svg>"), receiptId)).rejects.toThrow(/JPEG, PNG or WebP/);
-    await expect(app.assets.upload(a.people.Img1.actorId, a.eventId, "RECEIPT", Buffer.alloc(9 * 1024 * 1024), receiptId)).rejects.toThrow(/8 MB/);
+    await expect(app.assets.upload(a.people.Img1.actorId, a.eventId, "QR", Buffer.from("<svg onload=alert(1)></svg>"))).rejects.toThrow(/JPEG, PNG or WebP/);
+    await expect(app.assets.upload(a.people.Img1.actorId, a.eventId, "QR", Buffer.alloc(9 * 1024 * 1024))).rejects.toThrow(/8 MB/);
     const row = await db.asset.findUniqueOrThrow({ where: { id: assetId } });
-    expect(row.storageKey).toMatch(/^[a-f0-9]{48}\.jpg$/);
+    expect(row.storageKey).toMatch(/^[a-f0-9]{48}\.png$/);
   });
 
-  it("database storage (Vercel default) stores, serves and deletes private bytes", async () => {
+  it("new receipt photos are refused (410) and store nothing (D54)", async () => {
     const dbApp = new AppContainer(db, new DatabaseStorage(db), TEST_KEY);
-    const e = await eventWith(dbApp, ["Db1", "Db2"]);
-    const { receiptId } = await dbApp.receipts.create(e.people.Db1.actorId, e.eventId, {
-      label: "Blob receipt",
-      payerMemberId: e.people.Db1.memberId,
+    const e = await eventWith(dbApp, ["Np1", "Np2"]);
+    const { receiptId } = await dbApp.receipts.create(e.people.Np1.actorId, e.eventId, {
+      label: "Typed only",
+      payerMemberId: e.people.Np1.memberId,
       payable: "100",
       lines: [{ label: "x", quantity: 1, amount: "100", mode: "SHARED" }],
       adjustments: [],
     });
     const jpeg = await sharp({ create: { width: 40, height: 40, channels: 3, background: "#0a0" } }).jpeg().toBuffer();
-    const { assetId } = await dbApp.assets.upload(e.people.Db1.actorId, e.eventId, "RECEIPT", jpeg, receiptId);
-    const row = await db.asset.findUniqueOrThrow({ where: { id: assetId } });
-    expect(await db.assetBlob.count({ where: { key: row.storageKey } })).toBe(1);
+    const assetsBefore = await db.asset.count();
+    const blobsBefore = await db.assetBlob.count();
+    await expect(dbApp.assets.upload(e.people.Np1.actorId, e.eventId, "RECEIPT", jpeg)).rejects.toMatchObject({ status: 410, code: "receipt_photos_off" });
+    expect(await db.asset.count()).toBe(assetsBefore);
+    expect(await db.assetBlob.count()).toBe(blobsBefore);
+    expect((await db.receipt.findUniqueOrThrow({ where: { id: receiptId } })).imageAssetId).toBeNull();
+  });
+
+  it("an existing receipt photo still opens for members, not for others, and can be removed", async () => {
+    const dbApp = new AppContainer(db, new DatabaseStorage(db), TEST_KEY);
+    const e = await eventWith(dbApp, ["Db1", "Db2"]);
+    const other = await eventWith(dbApp, ["Stranger"]);
+    const { receiptId, storageKey, assetId } = await legacyPhoto(dbApp, e.eventId, e.people.Db1.actorId, e.people.Db1.memberId);
+    expect(await db.assetBlob.count({ where: { key: storageKey } })).toBe(1);
     const read = await dbApp.assets.read(e.people.Db2.actorId, assetId);
     expect(read.mimeType).toBe("image/jpeg");
     expect(read.bytes.length).toBeGreaterThan(100);
+    await expect(dbApp.assets.read(other.people.Stranger.actorId, assetId)).rejects.toThrow(/not found/i);
     await dbApp.assets.removeReceiptImage(e.people.Db1.actorId, receiptId);
-    expect(await db.assetBlob.count({ where: { key: row.storageKey } })).toBe(0);
+    expect(await db.assetBlob.count({ where: { key: storageKey } })).toBe(0);
   });
 
   it("QR codes are visible only to their owner and people who owe them", async () => {
@@ -204,4 +210,35 @@ describe("private images", () => {
     await expect(app.assets.read(e.people.Q1.actorId, assetId)).resolves.toMatchObject({ mimeType: "image/png" });
     await expect(app.assets.read(e.people.Q2.actorId, assetId)).rejects.toThrow(/not found/i);
   });
+
+  // Last in this file: it runs the real cleanup job, which purges events older than 30 days.
+  it("an existing receipt photo is deleted with its event by the 30-day purge", async () => {
+    const dbApp = new AppContainer(db, new DatabaseStorage(db), TEST_KEY);
+    const e = await eventWith(dbApp, ["Old1"]);
+    const { storageKey } = await legacyPhoto(dbApp, e.eventId, e.people.Old1.actorId, e.people.Old1.memberId);
+    await db.event.update({ where: { id: e.eventId }, data: { createdAt: new Date(Date.now() - 40 * 86_400_000) } });
+    const result = await dbApp.cleanup.run(new Date());
+    expect(result.purgedEvents).toBe(1);
+    expect(await db.assetBlob.count({ where: { key: storageKey } })).toBe(0);
+    expect(await db.asset.count({ where: { eventId: e.eventId } })).toBe(0);
+  });
 });
+
+/**
+ * A receipt photo saved before v0.8.0, written straight to the database the way
+ * the old upload did (the app no longer accepts new ones).
+ */
+async function legacyPhoto(dbApp: AppContainer, eventId: string, actorId: string, memberId: string) {
+  const { receiptId } = await dbApp.receipts.create(actorId, eventId, {
+    label: "Old photo receipt",
+    payerMemberId: memberId,
+    payable: "100",
+    lines: [{ label: "x", quantity: 1, amount: "100", mode: "SHARED" }],
+    adjustments: [],
+  });
+  const image = await dbApp.assets.process(await sharp({ create: { width: 40, height: 40, channels: 3, background: "#0a0" } }).jpeg().toBuffer(), "RECEIPT");
+  const storageKey = await dbApp.storage.put(image.bytes, image.extension);
+  const asset = await db.asset.create({ data: { eventId, ownerMemberId: memberId, kind: "RECEIPT", storageKey, mimeType: image.mimeType, byteSize: image.bytes.byteLength, width: image.width, height: image.height } });
+  await db.receipt.update({ where: { id: receiptId }, data: { imageAssetId: asset.id } });
+  return { receiptId, storageKey, assetId: asset.id };
+}

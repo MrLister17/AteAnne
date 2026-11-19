@@ -3,23 +3,45 @@
 import { useMemo, useState } from "react";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
-import { Avatar, Badge, Button, Card, Disclosure, Notice } from "../components/ui";
+import { ActionError, Avatar, Badge, Button, Card, Disclosure, Notice } from "../components/ui";
 import { php } from "../format";
-import { ReceiptView, useAction, useEvent } from "./EventContext";
+import { ReceiptView, useEvent, useInlineAction } from "./EventContext";
 import { EqualReceiptSplit } from "@/domain/receipt/EqualReceiptSplit";
 import { everyoneAnswered } from "./todo";
+import { namesList } from "./next";
+import { NextCard } from "./NextCard";
 
 /**
  * Allocation wizard: one receipt at a time, the person claims only their
  * OWN items (shared-equal tick or whole pieces) or explicitly says they got
- * nothing. Unanswered is never treated as zero.
+ * nothing. Unanswered is never treated as zero. Once you've answered, the
+ * receipt folds into a short summary and the "Next for you" card says what
+ * comes next (D53); the items stay one tap away behind "See items".
  */
 export function ClaimTab() {
-  const { view, me, event } = useEvent();
+  const { view, me, event, focus } = useEvent();
   const [index, setIndex] = useState(() => {
+    // Opened from a Next card at a specific receipt; otherwise the first one you haven't answered.
+    const focused = focus?.receiptId ? view.receipts.findIndex((r) => r.id === focus.receiptId) : -1;
+    if (focused >= 0) return focused;
     const first = view.receipts.findIndex((r) => !myAck(r, me.memberId));
     return first >= 0 ? first : 0;
   });
+  // Opened from a Next card at a specific receipt.
+  const [seenFocus, setSeenFocus] = useState(focus?.seq ?? 0);
+  if (focus && focus.seq !== seenFocus) {
+    setSeenFocus(focus.seq);
+    const i = focus.receiptId ? view.receipts.findIndex((r) => r.id === focus.receiptId) : -1;
+    if (i >= 0 && i !== index) setIndex(i);
+  }
+  // After a save, move straight on to the next receipt you still need to answer, if there is one.
+  const [advance, setAdvance] = useState(false);
+  if (advance) {
+    setAdvance(false);
+    const n = view.next;
+    const target = n.kind === "claim" || n.kind === "recheck" ? view.receipts.findIndex((r) => r.id === n.receiptId) : -1;
+    if (target >= 0 && target !== index) setIndex(target);
+  }
 
   if (!view.receipts.length) return <EmptyState title="No receipts yet" text="As soon as someone adds a receipt, you’ll pick what you had here. No need to wait for the others." />;
 
@@ -51,7 +73,7 @@ export function ClaimTab() {
           );
         })}
       </nav>
-      <ReceiptClaimer key={`${r.id}-${r.version}-${view.me.claimVersion}`} receipt={r} readOnly={!(event.phase === "COLLECTING" || event.phase === "ALLOCATING") || event.cancelled} onNext={() => setIndex((i) => Math.min(view.receipts.length - 1, i + 1))} />
+      <ReceiptClaimer key={`${r.id}-${r.version}-${view.me.claimVersion}`} receipt={r} readOnly={!(event.phase === "COLLECTING" || event.phase === "ALLOCATING") || event.cancelled} onSaved={() => setAdvance(true)} />
     </div>
   );
 }
@@ -61,9 +83,9 @@ function myAck(r: ReceiptView, memberId: string) {
   return a && a.kind && !a.stale ? a.kind : null;
 }
 
-function ReceiptClaimer({ receipt: r, readOnly, onNext }: { receipt: ReceiptView; readOnly: boolean; onNext: () => void }) {
+function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptView; readOnly: boolean; onSaved: () => void }) {
   const { view, me, event, name, seq } = useEvent();
-  const act = useAction();
+  const { run, error } = useInlineAction();
   const initial = useMemo(() => {
     const m: Record<string, number> = {};
     for (const l of r.lines) {
@@ -74,164 +96,217 @@ function ReceiptClaimer({ receipt: r, readOnly, onNext }: { receipt: ReceiptView
   }, [r, me.memberId]);
   const [draft, setDraft] = useState<Record<string, number>>(initial);
   const [busy, setBusy] = useState<string | null>(null);
-  const [conflict, setConflict] = useState<string | null>(null);
 
   const ack = myAck(r, me.memberId);
   const staleDraft = r.lines.some((l) => l.claims.some((c) => c.memberId === me.memberId && c.stale));
   const dirty = JSON.stringify(draft) !== JSON.stringify(Object.fromEntries(Object.entries(initial).filter(([, v]) => v > 0)));
-  const share = view.calculation.ok && everyoneAnswered(view, r.id) ? view.calculation.receipts.find((x) => x.receiptId === r.id)?.shares.find((s) => s.memberId === me.memberId) : null;
+  const active = view.members.filter((m) => m.active);
+  const answered = active.filter((m) => r.acks.some((a) => a.memberId === m.id && a.kind && !a.stale));
+  const agreed = active.filter((m) => r.acks.some((a) => a.memberId === m.id && a.kind === "FINISHED" && !a.stale));
+  const notYet = active.filter((m) => !answered.includes(m)).map((m) => m.id);
+  const equalShare = r.equalSplit ? (new EqualReceiptSplit().totals(BigInt(r.payable), active.map((m) => m.id)).get(me.memberId) ?? 0n) : null;
+  const itemShare = !r.equalSplit && view.calculation.ok && everyoneAnswered(view, r.id) ? view.calculation.receipts.find((x) => x.receiptId === r.id)?.shares.find((s) => s.memberId === me.memberId)?.total : null;
+  const share = equalShare ?? (itemShare ? BigInt(itemShare) : null);
+  const joiningOpen = event.phase === "COLLECTING" && !event.rosterLockedAt;
+  const folded = Boolean(ack) && !staleDraft && !dirty;
 
   const save = async (status: "finish" | "none" | "draft") => {
     setBusy(status);
-    setConflict(null);
     const claims = status === "none" ? [] : Object.entries(draft).filter(([, u]) => u > 0).map(([lineId, units]) => ({ lineId, units }));
-    const res = await act(
+    const success =
+      status === "none" ? (r.equalSplit ? "Saved. Tell the organizer what needs changing." : `Saved: nothing from ${r.label}`) : status === "finish" ? (r.equalSplit ? "Share confirmed" : "Items saved") : "Draft saved";
+    const res = await run(
       () => api.put(`/api/receipts/${r.id}/claims`, { receiptVersion: r.version, expectedClaimVersion: view.me.claimVersion, status, claims, ...(r.equalSplit && status === "finish" ? { acceptEqualSplit: true } : {}) }),
-      status === "none" ? (r.equalSplit ? "Disagreement saved — tell the organizer what needs changing" : "Saved: you got nothing from this receipt") : status === "finish" ? "Claims saved" : "Draft saved",
+      success,
     );
     setBusy(null);
-    if (res === undefined) setConflict("Not saved. Someone may have claimed the last piece — check the counts and try again.");
-    else if (status !== "draft") onNext();
+    if (res !== undefined && status !== "draft") onSaved();
+    return res;
   };
+
+  const badge = ack ? (
+    <Badge tone={ack === "NONE" && r.equalSplit ? "warn" : "receive"}>{ack === "NONE" ? (r.equalSplit ? "Disagreed" : "✓ Got nothing") : "✓ Share confirmed"}</Badge>
+  ) : (
+    <Badge tone="coral">Your turn</Badge>
+  );
+  const myLines = r.lines.filter((l) => (draft[l.id] ?? 0) > 0);
+
+  const lines = (
+    <ul className="space-y-2">
+      {r.lines.map((l) => {
+        const mine = draft[l.id] ?? 0;
+        const others = l.claims.filter((c) => c.memberId !== me.memberId && !c.stale);
+        const otherUnits = others.reduce((a, c) => a + c.units, 0);
+        const left = l.quantity - otherUnits - mine;
+        return (
+          <li key={l.id} className={`card p-4 ${mine > 0 && !r.equalSplit ? "border-violet ring-2 ring-violet-soft" : ""}`}>
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">
+                  {l.quantity > 1 && <span className="tnum text-muted">{l.quantity}× </span>}
+                  {l.label}
+                </p>
+                <p className="tnum text-[14px] text-muted">
+                  {php(l.amount)} · {r.equalSplit ? "split equally" : l.mode === "SHARED" ? "shared equally" : `${otherUnits + mine} of ${l.quantity} pieces claimed`}
+                </p>
+              </div>
+              {r.equalSplit ? (
+                <Badge tone="violet">Everyone</Badge>
+              ) : l.mode === "SHARED" ? (
+                <button
+                  type="button"
+                  disabled={readOnly}
+                  role="switch"
+                  aria-checked={mine > 0}
+                  aria-label={`I had some ${l.label}`}
+                  onClick={() => setDraft((d) => ({ ...d, [l.id]: mine > 0 ? 0 : 1 }))}
+                  className={`inline-flex min-h-11 min-w-24 items-center justify-center gap-1 rounded-full px-3 text-[14px] font-semibold ${mine > 0 ? "bg-violet text-violet-ink" : "border border-line bg-surface"}`}
+                >
+                  {mine > 0 ? (
+                    <>
+                      <Icon name="check" size={16} /> I had some
+                    </>
+                  ) : (
+                    "I had some"
+                  )}
+                </button>
+              ) : (
+                <div className="flex items-center gap-1" role="group" aria-label={`Pieces of ${l.label} you had`}>
+                  <button type="button" disabled={readOnly || mine === 0} onClick={() => setDraft((d) => ({ ...d, [l.id]: Math.max(0, mine - 1) }))} className="stepper-btn" aria-label="One less">
+                    <Icon name="minus" size={22} />
+                  </button>
+                  <span className="tnum w-8 text-center text-[18px] font-bold" aria-live="polite">
+                    {mine}
+                  </span>
+                  <button type="button" disabled={readOnly || left <= 0} onClick={() => setDraft((d) => ({ ...d, [l.id]: mine + 1 }))} className="stepper-btn" aria-label="One more">
+                    <Icon name="plus" size={22} />
+                  </button>
+                </div>
+              )}
+            </div>
+            {others.length > 0 && !r.equalSplit && (
+              <div className="mt-2 flex items-center gap-1.5 text-[13px] text-muted">
+                <span className="flex -space-x-1.5">
+                  {others.slice(0, 5).map((c) => (
+                    <Avatar key={c.memberId} name={name(c.memberId)} seq={seq(c.memberId)} size={22} />
+                  ))}
+                </span>
+                {others.map((c) => `${name(c.memberId)}${l.mode === "UNITS" ? ` ×${c.units}` : ""}`).join(", ")}
+              </div>
+            )}
+            {l.mode === "UNITS" && left < 0 && <p className="mt-1 text-[13px] text-pay">More than available — reduce your pieces.</p>}
+          </li>
+        );
+      })}
+      {r.adjustments.length > 0 && (
+        <li className="px-1 text-[14px] text-muted">
+          {r.adjustments.map((a) => `${a.label} ${a.kind === "DISCOUNT" ? "−" : "+"}${php(a.amount)}`).join(" · ")}
+          {r.equalSplit ? " — included in the equal split." : " — split by what each person had."}
+        </li>
+      )}
+      {r.equalSplit && <li className="px-1 text-[14px] text-muted">Split equally among {active.length} people. Shares can differ by ₱0.01.</li>}
+    </ul>
+  );
+
+  const itemButtons = !readOnly && !r.equalSplit && (
+    <div className="space-y-2 pt-1">
+      <Button full busy={busy === "finish"} busyLabel="Saving…" disabled={!Object.values(draft).some((u) => u > 0) || busy !== null} onClick={() => save("finish")}>
+        {`Save my items${ack ? "" : " & next"}`}
+      </Button>
+      <Button full variant="secondary" busy={busy === "none"} busyLabel="Saving…" disabled={busy !== null} onClick={() => save("none")}>
+        I got nothing from this receipt
+      </Button>
+      {dirty && (
+        <Button full variant="tonal" busy={busy === "draft"} busyLabel="Saving…" disabled={busy !== null} onClick={() => save("draft")}>
+          Save as draft (not finished)
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <div className="space-y-3">
-      <Card className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate font-bold">{r.label}</p>
-          <p className="text-[14px] text-muted">
-            Paid by {name(r.payerId)} · total {php(r.payable)}
-          </p>
+      <Card className="space-y-1.5" as="section">
+        <div className="flex items-start justify-between gap-3">
+          <p className="min-w-0 truncate text-[18px] font-bold">{r.label}</p>
+          {badge}
         </div>
-        {ack ? <Badge tone={r.equalSplit && ack === "NONE" ? "warn" : "receive"}>{ack === "NONE" ? (r.equalSplit ? "Disagreed" : "Got nothing") : r.equalSplit ? "Confirmed" : "Claimed"}</Badge> : <Badge tone="coral">Your turn</Badge>}
+        <p className="text-[14px] text-muted">
+          Paid by {name(r.payerId)} · {php(r.payable)}
+        </p>
+        {share !== null && (
+          <p className="tnum flex items-baseline justify-between text-[16px]" data-testid="my-share">
+            <span>Your share</span>
+            <b className="text-[20px]">{php(share)}</b>
+          </p>
+        )}
+        <p className="text-[14px] text-muted" data-testid="receipt-progress">
+          {notYet.length === 0
+            ? r.equalSplit
+              ? agreed.length === active.length
+                ? `Everyone confirmed (${agreed.length} of ${active.length})`
+                : `${agreed.length} of ${active.length} confirmed`
+              : `Everyone answered (${answered.length} of ${active.length})`
+            : `${r.equalSplit ? agreed.length : answered.length} of ${active.length} ${r.equalSplit ? "confirmed" : "answered"} · waiting for ${namesList(notYet.filter((id) => id !== me.memberId), name) || "you"}`}
+        </p>
+        {r.equalSplit && joiningOpen && <p className="text-[13px] text-muted">Can change if someone else joins.</p>}
+        {folded && !r.equalSplit && ack === "FINISHED" && myLines.length > 0 && (
+          <p className="text-[14px] text-muted">You had: {myLines.map((l) => (r.lines.find((x) => x.id === l.id)?.mode === "UNITS" ? `${l.label} ×${draft[l.id]}` : l.label)).join(", ")}</p>
+        )}
       </Card>
 
-      {staleDraft && <Notice tone="warn" title="This receipt was corrected">Your earlier picks are shown as a draft. Check them against the new version and save again.</Notice>}
-      {conflict && <Notice tone="pay">{conflict}</Notice>}
+      {staleDraft && <Notice tone="warn" title="This receipt changed">Your earlier picks are shown as a draft. Check them and save again.</Notice>}
+      {r.equalSplit && ack === "NONE" && <Notice tone="warn" title="You disagreed">Tell the organizer what needs changing. The bill can’t freeze until everyone agrees or the receipt changes.</Notice>}
 
+      {/* Equal split: the items are information, not choices. */}
       {r.equalSplit && (
-        <Notice tone="info" title="Split equally among everyone">
-          <p>The whole receipt, including discounts and charges, is divided among all {view.members.filter((m) => m.active).length} people. Confirm only your own share below.</p>
-          <p className="font-semibold">Your share: {php(new EqualReceiptSplit().totals(BigInt(r.payable), view.members.filter((m) => m.active).map((m) => m.id)).get(me.memberId) ?? 0n)}</p>
-          <p>{r.acks.filter((a) => a.kind === "FINISHED" && !a.stale && view.members.some((m) => m.id === a.memberId && m.active)).length} of {view.members.filter((m) => m.active).length} people confirmed. Final totals can differ by one centavo.</p>
-          {ack === "NONE" && <p className="font-semibold">You disagreed. Tell the organizer what needs changing; the bill can’t freeze until everyone agrees or the receipt is changed.</p>}
-        </Notice>
-      )}
-
-      <ul className="space-y-2">
-        {r.lines.map((l) => {
-          const mine = draft[l.id] ?? 0;
-          const others = l.claims.filter((c) => c.memberId !== me.memberId && !c.stale);
-          const otherUnits = others.reduce((a, c) => a + c.units, 0);
-          const left = l.quantity - otherUnits - mine;
-          return (
-            <li key={l.id} className={`card p-4 ${mine > 0 ? "border-violet ring-2 ring-violet-soft" : ""}`}>
-              <div className="flex items-start gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold">
-                    {l.quantity > 1 && <span className="tnum text-muted">{l.quantity}× </span>}
-                    {l.label}
-                  </p>
-                  <p className="tnum text-[14px] text-muted">
-                    {php(l.amount)} · {l.mode === "SHARED" ? "shared equally" : `${otherUnits + mine} of ${l.quantity} pieces claimed`}
-                  </p>
-                </div>
-                {r.equalSplit ? <Badge tone="violet">Everyone</Badge> : l.mode === "SHARED" ? (
-                  <button
-                    type="button"
-                    disabled={readOnly}
-                    role="switch"
-                    aria-checked={mine > 0}
-                    aria-label={`I had some ${l.label}`}
-                    onClick={() => setDraft((d) => ({ ...d, [l.id]: mine > 0 ? 0 : 1 }))}
-                    className={`inline-flex min-h-11 min-w-24 items-center justify-center gap-1 rounded-full px-3 text-[14px] font-semibold ${mine > 0 ? "bg-violet text-violet-ink" : "border border-line bg-surface"}`}
-                  >
-                    {mine > 0 ? (
-                      <>
-                        <Icon name="check" size={16} /> I had some
-                      </>
-                    ) : (
-                      "I had some"
-                    )}
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-1" role="group" aria-label={`Pieces of ${l.label} you had`}>
-                    <button type="button" disabled={readOnly || mine === 0} onClick={() => setDraft((d) => ({ ...d, [l.id]: Math.max(0, mine - 1) }))} className="stepper-btn" aria-label="One less">
-                      <Icon name="minus" size={22} />
-                    </button>
-                    <span className="tnum w-8 text-center text-[18px] font-bold" aria-live="polite">
-                      {mine}
-                    </span>
-                    <button type="button" disabled={readOnly || left <= 0} onClick={() => setDraft((d) => ({ ...d, [l.id]: mine + 1 }))} className="stepper-btn" aria-label="One more">
-                      <Icon name="plus" size={22} />
-                    </button>
-                  </div>
-                )}
-              </div>
-              {others.length > 0 && (
-                <div className="mt-2 flex items-center gap-1.5 text-[13px] text-muted">
-                  <span className="flex -space-x-1.5">
-                    {others.slice(0, 5).map((c) => (
-                      <Avatar key={c.memberId} name={name(c.memberId)} seq={seq(c.memberId)} size={22} />
-                    ))}
-                  </span>
-                  {others.map((c) => `${name(c.memberId)}${l.mode === "UNITS" ? ` ×${c.units}` : ""}`).join(", ")}
-                </div>
-              )}
-              {l.mode === "UNITS" && left < 0 && <p className="mt-1 text-[13px] text-pay">More than available — reduce your pieces.</p>}
-            </li>
-          );
-        })}
-      </ul>
-
-      {r.adjustments.length > 0 && (
-        <p className="px-1 text-[14px] text-muted">
-          {r.adjustments.map((a) => `${a.label} ${a.kind === "DISCOUNT" ? "−" : "+"}${php(a.amount)}`).join(" · ")} — split by what each person had, after you all claim.
-        </p>
-      )}
-
-      {share && !dirty && (
-        <Card className="tnum flex items-center justify-between">
-          <span className="text-[15px]">Your share of this receipt (est.)</span>
-          <b>{php(share.total)}</b>
-        </Card>
-      )}
-
-      {!readOnly && r.equalSplit && (
-        <div className="space-y-2 pt-1">
-          {ack === "FINISHED" ? (
-            <Notice tone="receive" title="You confirmed your share">Nothing else to do on this receipt.</Notice>
-          ) : (
-            <Button full busy={busy === "finish"} onClick={() => void save("finish")}>
-              Confirm my equal share
-            </Button>
-          )}
-          <Disclosure summary={ack === "FINISHED" ? "Change my answer" : "Don’t agree with splitting this equally?"} className="px-1">
-            {ack === "FINISHED" && <p className="text-[14px] text-muted">If you didn’t share this receipt, tell the organizer so they can change it to item-by-item.</p>}
-            {ack !== "NONE" && (
-              <Button full variant="secondary" busy={busy === "none"} onClick={() => void save("none")}>
-                I disagree — ask organizer to change it
+        <>
+          {!readOnly && ack !== "FINISHED" && ack !== "NONE" && (
+            <>
+              <Button full busy={busy === "finish"} busyLabel="Confirming…" onClick={() => save("finish")}>
+                Confirm my equal share
               </Button>
-            )}
-          </Disclosure>
-        </div>
-      )}
-      {!readOnly && !r.equalSplit && (
-        <div className="space-y-2 pt-1">
-          {ack && !dirty && <Notice tone="receive" title={ack === "NONE" ? "Saved: you had nothing from this receipt" : "Saved: your items are claimed"}>Change your picks and save again if you need to.</Notice>}
-          <Button full busy={busy === "finish"} disabled={!Object.values(draft).some((u) => u > 0)} onClick={() => void save("finish")}>
-            {`Save my items${ack ? "" : " & next"}`}
-          </Button>
-          <Button full variant="secondary" busy={busy === "none"} onClick={() => void save("none")}>
-            I got nothing from this receipt
-          </Button>
-          {dirty && (
-            <Button full variant="tonal" busy={busy === "draft"} onClick={() => void save("draft")}>
-              Save as draft (not finished)
-            </Button>
+              <ActionError message={error} />
+            </>
           )}
-        </div>
+          {ack === "FINISHED" && !readOnly && <NextCard where="claim" />}
+          <Disclosure summary={`See items (${r.lines.length})`} className="px-1">
+            {lines}
+          </Disclosure>
+          {!readOnly && (
+            <Disclosure summary={ack === "FINISHED" ? "Change my answer" : "Don’t agree with splitting this equally?"} className="px-1">
+              {ack === "FINISHED" && <p className="text-[14px] text-muted">If you didn’t share this receipt, tell the organizer so they can change it to item-by-item.</p>}
+              {ack !== "NONE" && (
+                <Button full variant="secondary" busy={busy === "none"} busyLabel="Saving…" onClick={() => save("none")}>
+                  I disagree — ask organizer to change it
+                </Button>
+              )}
+            </Disclosure>
+          )}
+          {ack === "NONE" && !readOnly && <NextCard where="claim" />}
+        </>
       )}
+
+      {/* Item by item: the list is the action until you've answered; then it folds away. */}
+      {!r.equalSplit &&
+        (folded && !readOnly ? (
+          <>
+            <NextCard where="claim" />
+            <Disclosure summary={`See items (${r.lines.length})`} className="px-1">
+              {lines}
+              <p className="text-[14px] text-muted">Change your picks and save again if you need to.</p>
+              {itemButtons}
+              <ActionError message={error} />
+            </Disclosure>
+          </>
+        ) : (
+          <>
+            {lines}
+            {itemButtons}
+            <ActionError message={error} />
+          </>
+        ))}
+
       {readOnly && <Notice tone="info">{event.cancelled ? "This event was cancelled; claims are closed." : "Claims are frozen with the bill."}</Notice>}
     </div>
   );

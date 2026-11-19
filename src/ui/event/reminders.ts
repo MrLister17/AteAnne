@@ -1,5 +1,6 @@
 import type { EventView } from "@/server/readmodels/EventViewBuilder";
 import { php } from "../format";
+import type { TaskView } from "./next";
 
 export interface Reminder {
   memberId: string;
@@ -7,44 +8,46 @@ export interface Reminder {
   tasks: string[];
 }
 
-/** Plain text only, using the same server-computed gates and capacities as the app. */
+/**
+ * Plain-text reminders built from the server's own task list (D53), so a
+ * copied reminder always matches what each person sees in the app. Payment
+ * wording never nudges a second transfer while one is waiting.
+ */
 export function remindersFor(view: EventView): Reminder[] {
   if (view.event.cancelled || view.event.phase === "DONE") return [];
   const name = (id: string) => view.members.find((m) => m.id === id)?.displayName ?? "someone";
-  return view.members.filter((m) => m.active).map((m) => {
-    const tasks: string[] = [];
-    switch (view.event.phase) {
-      case "COLLECTING":
-      case "ALLOCATING":
-      case "REVIEWING":
-        // Step 1, "Add & claim" (D49). The bill freezes by itself once everyone is done.
-        for (const r of view.receipts) {
-          if (r.payerId === m.id && !r.fundingAcknowledged) tasks.push(`Confirm you paid ${php(r.payable)} for “${r.label}”.`);
-        }
-        if (view.event.phase !== "REVIEWING") {
-          for (const r of view.receipts) {
-            const ack = r.acks.find((a) => a.memberId === m.id);
-            if (!ack?.kind || ack.stale) tasks.push(`Answer “${r.label}”: choose what you had, or say you had nothing.`);
-          }
-        }
-        if (view.event.phase === "COLLECTING" && !m.entryComplete) tasks.push("Add any receipts you paid, then mark receipt entry complete (even if you paid nothing).");
-        break;
-      case "SETTLING":
-        for (const edge of view.settlement?.edges ?? []) {
-          if (edge.from !== m.id && edge.to !== m.id) continue;
-          if (edge.disputed) {
-            tasks.push(`Resolve the disputed payment with ${name(edge.from === m.id ? edge.to : edge.from)} in the app. Do not send the same money again.`);
-            continue;
-          }
-          if (edge.to === m.id && edge.reports.some((r) => r.status === "REPORTED")) tasks.push(`Check whether money from ${name(edge.from)} arrived, then confirm or reject the report in the app.`);
-          // A pending report may already be an external transfer. Never nudge a second transfer.
-          if (edge.from === m.id && !edge.settled && BigInt(edge.pending) === 0n && BigInt(edge.capacity) > 0n) tasks.push(`Check the latest instructions, pay ${php(edge.capacity)} to ${name(edge.to)}, then report it in the app. If you already sent it, report that transfer; do not send it again.`);
-        }
-        if (!view.instructions[m.id] && view.settlement?.edges.some((e) => e.to === m.id && !e.settled)) tasks.push("Add how you want to be paid (cash or QR) in Money.");
-        break;
-    }
-    return { memberId: m.id, name: m.displayName, tasks: [...new Set(tasks)] };
-  }).filter((m) => m.tasks.length > 0);
+  return view.group.members
+    .map((g) => ({ memberId: g.memberId, name: name(g.memberId), tasks: [...new Set(g.tasks.map((t) => reminderLine(t, name)))] }))
+    .filter((r) => r.tasks.length > 0);
+}
+
+function reminderLine(task: TaskView, name: (id: string) => string): string {
+  switch (task.kind) {
+    case "recheck":
+      return `“${task.label}” changed: choose what you had again, or say you had nothing.`;
+    case "confirmPaid":
+      return `Confirm you paid ${php(task.amount)} for “${task.label}”.`;
+    case "claim":
+      return `Answer “${task.label}”: choose what you had, or say you had nothing.`;
+    case "fixReceipt":
+      return task.reason === "doesntAddUp" ? `Fix “${task.label}” so its items add up to the total.` : `Change “${task.label}”: someone disagreed with splitting it equally.`;
+    case "doneAdding":
+      return "Add any receipts you paid, then tap “I’m done adding receipts” (even if you paid nothing).";
+    case "everyoneHere":
+      return "Tap “Everyone’s here” once everyone who shared the bill has joined.";
+    case "freeze":
+      return task.corrected ? "Freeze the corrected bill." : "Freeze the bill.";
+    case "sortOut":
+      return task.recordAgain
+        ? `Record the money you already sent to ${name(task.withId)}. Do not send it again.`
+        : `Resolve the disputed payment with ${name(task.withId)} in the app. Do not send the same money again.`;
+    case "confirmReceived":
+      return `Check whether ${php(task.amount)} from ${name(task.fromId)} arrived, then confirm or reject it in the app.`;
+    case "shareDetails":
+      return "Add how you want to be paid (cash or QR) in Pay.";
+    case "pay":
+      return `Check the latest instructions, pay ${php(task.amount)} to ${name(task.toId)}, then record it in the app. If you already sent it, record that transfer; do not send it again.`;
+  }
 }
 
 /** Does not include recovery keys, join codes, images or payment details. */

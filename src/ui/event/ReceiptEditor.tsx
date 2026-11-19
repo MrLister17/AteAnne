@@ -7,7 +7,6 @@ import { Button, Field, MoneyInput, Notice, Sheet, useToast } from "../component
 import { php, toCentavos, toInput } from "../format";
 import { ReceiptView, useAction, useEvent } from "./EventContext";
 import type { ScannedDraft } from "@/server/services/ReceiptScanService";
-import { uploadName } from "../image";
 import { EntryMath } from "@/domain/receipt/EntryMath";
 import { ScanPanel } from "./ScanPanel";
 import { useReceiptScanner } from "./useReceiptScanner";
@@ -222,16 +221,9 @@ export function ReceiptEditor({
     setBusy(true);
     const ok = await act(
       () => (receipt ? api.put(`/api/receipts/${receipt.id}`, { ...body, expectedVersion: receipt.version }) : api.post<{ receiptId: string }>(`/api/events/${event.id}/receipts`, body)),
-      receipt ? "Receipt updated — everyone re-checks their claims on it" : "Receipt added",
+      receipt ? "Receipt updated. Everyone checks their claims on it again." : "Receipt saved",
     );
-    if (ok && !receipt && photoBlob && "receiptId" in (ok as object)) {
-      // Keep the scanned photo as private supporting evidence on the new receipt.
-      const fd = new FormData();
-      fd.set("file", photoBlob, uploadName(photoBlob));
-      fd.set("kind", "RECEIPT");
-      fd.set("receiptId", (ok as { receiptId: string }).receiptId);
-      await act(() => api.post(`/api/events/${event.id}/assets`, fd), "Photo attached");
-    }
+    // The scanned photo is never uploaded or kept (D54): only the details saved here are stored.
     setBusy(false);
     if (ok) onClose();
   };
@@ -246,8 +238,8 @@ export function ReceiptEditor({
       footer={
         <div className="space-y-2">
           <Reconciliation calc={calc} onUse={() => setD((x) => ({ ...x, payable: "", payableAuto: true }))} />
-          <Button full busy={busy} disabled={scanner.scanning} onClick={() => void submit()}>
-            {busy ? "Saving…" : receipt ? "Save changes" : "Save receipt"}
+          <Button full busy={busy} busyLabel="Saving…" disabled={scanner.scanning} onClick={() => void submit()}>
+            {receipt ? "Save changes" : "Save receipt"}
           </Button>
         </div>
       }
@@ -292,9 +284,12 @@ export function ReceiptEditor({
               alt="The receipt photo you scanned"
               className={`${bigPhoto ? "max-h-[70vh] w-full" : "max-h-40 w-28"} rounded-xl border border-line bg-surface object-contain`}
             />
-            <button type="button" className="btn btn-tonal !min-h-11 shrink-0 !px-4 !text-[15px]" onClick={() => setBigPhoto((v) => !v)}>
-              {bigPhoto ? "Smaller photo" : "Bigger photo"}
-            </button>
+            <div className="min-w-0 space-y-2">
+              <button type="button" className="btn btn-tonal !min-h-11 shrink-0 !px-4 !text-[15px]" onClick={() => setBigPhoto((v) => !v)}>
+                {bigPhoto ? "Smaller photo" : "Bigger photo"}
+              </button>
+              <p className="text-[13px] text-muted">We don’t keep this photo. Only what you save is kept.</p>
+            </div>
           </div>
         )}
         {receipt && <Notice tone="warn">Saving a change resets everyone’s claims on this receipt to drafts. If someone else paid, they confirm the amount again.</Notice>}

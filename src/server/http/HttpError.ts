@@ -30,10 +30,18 @@ export class GoneError extends HttpError {
   }
 }
 
+/** 429 with how long to wait; the route sends it as a Retry-After header too. */
 export class RateLimitedError extends HttpError {
-  constructor() {
-    super(429, "rate_limited", "Too many attempts. Please wait a few minutes and try again.");
+  readonly retryAfterSeconds: number;
+  constructor(retryAfterSeconds = 60) {
+    super(429, "rate_limited", `Too many tries. Try again in ${waitWords(retryAfterSeconds)}.`, { retryAfterSeconds });
+    this.retryAfterSeconds = retryAfterSeconds;
   }
+}
+
+function waitWords(seconds: number): string {
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
 /** Map any domain error to an HTTP status code. */

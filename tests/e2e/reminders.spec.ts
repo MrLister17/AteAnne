@@ -16,7 +16,7 @@ test("preview and copy a manual reminder without sending it", async ({ page, con
   await page.getByRole("button", { name: /Open my event/ }).click();
   await page.getByRole("button", { name: "Copy reminder", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: "Copy reminder for Messenger" });
-  await expect(sheet.getByTestId("reminder-preview")).toContainText("mark receipt entry complete");
+  await expect(sheet.getByTestId("reminder-preview")).toContainText("tap “I’m done adding receipts”");
   await sheet.getByLabel("Who is this for?").selectOption({ label: "Mark" });
   await sheet.getByRole("button", { name: "Copy message", exact: true }).click();
   await expect(sheet.getByRole("button", { name: "Copied", exact: true })).toBeVisible();
@@ -27,6 +27,12 @@ test("preview and copy a manual reminder without sending it", async ({ page, con
   expect(copied).toContain("not a payment confirmation");
   expect(copied).not.toContain(key);
   await sheet.getByRole("button", { name: "Close", exact: true }).click();
-  await page.getByLabel("I’ve entered every receipt I paid").check();
+  await page.getByTestId("next-card").getByRole("button", { name: "I’m done adding receipts" }).click();
+  await expect(page.getByTestId("next-status")).toHaveText("Is everyone here?");
+  page.once("dialog", (d) => d.accept());
+  await page.getByTestId("next-card").getByRole("button", { name: "Everyone’s here" }).click();
+  // Nobody has anything left to do (the bill waits for a receipt), so there is nothing to remind anyone of.
+  await expect(page.getByTestId("next-status")).toHaveText("You’re done for now");
+  await expect(page.getByTestId("next-card").getByText("Add at least one receipt.")).toBeVisible();
   await expect(page.getByRole("button", { name: "Copy reminder", exact: true })).toHaveCount(0);
 });

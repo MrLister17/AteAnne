@@ -53,6 +53,7 @@ test("corrects a reported bill and shows a return transfer with original payment
   await claims(juan, true);
   await markPage.reload();
   await expect(markPage.getByText("Step 1 of 3 · Add & claim")).toBeVisible();
+  await expect(markPage.getByTestId("next-status")).toHaveText("Bill fixed?");
   await markPage.getByRole("button", { name: "Freeze the corrected bill", exact: true }).click();
   await expect(markPage.getByText("Step 2 of 3 · Pay")).toBeVisible();
   const corrected = (await view()).settlement!;
@@ -63,7 +64,7 @@ test("corrects a reported bill and shows a return transfer with original payment
   await markPage.getByText("Payment history from prior statements", { exact: true }).click();
   await expect(markPage.getByText("Confirmed received — included in this bill", { exact: false })).toBeVisible();
   await expect(markPage.getByText("You pay", { exact: true })).toBeVisible();
-  await expect(markPage.getByRole("button", { name: "I sent money", exact: true })).toBeVisible();
+  await expect(markPage.getByRole("button", { name: "I sent PHP 50.00", exact: true })).toBeVisible();
   await mark.close();
   await juan.close();
 });

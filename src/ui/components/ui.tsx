@@ -34,17 +34,21 @@ type Click = (e: React.MouseEvent<HTMLButtonElement>) => unknown;
  * Every tap answers back: the button dips when pressed (globals.css), shows a
  * spinner and blocks double taps while its action runs (automatically when
  * onClick returns a promise), then flashes a tick when the action succeeded.
+ * `busyLabel` ("Saving…") replaces the label while it works; both labels share
+ * one grid cell so the button never changes width. With Reduce Motion the
+ * spinner becomes a static "…" and the label carries the state (globals.css).
  */
 export function Button({
   variant = "primary",
   icon,
   busy,
+  busyLabel,
   full,
   className = "",
   children,
   onClick,
   ...rest
-}: Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick"> & { variant?: Variant; icon?: IconName; busy?: boolean; full?: boolean; onClick?: Click }) {
+}: Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick"> & { variant?: Variant; icon?: IconName; busy?: boolean; busyLabel?: string; full?: boolean; onClick?: Click }) {
   const [pending, setPending] = useState(false);
   const [done, setDone] = useState(false);
   const alive = useRef(true);
@@ -58,6 +62,7 @@ export function Button({
   const handle: Click | undefined =
     onClick &&
     ((e) => {
+      if (working) return;
       haptic();
       const out = onClick(e);
       if (!(out instanceof Promise)) return;
@@ -72,6 +77,7 @@ export function Button({
         .catch(() => undefined)
         .finally(() => alive.current && setPending(false));
     });
+  const swap = Boolean(busyLabel) && working;
   return (
     <button
       type="button"
@@ -82,13 +88,39 @@ export function Button({
       className={`btn ${VARIANT[variant]} ${full ? "w-full" : ""} ${className}`}
     >
       {working ? <Spinner /> : done ? <Icon name="check" size={20} className="animate-pop" /> : icon ? <Icon name={icon} size={20} /> : null}
-      {children}
+      {busyLabel ? (
+        <span className="btn-label">
+          <span className={swap ? "invisible" : undefined} aria-hidden={swap || undefined}>
+            {children}
+          </span>
+          <span className={swap ? undefined : "invisible"} aria-hidden={!swap || undefined}>
+            {busyLabel}
+          </span>
+        </span>
+      ) : (
+        children
+      )}
     </button>
   );
 }
 
+/** Spinning ring; a static "…" when Reduce Motion is on (globals.css `.spinner`). */
 export function Spinner() {
-  return <span className="inline-block size-5 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />;
+  return <span className="spinner" aria-hidden />;
+}
+
+/**
+ * The reason an action failed, shown right next to its button (not only in a
+ * toast at the top of the screen). Announced to screen readers as an alert.
+ */
+export function ActionError({ message, className = "" }: { message: string | null | undefined; className?: string }) {
+  if (!message) return null;
+  return (
+    <p role="alert" className={`flex items-start gap-2 text-[14px] font-medium text-pay ${className}`} data-testid="action-error">
+      <Icon name="alert" size={18} className="mt-px shrink-0" />
+      <span>{message}</span>
+    </p>
+  );
 }
 
 /* ---------------------------------------------------------------- Fields */
@@ -432,21 +464,33 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       <div ref={layer} popover="manual" className="top-layer">
         {busy && <div className="activity-bar" role="progressbar" aria-label="Working" />}
-        <div className="fixed inset-x-0 flex flex-col items-center gap-2 px-4" style={{ top: "calc(var(--safe-top) + 64px)" }} aria-live="assertive">
-          {toasts.map((t) => (
-            <div
-              key={t.id}
-              role={t.tone === "error" ? "alert" : "status"}
-              onClick={() => setToasts((all) => all.filter((x) => x.id !== t.id))}
-              className={`pointer-events-auto flex max-w-[480px] items-start gap-2.5 rounded-2xl px-4 py-3 text-[15px] font-medium shadow-lg ${t.tone === "error" ? "animate-shake bg-pay text-white dark:text-black" : "animate-sheet bg-ink text-bg"}`}
-            >
-              <Icon name={t.tone === "error" ? "alert" : "check"} size={20} className="mt-px shrink-0" />
-              <span>{t.text}</span>
-            </div>
-          ))}
+        {/* Two live regions: confirmations are announced politely, failures interrupt. */}
+        <div className="fixed inset-x-0 flex flex-col items-center gap-2 px-4" style={{ top: "calc(var(--safe-top) + 64px)" }}>
+          <div className="flex w-full flex-col items-center gap-2" aria-live="polite" role="status">
+            {toasts.filter((t) => t.tone === "ok").map((t) => (
+              <ToastView key={t.id} toast={t} onDismiss={() => setToasts((all) => all.filter((x) => x.id !== t.id))} />
+            ))}
+          </div>
+          <div className="flex w-full flex-col items-center gap-2" aria-live="assertive" role="alert">
+            {toasts.filter((t) => t.tone === "error").map((t) => (
+              <ToastView key={t.id} toast={t} onDismiss={() => setToasts((all) => all.filter((x) => x.id !== t.id))} />
+            ))}
+          </div>
         </div>
       </div>
     </ToastCtx.Provider>
+  );
+}
+
+function ToastView({ toast: t, onDismiss }: { toast: Toast; onDismiss: () => void }) {
+  return (
+    <div
+      onClick={onDismiss}
+      className={`pointer-events-auto flex max-w-[480px] items-start gap-2.5 rounded-2xl px-4 py-3 text-[15px] font-medium shadow-lg ${t.tone === "error" ? "animate-shake bg-pay text-white dark:text-black" : "animate-sheet bg-ink text-bg"}`}
+    >
+      <Icon name={t.tone === "error" ? "alert" : "check"} size={20} className="mt-px shrink-0" />
+      <span>{t.text}</span>
+    </div>
   );
 }
 

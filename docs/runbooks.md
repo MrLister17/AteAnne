@@ -15,7 +15,7 @@
 3. Build the image: `docker build -t ateanne:<git-sha> .`
 4. Migrate (a controlled step, run once): `docker run --rm --env-file prod.env ateanne:<sha> npx prisma migrate deploy`
 5. Start: `docker run -d --env-file prod.env -v ateanne-uploads:/data/uploads -p 3000:3000 ateanne:<sha>` behind an HTTPS reverse proxy that forwards `X-Forwarded-For`.
-6. Smoke test over HTTPS: `/api/health` returns ok. Response headers show `Cache-Control: private, no-store` on `/api/*` and a `Secure; HttpOnly; SameSite=Lax` cookie. Create a SYNTHETIC event, then on a second phone join, claim, review, freeze, report, confirm and Done. Check that a receipt photo loads only for members. Then delete the synthetic event.
+6. Smoke test over HTTPS: `/api/health` returns ok. Response headers show `Cache-Control: private, no-store` on `/api/*` and a `Secure; HttpOnly; SameSite=Lax` cookie. Create a SYNTHETIC event, then on a second phone join, claim, review, freeze, report, confirm and Done. Check that a payment QR loads only for its owner and people who owe them. Then delete the synthetic event.
 7. Record the URL, commit and result in `docs/handoff.md`.
 
 Never run `npm run db:seed` against production (it refuses unless `ALLOW_PRODUCTION_SEED=1`).
@@ -45,8 +45,38 @@ Roll the **application** back to the previous schema-compatible image (`ateanne:
 
 ## Storage
 
-Watch volume usage (photos are ≤ ~1 MB after re-encode, limited to 8 MB input and 20 MP). To move to object storage, implement `PrivateStorage` for a **private** bucket with server-side reads, and never expose public URLs.
+Watch volume usage (QR images and pre-v0.8.0 receipt photos are ≤ ~1 MB after re-encode, limited to 8 MB input and 20 MP; new receipt photos are not stored, D54). To move to object storage, implement `PrivateStorage` for a **private** bucket with server-side reads, and never expose public URLs.
 
 ## Incidents
 
 Money or access bug during the pilot: freeze new events (take the app offline or set a maintenance banner), back up, investigate from `AuditEvent` and the payment tables, and tell affected groups exactly what happened. Never edit payment rows by hand to "fix" balances.
+
+## Database checks (read-only, Supabase SQL editor) — S9.4a
+
+Run these in production when asked for "before/after" numbers. They only read. Record the results exactly as returned in `docs/test-report.md`; never estimate.
+
+```sql
+-- Storage by image type (receipt photos vs payment QR)
+select a.kind, count(*) files, pg_size_pretty(sum(octet_length(b.bytes))) stored
+from "Asset" a left join "AssetBlob" b on b.key = a."storageKey" group by a.kind;
+-- Biggest tables
+select relname, pg_size_pretty(pg_total_relation_size(relid)) size, n_live_tup rows
+from pg_stat_user_tables order by pg_total_relation_size(relid) desc limit 10;
+-- Sequential vs index scans (is ReceiptAck scanned in full?)
+select relname, seq_scan, seq_tup_read, idx_scan from pg_stat_user_tables
+order by seq_tup_read desc limit 10;
+-- Busiest statements (if pg_stat_statements is enabled)
+select calls, round(total_exec_time) total_ms, round(mean_exec_time::numeric, 2) mean_ms, left(query, 100)
+from pg_stat_statements order by calls desc limit 15;
+-- Connections (run during a 3-phone test)
+select usename, application_name, state, count(*) from pg_stat_activity
+where datname = current_database() group by 1, 2, 3;
+-- RLS and Data API grants
+select c.relname, c.relrowsecurity,
+  has_table_privilege('anon', c.oid, 'select') anon_read,
+  has_table_privilege('authenticated', c.oid, 'select') auth_read
+from pg_class c join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public' and c.relkind = 'r' order by 1;
+```
+
+Locally, `npx tsx scripts/measure-db.ts` builds a synthetic 10-person event on the **test** database (it refuses anything else), prints SQL statements, time, pool connections and JSON size for the hot operations, and purges the event afterwards.
