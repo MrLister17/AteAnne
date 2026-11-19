@@ -7,6 +7,7 @@ import { api, ApiError } from "../api";
 import { Icon, IconName } from "../components/Icon";
 import { Badge, Button, Spinner, ToastProvider, useToast } from "../components/ui";
 import { EventContext, FocusTarget, TabId, View, useEvent, viewCurrencies } from "./EventContext";
+import { signed } from "../format";
 import { OverviewTab } from "./OverviewTab";
 import { ReceiptsTab } from "./ReceiptsTab";
 import { ClaimTab } from "./ClaimTab";
@@ -376,8 +377,7 @@ function Header({ view, stale, onRefresh, onStopActing, onShow }: { view: View; 
         {net !== null && (
           <div className="text-right" aria-label="My balance">
             <p className={`tnum text-[15px] font-bold ${net > 0n ? "text-receive" : net < 0n ? "text-pay" : ""}`}>
-              {net > 0n ? "+" : net < 0n ? "−" : ""}
-              {shown(net, { abs: true })}
+              {signed(net > 0n ? "+" : net < 0n ? "−" : "", shown(net, { abs: true }))}
             </p>
             <p className="text-[11px] text-muted">{net > 0n ? "to receive" : net < 0n ? "to pay" : "settled"}{frozen ? "" : " · est."}</p>
           </div>

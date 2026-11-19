@@ -1,14 +1,28 @@
 # Handoff
 
-_Last updated: 2026-11-19 Manila (v0.8.0)_
+_Last updated: 2026-11-19 Manila (v0.9.0)_
 
 ## Current state
 
+- **v0.9.0 (Sprint S10, D58–D62): mixed currencies.** The owner approved every decision and asked for merge and deploy. What it does:
+  - Each receipt has its own currency and purchase date.
+  - Each event has one settle-up currency (default ₱).
+  - A foreign receipt converts at the ECB rate of the day it was bought, fixed at the freeze.
+  - **Show totals in** gives a per-person "≈" view at today's rate.
+  - **Pay in** lets someone send another currency the receiver accepts, at the rate of the day it's sent, locked into the payment.
+  - Migration `20261119120000_currencies` is additive.
+  - Rates come from Frankfurter/ECB, fetched only outside event locks. `/api/health` reports `fx`.
+  - Local full chain passed (258 unit / 74 integration / 75 browser). Release status is in `CHANGELOG.md`.
+- **Preserve S10:**
+  - The money engine still sees integers only. Conversion is once per receipt, then a largest-remainder split.
+  - Only `PaymentReport.amountCentavos` (the settle-up credit) enters the ledger.
+  - Never fetch rates inside `inEvent`.
+  - The settle-up currency can't change after any payment report.
 - **Remote `main` / production: v0.8.0**, code commit `1557289` (fast-forward from `720e6f7`). CI run 44452776502 passed; https://ateanne.vercel.app health `ok:true`, version `1557289`, scanner `groq`; production smoke passed and its synthetic event was deleted. The owner approved the S9 plan with every recommended decision and asked for this merge and deploy.
 - **Preserve S9:** one next step per person from `src/domain/event/NextAction.ts` via `view.next`/`view.group`, shown in the **Next for you** card on Home, Claim and Pay; the tab dot, guest list, "See what's left" and reminders read the same list. New receipt photos are never stored (410 `receipt_photos_off`); older ones stay viewable/removable until their event is purged. Payment wording is Sent / Received / Didn't arrive. Rate-limit counters run before event transactions; join/recover create identities only after their checks pass; 429s carry Retry-After.
 - **Preserve v0.7.1 / v0.7.0 / v0.6.1:** compact People roster and focused sheets (D52); Add & claim → Pay → Done, automatic first freeze, manual corrected freeze, next-day close (D49–D51); focused Home reading order (D48).
 - No migration in S9. Production schema is unchanged since `20261118150000_equal_receipt_split`.
-- **Pending: S10 multi-currency plan, revision 2** (`docs/sprint-s10-plan.md`). The owner answered D58–D62 on 2026-11-19 (mixed currencies, purchase-day rate, daily rate for views, ECB). Waiting for the go-ahead to build. Not implemented.
+- Schema: S10 added migration `20261119120000_currencies` (after `20261118150000_equal_receipt_split`).
 
 **Verification:** local 240 unit / 64 integration / 71 browser plus reference, lint, types and build; GitHub CI 44452776502; production health and smoke. Before/after measurements are in `test-report.md`. Production SQL numbers (storage by image type, scans, connections, RLS/grants) have **not** been collected yet; the queries are in `runbooks.md`.
 
@@ -30,6 +44,10 @@ Use README setup, an isolated PostgreSQL test database and Node 22. Commands: re
 **Rollback:** once correction statements exist, v0.5 is not accounting-compatible even though the migration is additive. Use a compatible forward fix; never reset money/history to roll back.
 
 ## Remaining human checks
+
+- v0.9.0:
+  - Try a real Bangkok-style trip on an iPhone: a ฿ receipt typed or scanned (check the scanned currency and date), **Show totals in ฿**, **Pay in** baht, and the receiver confirming the baht.
+  - Check that `/api/health` shows `fx.ok: true` on production on a few different days.
 
 - v0.8.0: hand a phone to someone new at the "2 of 2 confirmed" screen and ask what they'd do next, without coaching. Try **I'm done adding receipts**, **Everyone's here**, a partial **I sent**, **Yes, I got it** and **It didn't arrive** on a real iPhone, including with Reduce Motion on. Run the read-only production SQL in `runbooks.md` and record the numbers before any index or pool change (follow-up F1/F7).
 

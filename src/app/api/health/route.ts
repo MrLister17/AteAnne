@@ -17,8 +17,11 @@ export async function GET() {
   try {
     await prisma().$queryRaw`SELECT 1`;
     // Exchange rates (D62): the source and the newest cached day, so a deployment's rate fetch can be checked from a phone.
+    // Asking for today's rate here (cached; refetched at most every 30 minutes) proves the live source works after a deploy.
     const rates = container().rates;
-    const fx = { source: rates.source, latest: await rates.latest() };
+    await rates.ensureDays([rates.today()]);
+    const latest = await rates.latest();
+    const fx = { source: rates.source, today: rates.today(), latest, ok: latest?.day === rates.today() };
     // When scanning is off, say why in plain words (setting names only, never values).
     return NextResponse.json({ ok: true, version, receiptScan, ...(receiptScan === "off" ? { receiptScanHint: scanSetupHint() } : {}), fx }, { headers });
   } catch {

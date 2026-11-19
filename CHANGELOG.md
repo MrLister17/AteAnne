@@ -2,7 +2,7 @@
 
 This file records every release of AteAnne, what changed and why, and where work stopped. It is written so a person or another AI can pick the project up cold.
 
-**Read in this order:** this file → [`CLAUDE.md`](CLAUDE.md) (rules for coding agents) → [`GUIDE.md`](GUIDE.md) (map of the app and how to change it) → [`docs/decisions.md`](docs/decisions.md) (why things are the way they are, D1–D57) → [`docs/test-report.md`](docs/test-report.md) (what was really run).
+**Read in this order:** this file → [`CLAUDE.md`](CLAUDE.md) (rules for coding agents) → [`GUIDE.md`](GUIDE.md) (map of the app and how to change it) → [`docs/decisions.md`](docs/decisions.md) (why things are the way they are, D1–D62) → [`docs/test-report.md`](docs/test-report.md) (what was really run).
 
 Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from the git history; the code only started carrying a version number (`package.json`) at 0.5.0.
 
@@ -10,11 +10,76 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ## Where we left off (2026-11-19 Manila)
 
-- **Next: Sprint S10 multi-currency plan, revision 2. The owner answered D58–D62; waiting for the go-ahead to build.** [`docs/sprint-s10-plan.md`](docs/sprint-s10-plan.md): receipts in any currency, each converted at the ECB rate of the day it was bought into one settle-up currency per event (default ₱); a per-person totals switch at the daily rate; paying in another currency at the rate of the day it's sent (proposed v0.9.0, one additive migration). Not implemented.
-- **v0.8.0 (Sprint S9, D53–D57) is merged and live.** Code commit `1557289` fast-forwarded `main` (owner approved the plan and asked for merge + deploy). GitHub CI run [44452776502](https://github.com/MrLister17/AteAnne/actions/runs/44452776502) passed the full chain. https://ateanne.vercel.app/api/health returned `ok:true`, version `1557289`, scanner `groq` at 03:48 UTC.
-- Production smoke (synthetic, then deleted): the "2 of 2 confirmed" Claim screen, done → waiting, organizer **Everyone's here** → automatic freeze, Pay-step cards, receipt-photo upload refused with 410, dark phone layout with no sideways scroll. No payment reports or real transfers were created. The Vercel deployment ID wasn't read: the Vercel API rejected this session's credential.
-- Still to do by a person: run the read-only production SQL in `docs/runbooks.md` ("Database checks") for real storage, scan and connection numbers (needed before follow-up F1/F7); try the "2 of 2 confirmed" → Pay → Done path with relatives on a real iPhone, including Reduce Motion.
-- Follow-up backlog (not started): F1 `ReceiptAck.receiptId`/FK indexes, F2 ETag polling + lazy Activity, F3 private QR caching, F4 coarse write limit/Firewall, F5 orphan actor cleanup, F6 remaining prompts, F7 pool size, F8 return-transfer wording. Earlier deferrals stand: referenced-member deactivation and multi-funder receipts.
+- **v0.9.0 (Sprint S10, D58–D62): mixed currencies.** The owner approved every decision and asked for merge and deploy. The full local chain passed (see `docs/test-report.md`). Release status, CI and production checks are recorded under v0.9.0 below.
+- Still to do by a person:
+  - Try a real mixed-currency trip on an iPhone: a baht receipt, **Show totals in**, **Pay in** baht.
+  - Run the read-only production SQL in `docs/runbooks.md` (needed before follow-ups F1/F7).
+- Follow-up backlog (not started):
+  - From S9: F1 `ReceiptAck.receiptId`/FK indexes, F2 ETag polling + lazy Activity, F3 private QR caching, F4 coarse write limit/Firewall, F5 orphan actor cleanup, F6 remaining prompts, F7 pool size, F8 return-transfer wording.
+  - From S10: a second rate source for VND/TWD/AED/SAR; viewing totals in currencies other than the event's and pesos.
+  - Earlier deferrals stand: referenced-member deactivation and multi-funder receipts.
+
+---
+
+## v0.9.0: Receipts in any currency (2026-11-19 Manila)
+
+Sprint **S10**, decisions **D58–D62**, plan [`docs/sprint-s10-plan.md`](docs/sprint-s10-plan.md).
+
+The owner asked to see a THB bill in pesos and to pay in a chosen currency at the day's rate. They answered the plan's questions as follows:
+- **D58:** currencies can be mixed in one event.
+- **D59:** use Claude's suggestion.
+- **D60:** use the daily rate.
+- **D61:** use the rate of the day the receipt was bought.
+- **D62:** ECB rates.
+
+### Added: receipts in any currency (D58, D61)
+
+- **Currency and purchase date on every receipt.** Each receipt has **Currency** and **Bought on**. A scan fills both in when they're printed. The Philippine 12% VAT-discount repair now runs only on peso receipts, and yen/won/rupiah amounts are kept in whole units.
+- **Settle-up currency per event.** It is picked on Start a hatian (*Settle up in*, default ₱). Every share, balance and transfer is in it.
+- **Conversion at the purchase day's rate.** A receipt in another currency is converted at the ECB rate of the day it was bought. Example: *Breakfast · THB 1,397.00 · counts as PHP 2,270.13 · 1 THB = 1.625 PHP (ECB, 18 Nov)*.
+  - Its shares are calculated in its own currency.
+  - Its total is converted once (rounded half-up).
+  - That total is split with the largest-remainder rule, so the receipt still adds up to the centavo.
+- **Rates are fixed at the freeze** and recorded in the frozen statement (policy `ateanne-allocation-v3`, used only when a receipt is converted).
+- **A missing rate makes the bill wait; it never guesses.** The daily job freezes the bill once the rate arrives.
+
+### Added: show totals in another currency (D60)
+
+- **Show totals in** on Home and Pay/Money. It shows a person's totals in another currency of the event, or in pesos, at today's rate: "≈ −THB 513.88", with the exact PHP 835.06 underneath and the rate and date shown.
+- It changes only that phone's view and is remembered per event. The header balance follows it.
+
+### Added: pay in another currency (D58, D61)
+
+- **Pay in.** On Pay, the payer can choose another currency the receiver accepts. Receivers tick these under payment details → *I accept*; by default that's the settle-up currency plus every receipt currency.
+- **Rate locked on the day sent.** The rate is the one for the day the money is sent and is stored with the payment. Example: "At today's rate: 1 THB = 1.625 PHP · Send THB 513.88" → "Counts as PHP 835.06".
+- **Server checks.** The server recomputes the credit and answers 409 if the rate changed.
+- **Receivers confirm what arrived:** "Did THB 513.88 from Ana arrive?".
+- **Unchanged:** partial payments, disputes, reversals and corrections. An agreed replacement reuses the original rate.
+
+### Changed
+
+- **Changing currencies (D59).** The organizer can change the settle-up currency (People → Event settings) only during Add & claim and only before any payment is reported. A receipt's currency and date are ordinary receipt fields; after the freeze they change only through Correct the bill. Changes only relabel: typed numbers are never converted. Both are audited.
+- **Export.** CSV columns are now `amount, currency, settle_amount, rate, rate_date`. JSON `amountPhp` and similar keys became `amount` plus `currency`, with receipt `conversion` and payment `paid` details.
+- **`/api/health` shows `fx`:** the rate source, today, and the latest cached day.
+
+### Data and server
+
+- **Migration `20261119120000_currencies` (additive):**
+  - `Event.currency`
+  - `Receipt.currency/purchasedOn`
+  - `PaymentInstruction.acceptedCurrencies`
+  - `PaymentReport.paidCurrency/paidMinor/rate/rateDate/rateSource`, with an all-or-none check constraint
+  - a new `ExchangeRate` cache table with RLS on
+- **Existing rows:** they read as pesos, bought the day they were entered, paid in the settle-up currency.
+- **Rate fetching:** rates come from Frankfurter (ECB) and are fetched only by `RateService`, outside event locks (D57). New settings: `FX_RATES_URL` (optional) and `FX_RATES_FAKE` (tests only).
+
+### Tests
+
+Local results: reference PASS, lint, typecheck, **258 unit**, **74 integration**, build, **75 browser** tests, all passed. New: unit `currency.test.ts`, integration `currency.test.ts`, E2E `currency.spec.ts` at iPhone 15 and 360px. Details are in `docs/test-report.md`.
+
+### Rollback
+
+The migration is additive. Once any non-peso receipt or event exists, v0.8.0 would show its amounts as pesos without converting them. From then on, use forward fixes only.
 
 ---
 

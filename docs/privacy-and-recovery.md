@@ -12,6 +12,10 @@ Display names (aliases are fine), event data, manually entered receipts and allo
 - Logs never contain request bodies, cookies, recovery keys, join codes or image bytes. Unexpected errors log a request ID, error name and message only.
 - The service worker caches only public shell files (icons, offline page, hashed JS/CSS). It never caches API responses or images.
 
+### Exchange rates (v0.9)
+
+To convert receipts and payments in other currencies, the server asks Frankfurter (`api.frankfurter.dev`, ECB reference rates) for a day's published rates. The request contains only a date: no event, person, amount or device data. The answer is cached in the `ExchangeRate` table, which holds no event data and is shared by all events. Phones never contact the rate service directly (the content security policy still allows only the app's own origin).
+
 ## Retention
 
 | Data | Default |

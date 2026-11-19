@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
-import { initials, phpAbs } from "../format";
+import { initials, phpAbs, signed } from "../format";
 import { currencyInfo } from "@/domain/money/Currency";
 import { onActivity } from "../api";
 import { Icon, IconName } from "./Icon";
@@ -223,8 +223,7 @@ export function BalanceBanner({ net, caption, estimate, display, exact }: { net:
         {estimate && <span className="ml-auto rounded-full bg-surface/70 px-2 py-0.5 text-[12px] text-muted">Estimate</span>}
       </div>
       <div className="tnum mt-1 text-[32px] leading-tight font-bold break-words">
-        {b.sign}
-        {display ?? phpAbs(net)}
+        {signed(b.sign, display ?? phpAbs(net))}
       </div>
       {exact && <p className="tnum text-[15px] font-semibold opacity-90">{exact}</p>}
       {caption && <p className="mt-1 text-[14px] opacity-80">{caption}</p>}

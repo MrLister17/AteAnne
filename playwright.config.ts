@@ -20,13 +20,13 @@ export default defineConfig({
   use: { baseURL: `http://localhost:${PORT}`, trace: "off", screenshot: "only-on-failure" },
   projects: [
     { name: "iphone", use: { ...devices["iPhone 15"], browserName: "chromium" } },
-    { name: "android-360", use: { browserName: "chromium", viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }, testMatch: /(layout|tutorial|scan|install|recovery|equal-receipt|reminders|corrections|home|people|next-step|feedback)\.spec\.ts/ },
+    { name: "android-360", use: { browserName: "chromium", viewport: { width: 360, height: 740 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }, testMatch: /(layout|tutorial|scan|install|recovery|equal-receipt|reminders|corrections|home|people|next-step|feedback|currency)\.spec\.ts/ },
   ],
   webServer: {
     command: `npx next start -p ${PORT}`,
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: false,
     timeout: 60_000,
-    env: { ...process.env, DATABASE_URL: testDb, APP_ORIGIN: `http://localhost:${PORT}`, RATE_LIMIT_DISABLED: "1", STORAGE_DRIVER: "database", RECEIPT_SCAN_FAKE: "1", PRIVATE_UPLOAD_DIR: "./storage/e2e-uploads" } as Record<string, string>,
+    env: { ...process.env, DATABASE_URL: testDb, APP_ORIGIN: `http://localhost:${PORT}`, RATE_LIMIT_DISABLED: "1", STORAGE_DRIVER: "database", RECEIPT_SCAN_FAKE: "1", FX_RATES_FAKE: "1", PRIVATE_UPLOAD_DIR: "./storage/e2e-uploads" } as Record<string, string>,
   },
 });

@@ -352,7 +352,7 @@ export function ReceiptEditor({
             <input type="checkbox" className="mt-1 size-5 shrink-0 accent-violet" checked={d.equalSplit} onChange={(e) => setD({ ...d, equalSplit: e.target.checked })} />
             <span className="font-semibold">Split this receipt equally among everyone</span>
           </label>
-          <p className="text-[14px] text-muted">Everyone on the locked roster confirms their own share with one tap. This includes all items, discounts and charges; totals differ by at most one centavo. Nobody is signed up for them.</p>
+          <p className="text-[14px] text-muted">Everyone on the locked roster confirms their own share with one tap. This includes all items, discounts and charges; totals differ by at most {money(1n, d.currency)}. Nobody is signed up for them.</p>
         </div>
 
         <div>

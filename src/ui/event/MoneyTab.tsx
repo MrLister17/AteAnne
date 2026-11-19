@@ -4,6 +4,7 @@ import { Icon } from "../components/Icon";
 import { Avatar, BalanceBanner, Card, Notice, SectionTitle, balanceLabel } from "../components/ui";
 import { shortDay } from "@/domain/money/Currency";
 import { useEvent } from "./EventContext";
+import { signed } from "../format";
 import { SettlementSection } from "./SettlementSection";
 import { NextCard } from "./NextCard";
 import { CurrencySwitch } from "./CurrencySwitch";
@@ -236,8 +237,7 @@ function Everyone({ positions, frozen }: { positions: { memberId: string; fundin
                 </div>
                 <div className={`tnum text-right ${b.tone === "receive" ? "text-receive" : b.tone === "pay" ? "text-pay" : "text-muted"}`}>
                   <p className="font-bold">
-                    {b.sign}
-                    {shown(net, { abs: true })}
+                    {signed(b.sign, shown(net, { abs: true }))}
                   </p>
                   <p className="text-[12px]">{frozen ? (b.tone === "neutral" ? "settled" : b.tone === "receive" ? "still to receive" : "still to pay") : b.text.toLowerCase()}</p>
                 </div>

@@ -1,6 +1,15 @@
 # AteAnne Sprint S10 plan: mixed currencies, rate of the day bought
 
-**Status: revision 2 (2026-11-19). The owner answered D58–D62; waiting for the go-ahead to build.**
+**Status: approved by the owner on 2026-11-19 ("approved everything then merge and deploy") and implemented in v0.9.0.** What was built differs from this plan in these places:
+
+- **"Show totals in" lives on Home and Pay/Money, not in the header.** At 360px the header was full. The header balance still follows the choice.
+- **A payment's locked rate is stored as exact decimal text** (`PaymentReport.rate`), not as `rateValue`/`rateScale`. It is just as exact.
+- **The rate cache stores one row per requested day,** holding that day's whole per-euro table as JSON (`ExchangeRate(source, day)`), instead of one row per currency.
+- **`/api/health` fetches today's rate and reports `fx`,** so the live rate source can be checked after a deploy.
+- **The settle-up currency is always accepted for payments.** Receivers tick only the extra currencies they accept.
+- **A bill waiting only for a missing rate is frozen by the daily job** once the rate arrives.
+
+Release evidence: `CHANGELOG.md` and `docs/test-report.md`.
 
 - Baseline: `main` at `bb1993f` (v0.8.0, live).
 - Proposed release: **v0.9.0**, decisions **D58–D62**, one additive migration.

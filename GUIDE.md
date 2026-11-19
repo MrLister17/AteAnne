@@ -28,6 +28,8 @@ Events started before v0.7 may still be in `ALLOCATING`/`REVIEWING`; they show a
 
 **What's next (v0.8.0, Sprint S9, D53):** every screen asks the server what each person should do next. `src/domain/event/NextAction.ts` (pure) turns the event into an ordered task list per person; the view sends `next` (yours) and `group` (everyone's). Home, Claim and Pay show one **Next for you** card — e.g. **Is everyone here?** → **[Everyone's here]**, **Did you pay for anything else?** → **[I'm done adding receipts]**, **You're done for now · Waiting for Mark to tap Everyone's here.**, **Pay Mark ₱698.50**, **Did ₱400 from Ana arrive?** → **[Yes, I got it]**. The tab dot, "See what's left", the guest list and **Copy reminder** read the same list, so they never disagree. To add a task: add it to `NextAction.ts` (+ a unit test), word it in `next.ts`/`NextCard.tsx`/`reminders.ts`.
 
+**Currencies (v0.9.0, Sprint S10, D58–D62):** each receipt has its own currency and purchase date (Currency / Bought on in the receipt editor; a scan fills them in when printed). The event has one **settle-up currency** (Start a hatian → *Settle up in*, default ₱; organizer can change it in People → Event settings during Add & claim, before any payment is reported). A receipt in another currency is converted at the **ECB rate of the day it was bought**: "Breakfast · THB 1,397.00 · counts as PHP 2,270.13 · 1 THB = 1.625 PHP (ECB, 18 Nov)". Rates become final when the bill freezes; a missing rate makes the bill wait (never guesses). **Show totals in** (Home, Pay/Money) lets each person see totals in another currency of the event or pesos at today's rate, marked "≈". On Pay, **Pay in** lets someone send another currency the receiver accepts (payment details → *I accept*), at the rate of the day it's sent, locked into the payment: "Did THB 512.31 from Ana arrive? · Counts as PHP 835.06". Peso-only events look exactly as before.
+
 **Feedback on every tap (D56):** pass `busyLabel` to `Button` ("Saving…"); use `useInlineAction()` and `<ActionError>` so a failure shows beside the button. Reduce Motion turns spinners into a static "…".
 
 **Finding things in People (v0.7.1, Sprint S8, D52):** the first screen is a compact roster. Tap a person (accessible label **View [name]**) to see the actions you can take for them, such as making them an admin, reissuing access or helping a guest. The labeled rows below the roster open focused sheets: **Your profile & access** for your name, recovery key and big-text amount; **Download event record** for **Spreadsheet (CSV)** and **Full record (JSON)**; **Event settings** for organizer cancellation/deletion; **Help & privacy** for the tutorial and identity/retention explanation; **Activity** for the audit history. **Back** returns from a follow-up action to the person or section you opened it from; **Close** returns to the roster. Those actions keep their existing role and event-phase restrictions.
@@ -72,9 +74,12 @@ prisma/
 src/
   domain/           ← PURE BUSINESS RULES (no database, no UI). The heart of the app.
     money/Money.ts, Fraction.ts           exact pesos (bigint centavos), parsing/formatting
+    money/Currency.ts                     supported currencies, minor units, parse/format, Manila days
+    fx/ExchangeRate.ts                    exact exchange rates (ECB cross rates, 8 significant digits)
     allocation/LargestRemainderAllocator.ts  splits an amount with no lost centavo
     receipt/ReceiptReconciler.ts          "do items − discounts + charges = total?"
     receipt/ReceiptCalculator.ts          who owes what for one receipt
+    receipt/ReceiptConverter.ts           a receipt in another currency → settle-up currency (D61)
     receipt/ReceiptDraftNormalizer.ts     cleans a scanned receipt (VAT-discount fix)
     event/EventLedger.ts                  totals for the whole event, nets
     event/PhaseMachine.ts                 which phase can go to which
@@ -84,6 +89,7 @@ src/
     event/NextAction.ts                   each person's next step and task list (D53)
     settlement/SettlementPlanner.ts       who pays whom (transfer list)
     payments/PaymentLedger.ts             pending/confirmed/disputed payment rules
+    payments/ForeignPayment.ts            paying a transfer in another currency
     errors.ts                             ValidationError / ConflictError / PermissionError
   server/           ← SERVER LOGIC
     config.ts                 reads & validates environment variables
@@ -106,6 +112,8 @@ src/
       GroqReceiptReader.ts    Groq (default model qwen/qwen3.8-27b)
       ReceiptReader.ts        Claude reader + fake reader for tests
     readmodels/EventViewBuilder.ts  builds the JSON the phone receives
+    fx/RateProvider.ts        ECB rates via Frankfurter (+ fake rates for tests)
+    fx/RateService.ts         daily-rate cache; the only place rates are fetched (outside locks)
     http/route.ts             wrapper for every API route (security, errors, cookies)
     security/                 join codes, hashing, rate limits
     storage/PrivateStorage.ts photos stored in the database (or on disk)
@@ -127,6 +135,7 @@ src/
     event/ReceiptsTab.tsx     receipt list + Scan button; old photos: View / Remove (new ones aren't stored)
     event/ReceiptEditor.tsx   add/edit receipt form (+ "Fill in from a photo"; auto totals, % charges)
     event/PersonScreen.tsx    big-text "show this to them" screen (amount owed/owed to, items)
+    event/CurrencySwitch.tsx  "Show totals in" (≈ today's rate; per person, per event)
     event/todo.ts             everyoneAnswered (estimates only once everyone has answered)
     event/ClaimTab.tsx        claiming wizard (summary, See items, Next card after you answer)
     event/MoneyTab.tsx        frozen split, breakdown and payments
@@ -214,7 +223,10 @@ Always run the checks in [section 10](#10-tests-and-checks) before pushing.
 | **Add an API endpoint** | Create `src/app/api/.../route.ts` using `route(async (ctx) => …)` and call a service method. Put rules in a service or domain class, not the route. |
 | **Add a new receipt scanner** (another AI) | Write a class implementing `ReceiptReader` (see `GroqReceiptReader.ts`), then add it to `chooseReceiptReader()` in `src/server/container.ts` |
 | **Security headers / CSP** | `next.config.ts` |
-| **Daily cleanup time** | `crons` in `vercel.json` (UTC; `17 19 * * *` = 03:17 Manila) |
+| **Daily cleanup time** | `crons` in `vercel.json` (UTC; `17 19 * * *` = 03:17 Manila). The job also refreshes exchange rates and freezes bills that were only waiting for one. |
+| **Add a currency** | Add it to `CURRENCIES` in `src/domain/money/Currency.ts` (code, name, symbol, 0 or 2 decimals). It must be one the ECB publishes, or the rate source must change too. Add a unit test. |
+| **Change the exchange-rate source** | Implement `RateProvider` (`src/server/fx/RateProvider.ts`, returns per-euro decimal text) and pick it in `chooseRateProvider()` in `container.ts`; or point `FX_RATES_URL` at another Frankfurter-compatible service. |
+| **How money is shown** | Components use `money()` (exact) and `shown()` (follows "Show totals in") from `useEvent()`; pass a receipt's own currency for its amounts: `money(r.payable, r.currency)`. |
 
 **Golden rules:** money changes go through a `BaseService` subclass; rules live in `src/domain`; never edit an old migration; never put API keys in code.
 
@@ -237,6 +249,8 @@ Set these in **Vercel → Settings → Environment Variables** (Production), the
 | `DATABASE_SSL_CA` | Optional | Provider certificate for verified TLS |
 | `APP_ORIGIN` | Optional | Your public URL (defaults to the Vercel production URL) |
 | `STORAGE_DRIVER` | Optional | `database` (default, needed on Vercel) or `disk` |
+| `FX_RATES_URL` | Optional | Exchange-rate source base URL (default: Frankfurter `https://api.frankfurter.dev/v1`, then `api.frankfurter.app`). No key needed. |
+| `FX_RATES_FAKE` | Tests only | `1` = fixed fake rates (1 THB = 1.625 PHP). Ignored on Vercel production. |
 
 Without `DATABASE_URL` / `JOIN_CODE_HASH_KEY` the site runs in **preview mode**: screens work, nothing saves, and a yellow banner explains why.
 
@@ -247,7 +261,7 @@ Without `DATABASE_URL` / `JOIN_CODE_HASH_KEY` the site runs in **preview mode**:
 - **Code:** GitHub `MrLister17/AteAnne`, branch **`main` only**. Pushing to `main` makes Vercel deploy automatically.
 - **Build:** `npm run vercel-build` (in `vercel.json`): checks settings → `prisma generate` → **applies database migrations** (production only) → `next build`.
 - **Database:** Supabase in the Singapore region. Tables are created by the deploy; don't create them by hand. Row-level security is switched on for every table, which blocks Supabase's public API; the app itself is unaffected. **Don't add Supabase jobs that delete rows**: the app deletes events itself after 30 days.
-- **Check a deployment:** open `https://<your-app>/api/health` → `{"ok":true,"version":"<commit>","receiptScan":"groq"}`. `version` should match the latest commit on GitHub.
+- **Check a deployment:** open `https://<your-app>/api/health` → `{"ok":true,"version":"<commit>","receiptScan":"groq","fx":{"source":"ecb","today":"…","latest":{"day":"…","effectiveDate":"…"},"ok":true}}`. `version` should match the latest commit on GitHub; `fx.ok` true means today's exchange rate was fetched.
 - Step-by-step with screenshots-level detail: `docs/deploy-vercel.md`.
 
 ---
@@ -282,6 +296,7 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 | Yellow "Preview mode" banner | `DATABASE_URL` or `JOIN_CODE_HASH_KEY` is missing in Vercel |
 | Build fails at migrations | Database unreachable. Check `DIRECT_URL` is the Session pooler (not the "Direct connection") |
 | "Cross-site request blocked" | Set `APP_ORIGIN` to the exact URL you use and redeploy |
+| A receipt says "Waiting for the … exchange rate" | The server couldn't get that day's ECB rate. Open `/api/health`: `fx.ok` false means the rate source is unreachable from the server. The bill freezes by itself after the daily job once the rate is cached; paying in the settle-up currency always works. |
 | Someone lost their phone | Use **I have a recovery key** on Home. If the key is lost too, ask the organizer in person to open People → tap your name → **Reissue access** (private key expires in 15 minutes) |
 
 ---
@@ -290,7 +305,7 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 
 **Acting for a guest, technically:** the app sends the header `x-ateanne-act-as: <memberId>`. Routes for a person's own actions call `ctx.caller()` and pass it to the service; `BaseService.inEvent` checks `GuestPolicy` inside the event lock and gives the service `me` = the guest and `by` = the real person. All other routes call `ctx.actor()`, which rejects the header. To let a new route work for guests, switch it to `ctx.caller()` and make the service method take a `Caller`.
 
-**Limits (v1):** one payer per receipt; no bill changes after Done; no deactivating a person who already has receipts or claims; deleting an event after payments is blocked (export instead); identity is "this browser" (no accounts); scanning accuracy on real crumpled receipts still needs checking; Groq free tier is about 2–3 scans/minute.
+**Limits (v1):** one payer per receipt; currencies only where the ECB publishes a rate (no VND, TWD, AED or SAR yet); "Show totals in" offers the event's currencies and pesos only; no bill changes after Done; no deactivating a person who already has receipts or claims; deleting an event after payments is blocked (export instead); identity is "this browser" (no accounts); scanning accuracy on real crumpled receipts still needs checking; Groq free tier is about 2–3 scans/minute.
 
 **Ideas:** receipt scanning on the phone with no AI (Tesseract.js) as a fallback; "paste receipt text" box for iPhone Live Text; push notifications ("Mark confirmed your payment"); multiple payers per receipt; editing after payments with an audit trail; iOS splash screens.
 
@@ -300,7 +315,7 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 
 | File | Contents |
 | --- | --- |
-| `docs/decisions.md` | Every decision and why (D1–D36), including your changes to the original spec |
+| `docs/decisions.md` | Every decision and why (D1–D62), including your changes to the original spec |
 | `docs/requirements.md` | Each requirement from the spec → where it's implemented → which test proves it |
 | `docs/architecture.md` | Class diagram, database diagram, phase and payment state machines |
 | `docs/financial-rules.md` | The money rules with worked examples |

@@ -1,5 +1,58 @@
 # Test report
 
+## Sprint S10 — mixed currencies, rate of the day bought (v0.9.0, 2026-11-19 Manila)
+
+Branch `claude/admiring-albattani-yinlr3` from `main` `bb1993f` (v0.8.0). The owner approved every S10 decision (D58–D62). Local Linux run: Node 22.23.5, PostgreSQL 16 (local cluster, isolated `ateanne_test`), pre-installed Playwright Chromium. Synthetic data only; exchange rates come from the fake provider (`FX_RATES_FAKE=1`: PHP 65 / THB 40 per euro, so 1 THB = 1.625 PHP). Before any change, the v0.8.0 baseline passed 240 unit and 64 integration tests in this container.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run test:reference` | PASS, no fixture diff |
+| `npm run lint` | Passed (exit 0) |
+| `npm run typecheck` | Passed |
+| `npm run test:unit` | **12 files, 258 passed** (+18 in `currency.test.ts`) |
+| `npm run test:integration` | **13 files, 74 passed** (+10 in `currency.test.ts`; `corrections.test.ts` export key renamed `amountPhp` → `amount`) |
+| `npm run build` | Passed |
+| `npm run test:e2e` | **75 passed in one full run (2.2 min)**, iPhone 15 + 360px (+4: `currency.spec.ts` in both projects) |
+
+### What the new tests check
+
+- **Unit (`currency.test.ts`):**
+  - formatting and parsing for two-decimal and zero-decimal currencies; the existing `PHP 495.00` format is unchanged
+  - Manila days
+  - exact decimals, with float input refused
+  - 8-significant-digit half-up rounding
+  - the plan's numbers: THB 1,397.00 → PHP 2,270.13; shares 1,135.07 / 1,135.06; Ana pays Mark PHP 835.06
+  - yen conversion
+  - stale and missing rates refused
+  - `ReceiptConverter`: no rate gives exactly the old result, and money is conserved over 600 generated receipts and 4 rates
+  - `ForeignPayment`: THB 512.31 clears PHP 835.06; partial payments; more than the full amount refused; snap to capacity; never above capacity for tiny, normal and yen rates
+- **Integration (`currency.test.ts`, real PostgreSQL):**
+  - a mixed ₱/฿ event freezes with policy v3, and the facts carry currency, day, rate 1.625 and converted shares
+  - a purchase date in the future is refused
+  - a missing rate never guesses: the freeze blocker says "Waiting for the … THB exchange rate", and the daily job freezes the bill once the rate is back
+  - peso-only events fetch no rates
+  - paying in baht: wrong rate day → `rate_changed`; wrong credit → "counts as PHP 835.06"; too much → "At most THB 512.31"; replay is idempotent; the receiver sees `paid`; confirm settles it; CSV/JSON currency columns
+  - a ฿ + ₱ mix settles to zero
+  - accepted currencies are enforced; with no rate, other currencies are refused while paying in the settle-up currency still works
+  - a replacement reuses the original rate
+  - settle-up currency rules: organizer only, Add & claim only, after a correction allowed, refused once a payment was reported
+  - creating an event in THB
+- **E2E (`currency.spec.ts`, both phone sizes):**
+  - Mark types *Breakfast* in THB bought yesterday; the list shows THB 1,397.00 and PHP 2,270.13; the receipt shows "Counts as PHP 2,270.13 · 1 THB = 1.625 PHP"
+  - after the freeze, Ana's Home shows PHP 835.06; **Show totals in → ฿ THB** shows "≈ −THB 513.88" with PHP 835.06 underneath, in both the banner and the header, and the choice survives a reload
+  - Pay in **Thai baht** → "Send THB 513.88" → the sheet shows "Counts as PHP 835.06" → **I sent THB 513.88**
+  - Mark sees **Did THB 513.88 from Ana arrive? · Counts as PHP 835.06 · 1 THB = 1.625 PHP** → **Yes, I got it** → "PHP 835.06 received"
+  - no sideways scroll
+  - a peso-only event shows no currency switch
+- **Unchanged:** every v0.8.0 browser test passes unchanged, so peso events look and behave as before.
+
+Screenshots (local, ignored folder): `test-results/screens/s10-editor-*.png`, `s10-home-baht-*.png`, `s10-pay-in-baht-*.png`, `s10-receive-baht-*.png`.
+
+### Not verified locally
+
+- **The live ECB fetch.** This container's proxy refuses `api.frankfurter.dev` (403 on CONNECT). Production `/api/health` now fetches today's rate and reports `fx`; see the release notes below.
+- **A real iPhone and real relatives.**
+
 ## Sprint S9 — Claim → Pay → Done, lighter storage (v0.8.0, 2026-11-19 Manila)
 
 Branch `claude/stoic-mendel-qflc6n` from `main` `720e6f7` (v0.7.1). Owner approved the S9 plan with every recommended decision (D53–D57). Local Linux run: Node 22.23.5, PostgreSQL 16.15 (local cluster, isolated `ateanne_test`), pre-installed Playwright Chromium. Synthetic data only. Before any change, the v0.7.1 baseline also passed lint, typecheck, 92 unit and 49 integration tests in this container.

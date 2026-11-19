@@ -72,3 +72,8 @@ export function timeAgo(iso: string): string {
   if (s < 86400) return `${Math.round(s / 3600)}h ago`;
   return new Date(iso).toLocaleDateString("en-PH", { month: "short", day: "numeric", timeZone: "Asia/Manila" });
 }
+
+/** Put a direction sign after a leading "≈ " so it reads "≈ −THB 513.88", not "−≈ THB 513.88". */
+export function signed(sign: string, text: string): string {
+  return text.startsWith("≈ ") ? `≈ ${sign}${text.slice(2)}` : `${sign}${text}`;
+}
