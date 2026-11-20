@@ -50,6 +50,18 @@ The table is from the final run. The same chain also passed once before the last
 
 Each event load now reads its cash reports: one extra indexed query. Reversals and disputes are read only when cash reports exist. A first version loaded them always (+3 per load) and was changed before release.
 
+### Release
+
+- **CI.** Branch run [44757925185](https://github.com/MrLister17/AteAnne/actions/runs/44757925185) passed on `77e083a`. Before that, v0.9.1 CI on `main` ([44754651696](https://github.com/MrLister17/AteAnne/actions/runs/44754651696)) passed on `941134f`.
+- **Merge.** `main` was fast-forwarded `941134f → 77e083a` on the owner's instruction. There was no database backup, at the owner's request.
+- **Production health** at 15:02:26 UTC returned `{"ok":true,"version":"77e083a",…,"fx":{…,"ok":true}}`. The event loads below read the new `CashReport` table, so the migration ran.
+- **Production smoke test** (Playwright, iPhone 15, organizer in light mode, member in dark mode, synthetic THB event **"D64 smoke (synthetic)"**). No payment was saved, because a saved cash report locks deletion.
+  - **New view data:** the event view returned `cash: {"reports":[],"paused":false}` and the member's `balances` entry.
+  - **Route checks:** a cash payment to yourself was refused with **400 `self_payment`**, and verifying an unknown payment returned **404**.
+  - **Screens:** the Payments card showed "Handed someone money already? … Record payment". The Record a payment sheet with THB 2,000 showed "Once Maya confirms: Credit THB 2,000.00". There was 0 px sideways overflow.
+  - **Cleanup:** the event was deleted (DELETE 200, then GET 404).
+- **Covered only by local tests:** saving, confirming, disputing and re-planning cash. The integration and browser tests above cover them.
+
 ### Not verified
 
 - **Real iPhones and relatives.**

@@ -10,6 +10,7 @@ _Last updated: 2026-11-20 Manila (v0.10.0)_
   - Paying ahead shows as Credit.
   - During Pay, a confirmation re-plans the statement in the same transaction.
   - The migration `20261120120000_running_event_payments` is additive. It was released without a backup at the owner's request.
+  - Live on `main` `77e083a`. Branch CI 44757925185 passed, and production health and the smoke test passed (no payment saved; the event was deleted).
 - **Preserve:**
   - Apply transfers to raw nets only.
   - Allow one cash question at a time during Pay.

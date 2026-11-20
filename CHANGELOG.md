@@ -19,7 +19,7 @@ Decision **D63** (PR #1). UI and docs only: no migration, no money-rule change.
 
 ## Where we left off (2026-11-20 Manila)
 
-- **v0.10.0 (D64): running event payments and credit.** The owner said: "just do everything no back up just push and merge to deploy". So PR #1 shipped first as v0.9.1, and D64 was then built in this session from `docs/running-event-payments.md`. The sandbox implementation from another session was never pushed and was not used. The full local chain passed. Release status is recorded under v0.10.0 below.
+- **v0.10.0 (D64): running event payments and credit, live on `main` (`77e083a`).** The owner said: "just do everything no back up just push and merge to deploy". So PR #1 shipped first as v0.9.1 (`941134f`, CI 44754651696 passed), and D64 was then built in this session from `docs/running-event-payments.md`. The sandbox implementation from another session was never pushed and was not used. Branch CI 44757925185 passed. Production health returned `version` `77e083a`. The production smoke test checked the new view data, the route's validation and the Payments sheet, saved no payment, and was then deleted.
 - **Still to do by a person:**
   - With relatives, on real iPhones: hand someone cash before the first receipt, confirm it, and check that "Credit" makes sense; then record cash during Pay and read the updated plan.
   - Run the read-only production SQL in `docs/runbooks.md`.
@@ -27,7 +27,7 @@ Decision **D63** (PR #1). UI and docs only: no migration, no money-rule change.
 
 ---
 
-## v0.10.0: Running event payments and credit (2026-11-20 Manila)
+## v0.10.0: Running event payments and credit (2026-11-20 Manila) · merged to `main` and deployed
 
 Decision **D64**, spec [`docs/running-event-payments.md`](docs/running-event-payments.md), built on v0.9.1 (PR #1, D63).
 
@@ -66,6 +66,13 @@ Decision **D64**, spec [`docs/running-event-payments.md`](docs/running-event-pay
   - two `next-action` unit tests
   - `tests/e2e/cash-payments.spec.ts`: three signed-in browsers at iPhone 15 and 360px
 - Details are in `docs/test-report.md`.
+
+### Release
+
+- **CI:** branch run 44757925185 passed on `77e083a`.
+- **Merge:** `main` was fast-forwarded `941134f → 77e083a`, with no backup (owner's choice).
+- **Health:** production `/api/health` returned `version` `77e083a`.
+- **Smoke test (synthetic, deleted afterwards, no payment saved):** the event view carries `cash` and `balances`, a payment to yourself is refused with 400, the Payments card and Record a payment sheet show "Credit THB 2,000.00", and nothing scrolls sideways.
 
 ### Rollback
 
