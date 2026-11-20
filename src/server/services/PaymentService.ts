@@ -36,7 +36,13 @@ export class PaymentService extends BaseService {
   private findEdge(agg: EventAggregate, edgeId: string) {
     const snap = agg.activeSnapshot();
     const edge = snap?.edges.find((e) => e.id === edgeId);
-    if (!snap || !edge) throw new NotFoundError("Transfer not found");
+    if (!snap || !edge) {
+      // A transfer from a statement that was re-planned (a confirmed cash payment, D64) or corrected.
+      if (agg.record.snapshots.some((s) => s.edges.some((e) => e.id === edgeId))) {
+        throw new ConflictError("stale_transfer", "The payment plan changed. Refresh to see what's left to pay.");
+      }
+      throw new NotFoundError("Transfer not found");
+    }
     return { snap, edge };
   }
 
@@ -113,6 +119,8 @@ export class PaymentService extends BaseService {
       }
       agg.machine.assertIn("SETTLING");
       const { snap, edge } = this.findEdge(agg, edgeId);
+      // While a cash payment awaits a decision, the plan may change under it: other payments pause (D64).
+      if (agg.hasCashOutstanding()) throw new ConflictError("cash_outstanding", "A cash payment is waiting to be confirmed or sorted out. Other payments are paused until then.");
       const ledger = agg.paymentLedger(snap)!;
 
       let replaces: string | undefined;

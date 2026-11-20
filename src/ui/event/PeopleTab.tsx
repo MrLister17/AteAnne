@@ -62,6 +62,13 @@ const AUDIT_TEXT: Record<string, string> = {
   "event.cancelled": "cancelled the event",
   "event.uncancelled": "un-cancelled the event",
   "event.currency_changed": "changed the settle-up currency",
+  "cash.reported": "recorded a cash payment",
+  "cash.verified": "confirmed receiving cash",
+  "cash.rejected": "said cash didn’t arrive",
+  "cash.cancelled": "cancelled a cash payment",
+  "cash.verification_reversed": "undid a cash confirmation",
+  "cash.dispute_choice": "answered about a cash payment",
+  "snapshot.replanned": "updated the payment plan after cash",
 };
 
 type Panel =

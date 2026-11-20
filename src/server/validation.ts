@@ -139,6 +139,20 @@ export const reportSchema = z.object({
   replacesReportId: id.optional(),
 });
 
+/** D64: cash already handed to another member, recorded during Add & claim or Pay. */
+export const cashReportSchema = z.object({
+  recipientMemberId: id,
+  /** Effective amount in the event's settle-up currency (no cap: it may exceed what's owed). */
+  amount: positiveCentavos,
+  /** Handed over in another currency: what was given, and the rate date the phone showed. */
+  paid: z.object({ currency: currencyCode, amount: positiveCentavos, rateDate: calendarDay }).optional(),
+  method: z.enum(["CASH", "QR"]).default("CASH"),
+  note: plain(200).default(""),
+  idempotencyKey,
+  /** The one agreed re-record of a rejected handoff. */
+  replacesReportId: id.optional(),
+});
+
 export const decisionSchema = z.object({ expectedVersion: z.number().int().positive().optional() });
 export const rejectSchema = z.object({ reason: plain(200, 3), expectedVersion: z.number().int().positive().optional() });
 export const reverseSchema = z.object({ reason: plain(200, 3) });

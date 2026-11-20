@@ -288,7 +288,7 @@ export class EventService extends BaseService {
       if (agg.phase !== "COLLECTING") {
         throw new ConflictError("currency_locked", agg.phase === "DONE" ? "Done events are read-only" : "The bill is frozen. To change its currency, use Correct the bill first.");
       }
-      if (agg.record.snapshots.some((x) => x.firstReportAt)) {
+      if (agg.record.snapshots.some((x) => x.firstReportAt) || agg.record.cashReports.length > 0) {
         throw new ConflictError("payments_reported", "Payments were already reported in this currency, so it can't change.");
       }
       if (agg.currency === data.currency) return;
@@ -386,6 +386,13 @@ export class EventService extends BaseService {
     await this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
       agg.assertOwner(me.id);
       if (agg.phase === "DONE") throw new ConflictError("event_done", "Done events are read-only");
+      if (cancelled && !agg.record.cancelled) {
+        // Cancelling never forgives money (D64): cash handed over must be settled or undone first.
+        if (agg.hasCashOutstanding()) throw new ConflictError("cash_outstanding", "Confirm, reject or sort out every cash payment before cancelling.");
+        if ([...agg.cashNets().values()].some((n) => n !== 0n)) {
+          throw new ConflictError("cash_not_returned", "Cash was handed over in this event. Record the money given back (or undo a mistaken confirmation) before cancelling.");
+        }
+      }
       await tx.event.update({ where: { id: eventId }, data: { cancelled, ...(cancelled ? { joinCodeHash: null, joinCodeCiphertext: null, joinCodeExpiresAt: null } : {}) } });
       await this.audit(tx, eventId, me.id, cancelled ? "event.cancelled" : "event.uncancelled");
     });
@@ -396,7 +403,7 @@ export class EventService extends BaseService {
     return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
       agg.assertOwner(me.id);
       if (confirmTitle.trim() !== agg.record.title) throw new ValidationError("confirm_mismatch", "Type the event title exactly to confirm");
-      if (agg.record.snapshots.some((s) => s.firstReportAt)) {
+      if (agg.record.snapshots.some((s) => s.firstReportAt) || agg.record.cashReports.length > 0) {
         throw new ConflictError("payments_reported", "Payments were reported in this event. Export it instead; deletion after payments needs every member's approval (not in v1).");
       }
       const assets = await tx.asset.findMany({ where: { eventId }, select: { storageKey: true } });
@@ -412,6 +419,10 @@ export class EventService extends BaseService {
     await tx.paymentReversal.deleteMany({ where: { report: { edgeId: { in: edgeIds } } } });
     await tx.paymentReport.updateMany({ where: { edgeId: { in: edgeIds } }, data: { replacesReportId: null } });
     await tx.paymentReport.deleteMany({ where: { edgeId: { in: edgeIds } } });
+    await tx.cashDispute.deleteMany({ where: { eventId } });
+    await tx.cashReversal.deleteMany({ where: { report: { eventId } } });
+    await tx.cashReport.updateMany({ where: { eventId }, data: { replacesReportId: null } });
+    await tx.cashReport.deleteMany({ where: { eventId } });
     await tx.snapshot.deleteMany({ where: { eventId } });
     await tx.receipt.deleteMany({ where: { eventId } });
     await tx.reviewApproval.deleteMany({ where: { eventId } });

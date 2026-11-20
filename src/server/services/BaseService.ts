@@ -111,7 +111,8 @@ export abstract class BaseService {
     const facts = {
       /** Settle-up currency: positions and transfers are in it (D58). */
       currency: agg.currency,
-      carriedPayments: agg.confirmedTransfers().map((p) => ({ from: p.from, to: p.to, amount: p.amount.toString() })),
+      // Each confirmed transfer, once, with the report it came from (edge or event-level cash, D64).
+      carriedPayments: agg.confirmedTransfers().map((p) => ({ from: p.from, to: p.to, amount: p.amount.toString(), source: p.source, reportId: p.reportId })),
       receipts: agg.record.receipts.map((r) => {
         const st = calc.receipts.find((s) => s.receiptId === r.id)!;
         return {
@@ -157,5 +158,39 @@ export abstract class BaseService {
       },
     });
     await this.audit(tx, agg.id, actorMemberId, "snapshot.frozen", { financialVersion: agg.record.financialVersion, edges: edges.length, auto: actorMemberId === null });
+  }
+
+  /**
+   * During Pay, a cash confirmation (or its undo) changes who still owes whom
+   * (D64). In the same locked transaction: supersede the active statement and
+   * write a new one with the SAME receipt facts, shares and locked rates, the
+   * new carried payments, and residual transfers planned from raw nets plus
+   * every effective confirmed transfer. The event stays in Pay; old transfer
+   * IDs become stale. `agg` must be reloaded after the cash write.
+   */
+  protected async replanStatement(tx: Tx, agg: EventAggregate, actorMemberId: string | null, detail: { reason: "cash_confirmed" | "cash_reversed"; cashReportId: string }): Promise<{ snapshotId: string }> {
+    const prev = agg.activeSnapshot();
+    if (!prev || agg.phase !== "SETTLING") throw new ConflictError("not_settling", "There is no frozen bill to update");
+    const remaining = agg.remainingNets(prev.shares.map((x) => [x.memberId, x.netCentavos] as const));
+    const edges = new SettlementPlanner().plan([...remaining]);
+    const event = await this.bumpFinancial(tx, agg.id);
+    const facts = {
+      ...(prev.facts as Record<string, unknown>),
+      carriedPayments: agg.confirmedTransfers().map((p) => ({ from: p.from, to: p.to, amount: p.amount.toString(), source: p.source, reportId: p.reportId })),
+      revision: { ...detail, previousSnapshotId: prev.id },
+    };
+    await tx.snapshot.update({ where: { id: prev.id }, data: { status: "SUPERSEDED", supersededAt: new Date() } });
+    const next = await tx.snapshot.create({
+      data: {
+        eventId: agg.id,
+        financialVersion: event.financialVersion,
+        policyVersion: prev.policyVersion,
+        facts: facts as Prisma.InputJsonValue,
+        shares: { create: prev.shares.map((x) => ({ memberId: x.memberId, fundingCentavos: x.fundingCentavos, costCentavos: x.costCentavos, netCentavos: x.netCentavos })) },
+        edges: { create: edges.map((e, i) => ({ position: i, fromMemberId: e.from, toMemberId: e.to, amountCentavos: e.amount })) },
+      },
+    });
+    await this.audit(tx, agg.id, actorMemberId, "snapshot.replanned", { ...detail, previousSnapshotId: prev.id, snapshotId: next.id, edges: edges.length, financialVersion: event.financialVersion });
+    return { snapshotId: next.id };
   }
 }

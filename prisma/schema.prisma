@@ -126,6 +126,8 @@ model Event {
   snapshots    Snapshot[]
   assets       Asset[]
   audit        AuditEvent[]
+  cashReports  CashReport[]
+  cashDisputes CashDispute[]
 }
 
 /// Stable financial identity of a person inside one event. Never recreated by recovery.
@@ -170,6 +172,8 @@ model Member {
   edgesFrom          SettlementEdge[] @relation("EdgeFrom")
   edgesTo            SettlementEdge[] @relation("EdgeTo")
   shares             SnapshotShare[]
+  sentCash           CashReport[]     @relation("CashSender")
+  receivedCash       CashReport[]     @relation("CashRecipient")
 
   @@unique([eventId, actorId])
   @@unique([eventId, seq])
@@ -435,6 +439,76 @@ model Dispute {
   resolvedAt         DateTime?
 
   @@index([edgeId])
+}
+
+/// Event-level cash handoff (D64): money one member already handed another,
+/// recorded during Add & claim or Pay, independent of the frozen transfer plan.
+/// Only a recipient-confirmed, non-reversed report counts; it is carried into
+/// every statement as a confirmed transfer (never twice).
+model CashReport {
+  id                 String         @id @default(cuid())
+  eventId            String
+  event              Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  senderMemberId     String
+  sender             Member         @relation("CashSender", fields: [senderMemberId], references: [id], onDelete: Restrict)
+  recipientMemberId  String
+  recipient          Member         @relation("CashRecipient", fields: [recipientMemberId], references: [id], onDelete: Restrict)
+  /// Effective amount in the event's settle-up currency (minor units).
+  amountCentavos     BigInt
+  /// Set only when the cash was in another currency: what was handed over and the
+  /// rate locked for the day it was reported ("1 paidCurrency = rate settle-up").
+  paidCurrency       String?        @db.Char(3)
+  paidMinor          BigInt?
+  rate               String?        @db.VarChar(40)
+  rateDate           DateTime?      @db.Date
+  rateSource         String?        @db.VarChar(20)
+  method             PaymentMethod  @default(CASH)
+  note               String         @default("") @db.VarChar(200)
+  status             ReportStatus   @default(REPORTED)
+  /// Bumped on every status change (optimistic concurrency).
+  version            Int            @default(1)
+  idempotencyKey     String         @db.VarChar(64)
+  /// The one agreed re-record of a handoff whose first report was rejected.
+  replacesReportId   String?        @unique
+  replaces           CashReport?    @relation("CashReplacement", fields: [replacesReportId], references: [id], onDelete: Restrict)
+  replacedBy         CashReport?    @relation("CashReplacement")
+  rejectReason       String?        @db.VarChar(200)
+  createdAt          DateTime       @default(now())
+  decidedAt          DateTime?
+
+  reversal  CashReversal?
+  dispute   CashDispute?
+
+  @@unique([senderMemberId, idempotencyKey])
+  @@index([eventId])
+}
+
+/// The recipient's single, reasoned undo of a mistaken cash confirmation (append-only).
+model CashReversal {
+  id             String     @id @default(cuid())
+  reportId       String     @unique
+  report         CashReport @relation(fields: [reportId], references: [id], onDelete: Restrict)
+  actorMemberId  String
+  reason         String     @db.VarChar(200)
+  createdAt      DateTime   @default(now())
+}
+
+/// Opened when a recipient says cash didn't arrive. Both people must pick the same answer.
+model CashDispute {
+  id               String             @id @default(cuid())
+  eventId          String
+  event            Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  reportId         String             @unique
+  report           CashReport         @relation(fields: [reportId], references: [id], onDelete: Restrict)
+  status           DisputeStatus      @default(OPEN)
+  senderChoice     DisputeResolution?
+  recipientChoice  DisputeResolution?
+  version          Int                @default(1)
+  resolution       DisputeResolution?
+  createdAt        DateTime           @default(now())
+  resolvedAt       DateTime?
+
+  @@index([eventId])
 }
 
 /// Private image. Bytes live in PRIVATE_UPLOAD_DIR under a random key, never in public/.

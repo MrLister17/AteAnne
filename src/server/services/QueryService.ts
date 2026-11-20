@@ -59,6 +59,23 @@ export class QueryService {
         status: r.status, reportedAt: r.createdAt, decidedAt: r.decidedAt,
         reversal: r.reversal, rejectReason: r.rejectReason,
       })),
+      /** Running event payments (D64): cash handed over during the event, with their decisions. */
+      cashPayments: view.cash.reports.map((c) => ({
+        reportId: c.id,
+        from: name(c.from),
+        to: name(c.to),
+        amount: amt(c.amount),
+        currency: ccy,
+        paid: paidOf(c.paid),
+        method: c.method,
+        status: c.reversal ? "VERIFIED then REVERSED" : c.status,
+        reportedAt: c.createdAt,
+        decidedAt: c.decidedAt,
+        rejectReason: c.rejectReason,
+        reversalReason: c.reversal?.reason ?? null,
+        replacesReportId: c.replacesReportId,
+        dispute: c.dispute ? { status: c.dispute.status, senderChoice: c.dispute.senderChoice, recipientChoice: c.dispute.recipientChoice } : null,
+      })),
       receipts: view.receipts.map((r) => ({
         label: r.label,
         equalSplit: r.equalSplit,
@@ -111,6 +128,7 @@ export class QueryService {
       rows.push(["transfer_edge", `${t.from} → ${t.to}`, t.from, "", t.amount, ccy, t.amount, "", "", `verified ${t.verified}`]);
       for (const r of t.reports) rows.push(["payment_report", `${t.from} → ${t.to}`, t.from, r.method, r.paid?.amount ?? r.amount, r.paid?.currency ?? ccy, r.amount, r.paid?.rate ?? "", r.paid?.rateDate ?? "", r.reversed ? "VERIFIED then REVERSED" : r.status]);
     }
+    for (const c of statement.cashPayments) rows.push(["cash_payment", `${c.from} → ${c.to}`, c.from, c.method, c.paid?.amount ?? c.amount, c.paid?.currency ?? ccy, c.amount, c.paid?.rate ?? "", c.paid?.rateDate ?? "", c.status]);
     for (const r of statement.priorPaymentHistory) rows.push(["prior_payment_report", `${r.from} → ${r.to} (version ${r.financialVersion})`, r.from, r.method, r.paid?.amount ?? r.amount, r.paid?.currency ?? ccy, r.amount, r.paid?.rate ?? "", r.paid?.rateDate ?? "", r.reversal ? "VERIFIED then REVERSED" : r.status]);
     const csv = rows.map((row) => row.map((c) => (/[",\n]/.test(c) || /^[=+\-@]/.test(c) ? `"${c.replace(/^([=+\-@])/, "'$1").replace(/"/g, '""')}"` : c)).join(",")).join("\n");
     return { body: csv, contentType: "text/csv; charset=utf-8", filename: `ateanne-${slug}.csv` };

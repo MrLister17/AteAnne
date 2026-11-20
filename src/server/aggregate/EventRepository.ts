@@ -16,6 +16,7 @@ export const EVENT_INCLUDE = {
     },
   },
   approvals: true,
+  cashReports: { orderBy: { createdAt: "asc" }, include: { reversal: true, dispute: true } },
   snapshots: {
     orderBy: { createdAt: "asc" },
     include: {

@@ -7,7 +7,7 @@ export type NextView = View["next"];
 export type TaskView = View["group"]["members"][number]["tasks"][number];
 export type WaitingView = Extract<NextView, { kind: "waiting" }>;
 
-const TASK_KINDS = new Set(["recheck", "confirmPaid", "claim", "fixReceipt", "doneAdding", "everyoneHere", "freeze", "sortOut", "confirmReceived", "shareDetails", "pay"]);
+const TASK_KINDS = new Set(["recheck", "confirmPaid", "claim", "fixReceipt", "doneAdding", "everyoneHere", "freeze", "sortOut", "confirmReceived", "shareDetails", "pay", "confirmCash", "sortOutCash"]);
 
 export function isTask(next: NextView): next is TaskView {
   return TASK_KINDS.has(next.kind);
@@ -28,6 +28,7 @@ export function tabForTask(task: TaskView): TabId {
     case "pay":
       return "money";
     default:
+      // Cash tasks (D64) are answered right in the Next card, on Home.
       return "overview";
   }
 }
@@ -74,7 +75,16 @@ export function taskLine(task: TaskView, name: (id: string) => string, ccy = "PH
       return "Share how to get paid (cash or QR)";
     case "pay":
       return `Pay ${name(task.toId)} ${money(task.amount, ccy)}`;
+    case "confirmCash":
+      return `Confirm ${cashAmount(task, ccy)} from ${name(task.fromId)}`;
+    case "sortOutCash":
+      return task.recordAgain ? `Record the ${money(task.amount, ccy)} handed to ${name(task.withId)} again` : `Sort out the ${money(task.amount, ccy)} payment with ${name(task.withId)}`;
   }
+}
+
+/** The cash actually handed over ("THB 2,000.00") when it was another currency (D64). */
+export function cashAmount(task: Extract<TaskView, { kind: "confirmCash" }>, ccy: string): string {
+  return task.paid ? money(task.paid.amount, task.paid.currency) : money(task.amount, ccy);
 }
 
 /** What arrived: the money actually sent ("THB 512.31") when paid in another currency. */
@@ -107,6 +117,10 @@ export function waitingSentence(w: WaitingView, name: (id: string) => string, cc
         return `Waiting for ${who} to check ${only.task.label} again.`;
       case "confirmReceived":
         return `Waiting for ${who} to confirm ${receivedAmount(only.task, ccy)}.`;
+      case "confirmCash":
+        return `Waiting for ${who} to confirm ${cashAmount(only.task, ccy)}.`;
+      case "sortOutCash":
+        return `Waiting for ${who} to sort out a payment.`;
       case "pay":
         return `Waiting for ${who} to pay ${name(only.task.toId)}.`;
       default:

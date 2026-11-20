@@ -17,6 +17,16 @@ export type EventRecord = Prisma.EventGetPayload<{ include: typeof EVENT_INCLUDE
 export type MemberRecord = EventRecord["members"][number];
 export type ReceiptRecord = EventRecord["receipts"][number];
 export type SnapshotRecord = EventRecord["snapshots"][number];
+export type CashRecord = EventRecord["cashReports"][number];
+
+/** A confirmed transfer, traceable to the report that confirmed it (D64: carried into statements exactly once). */
+export interface SourcedTransfer {
+  from: string;
+  to: string;
+  amount: bigint;
+  source: "edge" | "cash";
+  reportId: string;
+}
 
 export interface Gate {
   ready: boolean;
@@ -205,7 +215,8 @@ export class EventAggregate {
         r.payerMemberId === memberId ||
         r.fundingAcks.some((f) => f.memberId === memberId) ||
         r.lines.some((l) => l.claims.some((c) => c.memberId === memberId)),
-    ) || this.record.snapshots.length > 0;
+    ) || this.record.snapshots.length > 0
+      || this.record.cashReports.some((c) => c.senderMemberId === memberId || c.recipientMemberId === memberId);
   }
 
   // ---- calculation -------------------------------------------------------
@@ -262,7 +273,7 @@ export class EventAggregate {
   freezeGate(): Gate {
     const blockers: string[] = [];
     if (!this.record.rosterLockedAt) blockers.push("The organizer hasn’t tapped “Everyone’s here” yet.");
-    blockers.push(...this.allocationGate().blockers, ...this.reviewGate().blockers);
+    blockers.push(...this.allocationGate().blockers, ...this.reviewGate().blockers, ...this.cashGate().blockers);
     const unique = [...new Set(blockers)];
     return { ready: unique.length === 0, blockers: unique };
   }
@@ -273,10 +284,65 @@ export class EventAggregate {
     return this.record.snapshots.find((s) => s.status === "ACTIVE") ?? null;
   }
 
-  confirmedTransfers() {
-    return this.record.snapshots.flatMap((snap) => snap.edges.flatMap((edge) => edge.reports
+  /**
+   * Every recipient-confirmed, non-reversed transfer: settlement-edge reports
+   * across all statements plus event-level cash handoffs (D64). Applied to raw
+   * receipt nets, never to an already-adjusted balance, so nothing counts twice.
+   */
+  confirmedTransfers(): SourcedTransfer[] {
+    const edges = this.record.snapshots.flatMap((snap) => snap.edges.flatMap((edge) => edge.reports
       .filter((r) => r.status === "VERIFIED" && !r.reversal)
-      .map((r) => ({ from: edge.fromMemberId, to: edge.toMemberId, amount: r.amountCentavos }))));
+      .map((r) => ({ from: edge.fromMemberId, to: edge.toMemberId, amount: r.amountCentavos, source: "edge" as const, reportId: r.id }))));
+    return [...edges, ...this.effectiveCash()];
+  }
+
+  // ---- event-level cash (D64) --------------------------------------------
+
+  /** Confirmed, non-reversed cash handoffs. */
+  effectiveCash(): SourcedTransfer[] {
+    return this.record.cashReports
+      .filter((c) => c.status === "VERIFIED" && !c.reversal)
+      .map((c) => ({ from: c.senderMemberId, to: c.recipientMemberId, amount: c.amountCentavos, source: "cash" as const, reportId: c.id }));
+  }
+
+  cashReport(reportId: string): CashRecord {
+    const c = this.record.cashReports.find((x) => x.id === reportId);
+    if (!c) throw new NotFoundError("Payment not found");
+    return c;
+  }
+
+  /** Cash reports awaiting the recipient, and cash disputes not yet resolved. */
+  cashOutstanding(): { pending: CashRecord[]; disputed: CashRecord[] } {
+    return {
+      pending: this.record.cashReports.filter((c) => c.status === "REPORTED"),
+      disputed: this.record.cashReports.filter((c) => c.dispute && c.dispute.status !== "RESOLVED"),
+    };
+  }
+
+  hasCashOutstanding(): boolean {
+    const o = this.cashOutstanding();
+    return o.pending.length > 0 || o.disputed.length > 0;
+  }
+
+  /** Each member's effective cash sent − received (positive = handed over more than received). */
+  cashNets(): Map<string, bigint> {
+    const nets = new Map(this.record.members.map((m) => [m.id, 0n]));
+    for (const t of this.effectiveCash()) {
+      nets.set(t.from, (nets.get(t.from) ?? 0n) + t.amount);
+      nets.set(t.to, (nets.get(t.to) ?? 0n) - t.amount);
+    }
+    return nets;
+  }
+
+  /** Blockers from cash that still needs a decision: they hold the freeze, a correction and Done. */
+  cashGate(): Gate {
+    const name = (id: string) => this.member(id).displayName;
+    const { pending, disputed } = this.cashOutstanding();
+    const blockers = [
+      ...pending.map((c) => `${name(c.recipientMemberId)} hasn’t confirmed ${formatMinor(c.amountCentavos, this.currency)} from ${name(c.senderMemberId)} yet.`),
+      ...disputed.map((c) => `${name(c.senderMemberId)} and ${name(c.recipientMemberId)} need to sort out the ${formatMinor(c.amountCentavos, this.currency)} payment.`),
+    ];
+    return { ready: blockers.length === 0, blockers };
   }
 
   /** Revised bill nets after all actual recipient-confirmed transfers, including older statements. */
@@ -290,6 +356,7 @@ export class EventAggregate {
       if (edge.reports.some((r) => r.status === "REPORTED")) blockers.push("Confirm or cancel every pending payment report before correcting the bill.");
       if (edge.disputes.some((d) => d.status !== "RESOLVED")) blockers.push("Resolve every payment dispute before correcting the bill.");
     }
+    if (this.hasCashOutstanding()) blockers.push("Confirm, reject or sort out every cash payment before correcting the bill.");
     return { ready: blockers.length === 0, blockers: [...new Set(blockers)] };
   }
 
@@ -310,6 +377,12 @@ export class EventAggregate {
     const snap = this.activeSnapshot();
     if (!snap) return null;
     const times = [snap.createdAt];
+    for (const c of this.record.cashReports) {
+      times.push(c.createdAt);
+      if (c.decidedAt) times.push(c.decidedAt);
+      if (c.reversal) times.push(c.reversal.createdAt);
+      if (c.dispute?.resolvedAt) times.push(c.dispute.resolvedAt);
+    }
     for (const e of snap.edges) {
       for (const r of e.reports) {
         times.push(r.createdAt);
@@ -333,6 +406,7 @@ export class EventAggregate {
       if (s.disputed) blockers.push(`${label}: a rejected report is unresolved.`);
       if (s.outstanding > 0n) blockers.push(`${label}: ${formatMinor(s.outstanding, this.currency)} not yet confirmed received.`);
     }
+    blockers.push(...this.cashGate().blockers);
     const remaining = this.remainingNets(snapshot.shares.map((s) => [s.memberId, s.netCentavos] as const));
     for (const [id, amount] of remaining) if (amount !== 0n) blockers.push(`${name(id)}: a non-zero balance remains.`);
     return { ready: blockers.length === 0, blockers };

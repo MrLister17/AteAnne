@@ -1,6 +1,6 @@
 import type { EventView } from "@/server/readmodels/EventViewBuilder";
 import { money } from "../format";
-import { receivedAmount, type TaskView } from "./next";
+import { cashAmount, receivedAmount, type TaskView } from "./next";
 
 export interface Reminder {
   memberId: string;
@@ -47,6 +47,10 @@ function reminderLine(task: TaskView, name: (id: string) => string, ccy: string)
       return "Add how you want to be paid (cash or QR) in Pay.";
     case "pay":
       return `Check the latest instructions, pay ${money(task.amount, ccy)} to ${name(task.toId)}, then record it in the app. If you already sent it, record that transfer; do not send it again.`;
+    case "confirmCash":
+      return `Check whether ${cashAmount(task, ccy)} from ${name(task.fromId)} arrived, then confirm it or say it didn't in the app.`;
+    case "sortOutCash":
+      return task.recordAgain ? `Record again the ${money(task.amount, ccy)} you already handed to ${name(task.withId)}. Do not hand it over again.` : `Sort out the disputed ${money(task.amount, ccy)} payment with ${name(task.withId)} in the app.`;
   }
 }
 

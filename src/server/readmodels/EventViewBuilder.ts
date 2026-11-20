@@ -260,6 +260,31 @@ export class EventViewBuilder {
           },
         ]),
       ),
+      /** Running event payments (D64): every event-level cash handoff, newest last. */
+      cash: {
+        reports: e.cashReports.map((c) => ({
+          id: c.id,
+          from: c.senderMemberId,
+          to: c.recipientMemberId,
+          /** Effective amount in the settle-up currency. */
+          amount: s(c.amountCentavos),
+          paid: paidView(c),
+          method: c.method,
+          note: c.note,
+          status: c.status,
+          version: c.version,
+          replacesReportId: c.replacesReportId,
+          rejectReason: c.rejectReason,
+          createdAt: c.createdAt.toISOString(),
+          decidedAt: c.decidedAt?.toISOString() ?? null,
+          reversal: c.reversal ? { reason: c.reversal.reason, createdAt: c.reversal.createdAt.toISOString() } : null,
+          dispute: c.dispute ? { id: c.dispute.id, status: c.dispute.status, version: c.dispute.version, senderChoice: c.dispute.senderChoice, recipientChoice: c.dispute.recipientChoice } : null,
+        })),
+        /** During Pay, while a cash payment awaits a decision, other payment actions pause. */
+        paused: e.phase === "SETTLING" && agg.hasCashOutstanding(),
+      },
+      /** Balance breakdown per person (D64): expense side, payment side, and the part that is credit. */
+      balances: this.balances(agg, calc),
       /** Accepted currencies for someone who hasn't set payment details. */
       defaultAcceptedCurrencies: agg.acceptedCurrencies([]),
       audit: audit.map((a) => {
@@ -275,6 +300,43 @@ export class EventViewBuilder {
         };
       }),
     };
+  }
+
+  /**
+   * expenseNet = paid to merchants − share (raw, from the frozen statement or the live split; null while it can't calculate);
+   * paymentNet = confirmed money sent − received (settlement reports and cash);
+   * remaining = expenseNet + paymentNet; credit = max(0, max(0, remaining) − max(0, expenseNet)).
+   */
+  private balances(agg: EventAggregate, calc: ReturnType<EventAggregate["calculation"]>) {
+    const snap = agg.activeSnapshot();
+    const raw = new Map<string, bigint>(snap ? snap.shares.map((x) => [x.memberId, x.netCentavos]) : calc.ok ? calc.positions.map((p) => [p.memberId, p.net]) : []);
+    const payment = new Map<string, bigint>(agg.record.members.map((m) => [m.id, 0n]));
+    const cashSent = new Map<string, bigint>();
+    const cashReceived = new Map<string, bigint>();
+    for (const t of agg.confirmedTransfers()) {
+      payment.set(t.from, (payment.get(t.from) ?? 0n) + t.amount);
+      payment.set(t.to, (payment.get(t.to) ?? 0n) - t.amount);
+      if (t.source === "cash") {
+        cashSent.set(t.from, (cashSent.get(t.from) ?? 0n) + t.amount);
+        cashReceived.set(t.to, (cashReceived.get(t.to) ?? 0n) + t.amount);
+      }
+    }
+    const pos = (v: bigint) => (v > 0n ? v : 0n);
+    return agg.record.members.map((m) => {
+      const expenseNet = raw.has(m.id) ? raw.get(m.id)! : null;
+      const paymentNet = payment.get(m.id) ?? 0n;
+      const remaining = expenseNet === null ? null : expenseNet + paymentNet;
+      const credit = remaining === null ? 0n : pos(pos(remaining) - pos(expenseNet!));
+      return {
+        memberId: m.id,
+        expenseNet: expenseNet === null ? null : s(expenseNet),
+        paymentNet: s(paymentNet),
+        remaining: remaining === null ? null : s(remaining),
+        credit: s(credit),
+        cashSent: s(cashSent.get(m.id) ?? 0n),
+        cashReceived: s(cashReceived.get(m.id) ?? 0n),
+      };
+    });
   }
 
   private nextInput(view: Awaited<ReturnType<EventViewBuilder["base"]>>, ownerId: string | null): NextActionInput {
@@ -312,6 +374,9 @@ export class EventViewBuilder {
         dispute: e.dispute ? { status: e.dispute.status, senderChoice: e.dispute.senderChoice, recipientChoice: e.dispute.recipientChoice } : null,
         pendingReports: e.reports.filter((r) => r.status === "REPORTED").map((r) => ({ id: r.id, amount: BigInt(r.amount), version: r.version, paid: r.paid ? { currency: r.paid.currency, amount: BigInt(r.paid.amount) } : null })),
       })),
+      cash: view.cash.reports
+        .filter((c) => c.status === "REPORTED" || (c.dispute && c.dispute.status !== "RESOLVED"))
+        .map((c) => ({ id: c.id, from: c.from, to: c.to, amount: BigInt(c.amount), paid: c.paid ? { currency: c.paid.currency, amount: BigInt(c.paid.amount) } : null, status: c.status, version: c.version, dispute: c.dispute })),
       withPaymentDetails: Object.keys(view.instructions),
       freezeBlockers: view.gates.freeze?.blockers ?? [],
     };

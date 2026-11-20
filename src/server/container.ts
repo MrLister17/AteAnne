@@ -9,6 +9,7 @@ import { AssetService } from "./services/AssetService";
 import { CleanupService } from "./services/CleanupService";
 import { EventService } from "./services/EventService";
 import { PaymentService } from "./services/PaymentService";
+import { CashPaymentService } from "./services/CashPaymentService";
 import { QueryService } from "./services/QueryService";
 import { ReceiptService } from "./services/ReceiptService";
 import { RecoveryService } from "./services/RecoveryService";
@@ -29,6 +30,7 @@ export class AppContainer {
   readonly events: EventService;
   readonly receipts: ReceiptService;
   readonly payments: PaymentService;
+  readonly cash: CashPaymentService;
   readonly recovery: RecoveryService;
   readonly assets: AssetService;
   readonly queries: QueryService;
@@ -51,6 +53,7 @@ export class AppContainer {
     this.events = new EventService(db, codes, this.limiter, this.rates);
     this.receipts = new ReceiptService(db, this.limiter, this.rates);
     this.payments = new PaymentService(db, this.limiter, this.rates);
+    this.cash = new CashPaymentService(db, this.limiter, this.rates);
     this.recovery = new RecoveryService(db, this.limiter);
     this.assets = new AssetService(db, storage, this.limiter);
     this.cleanup = new CleanupService(db, storage, this.events, retention, this.rates);

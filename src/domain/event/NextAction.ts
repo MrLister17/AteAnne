@@ -44,6 +44,17 @@ export interface NextActionInput {
     /** `amount` is the credit (settle-up currency); `paid` is set when the money was sent in another currency. */
     pendingReports: { id: string; amount: bigint; version: number; paid?: { currency: string; amount: bigint } | null }[];
   }[];
+  /** Event-level cash handoffs still waiting for a decision (D64): pending reports and unresolved disputes. */
+  cash?: {
+    id: string;
+    from: string;
+    to: string;
+    amount: bigint;
+    paid?: { currency: string; amount: bigint } | null;
+    status: "REPORTED" | "VERIFIED" | "REJECTED" | "CANCELLED";
+    version: number;
+    dispute: { id: string; status: string; senderChoice: string | null; recipientChoice: string | null; version: number } | null;
+  }[];
   /** Members who have shared how they want to be paid (cash or QR). */
   withPaymentDetails: string[];
   /** The freeze gate's own wording, used only when a wait can't be pinned on a person. */
@@ -62,6 +73,8 @@ export type Task =
   | { kind: "sortOut"; transferId: string; withId: string; amount: bigint; recordAgain: boolean }
   | { kind: "confirmReceived"; transferId: string; reportId: string; reportVersion: number; fromId: string; amount: bigint; paid?: { currency: string; amount: bigint } | null }
   | { kind: "shareDetails" }
+  | { kind: "confirmCash"; reportId: string; reportVersion: number; fromId: string; amount: bigint; paid?: { currency: string; amount: bigint } | null }
+  | { kind: "sortOutCash"; reportId: string; disputeId: string; disputeVersion: number; withId: string; amount: bigint; recordAgain: boolean }
   | { kind: "pay"; transferId: string; toId: string; amount: bigint; received: bigint };
 
 export interface Waiting {
@@ -113,8 +126,8 @@ export class NextActions {
     const f = this.input;
     const me = f.members.find((m) => m.id === memberId);
     if (!me || !me.active || f.cancelled) return [];
-    if (STEP_ONE.includes(f.phase)) return this.stepOneTasks(memberId, me.entryComplete);
-    if (f.phase === "SETTLING") return this.payTasks(memberId);
+    if (STEP_ONE.includes(f.phase)) return [...this.cashTasks(memberId), ...this.stepOneTasks(memberId, me.entryComplete)];
+    if (f.phase === "SETTLING") return [...this.cashTasks(memberId), ...this.payTasks(memberId)];
     return [];
   }
 
@@ -183,6 +196,31 @@ export class NextActions {
     const isOwner = f.ownerId === memberId;
     if (isOwner && f.phase === "COLLECTING" && !f.rosterLocked) out.push({ kind: "everyoneHere" });
     if (isOwner && f.freezeReady && (!f.autoFreeze || f.phase !== "COLLECTING")) out.push({ kind: "freeze", corrected: !f.autoFreeze });
+    return out;
+  }
+
+  /**
+   * Cash first (D64): a pending handoff or an open disagreement holds the
+   * freeze and pauses Pay, so the two people involved see it before anything else.
+   */
+  private cashTasks(memberId: string): Task[] {
+    const out: Task[] = [];
+    for (const c of this.input.cash ?? []) {
+      if (c.dispute && c.dispute.status !== "RESOLVED" && (c.from === memberId || c.to === memberId)) {
+        const iAmSender = c.from === memberId;
+        const withId = iAmSender ? c.to : c.from;
+        if (c.dispute.status === "AWAITING_REPLACEMENT") {
+          if (iAmSender) out.push({ kind: "sortOutCash", reportId: c.id, disputeId: c.dispute.id, disputeVersion: c.dispute.version, withId, amount: c.amount, recordAgain: true });
+          continue;
+        }
+        const mine = iAmSender ? c.dispute.senderChoice : c.dispute.recipientChoice;
+        const theirs = iAmSender ? c.dispute.recipientChoice : c.dispute.senderChoice;
+        if (!mine || (theirs && theirs !== mine)) out.push({ kind: "sortOutCash", reportId: c.id, disputeId: c.dispute.id, disputeVersion: c.dispute.version, withId, amount: c.amount, recordAgain: false });
+      }
+    }
+    for (const c of this.input.cash ?? []) {
+      if (c.status === "REPORTED" && c.to === memberId) out.push({ kind: "confirmCash", reportId: c.id, reportVersion: c.version, fromId: c.from, amount: c.amount, ...(c.paid ? { paid: c.paid } : {}) });
+    }
     return out;
   }
 
