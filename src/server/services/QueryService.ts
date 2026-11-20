@@ -48,7 +48,7 @@ export class QueryService {
     const paidOf = (p: { currency: string; amount: string; rate: string; rateDate: string; source: string } | null) =>
       p ? { currency: p.currency, amount: amt(p.amount, p.currency), rate: `1 ${p.currency} = ${p.rate} ${ccy}`, rateDate: p.rateDate, rateSource: p.source } : null;
     const statement = {
-      notice: "AteAnne manual record. Not a bank statement; payments are participant reports confirmed by recipients.",
+      notice: "Hatian manual record. Not a bank statement; payments are participant reports confirmed by recipients.",
       exportedAt: new Date().toISOString(),
       event: { title: view.event.title, phase: view.event.phase, cancelled: view.event.cancelled, financialVersion: view.event.financialVersion, currency: ccy },
       members: view.members.map((m) => ({ id: m.id, seq: m.seq, displayName: m.displayName, active: m.active })),
@@ -107,7 +107,7 @@ export class QueryService {
         : null,
     };
     const slug = view.event.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase().slice(0, 40) || "event";
-    if (format === "json") return { body: JSON.stringify(statement, null, 2), contentType: "application/json", filename: `ateanne-${slug}.json` };
+    if (format === "json") return { body: JSON.stringify(statement, null, 2), contentType: "application/json", filename: `hatian-${slug}.json` };
 
     // amount/currency: what the row is in; settle_amount: the same in the event's settle-up currency.
     const rows: string[][] = [["section", "receipt_or_transfer", "member", "item", "amount", "currency", "settle_amount", "rate", "rate_date", "status"]];
@@ -131,6 +131,6 @@ export class QueryService {
     for (const c of statement.cashPayments) rows.push(["cash_payment", `${c.from} → ${c.to}`, c.from, c.method, c.paid?.amount ?? c.amount, c.paid?.currency ?? ccy, c.amount, c.paid?.rate ?? "", c.paid?.rateDate ?? "", c.status]);
     for (const r of statement.priorPaymentHistory) rows.push(["prior_payment_report", `${r.from} → ${r.to} (version ${r.financialVersion})`, r.from, r.method, r.paid?.amount ?? r.amount, r.paid?.currency ?? ccy, r.amount, r.paid?.rate ?? "", r.paid?.rateDate ?? "", r.reversal ? "VERIFIED then REVERSED" : r.status]);
     const csv = rows.map((row) => row.map((c) => (/[",\n]/.test(c) || /^[=+\-@]/.test(c) ? `"${c.replace(/^([=+\-@])/, "'$1").replace(/"/g, '""')}"` : c)).join(",")).join("\n");
-    return { body: csv, contentType: "text/csv; charset=utf-8", filename: `ateanne-${slug}.csv` };
+    return { body: csv, contentType: "text/csv; charset=utf-8", filename: `hatian-${slug}.csv` };
   }
 }

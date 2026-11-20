@@ -72,7 +72,7 @@ export function route<P = Record<string, string>>(handler: Handler<P>) {
     let newSession: { token: string; expiresAt: Date } | null = null;
     try {
       if (configProblems().length) {
-        throw new HttpError(503, "not_configured", "AteAnne isn't connected to its database yet, so nothing can be saved. Try again once setup is finished.");
+        throw new HttpError(503, "not_configured", "Hatian isn't connected to its database yet, so nothing can be saved. Try again once setup is finished.");
       }
       assertSameOrigin(req);
       const app = container();

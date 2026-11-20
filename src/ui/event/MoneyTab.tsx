@@ -301,7 +301,7 @@ function PolicyNote() {
   const { view } = useEvent();
   const statementVersion = view.settlement?.financialVersion ?? view.event.financialVersion;
   return (
-    <Disclosure summary="How AteAnne splits money" icon="info" className="card px-4 py-0 text-[14px]">
+    <Disclosure summary="How Hatian splits money" icon="info" className="card px-4 py-0 text-[14px]">
       <p className="text-muted">{view.settlement ? "Frozen statement" : "Live estimate"} · Version {statementVersion}</p>
       <ul className="list-disc space-y-1 pl-5 text-muted">
         <li>Each item is split only among the people who claimed it — equally, or by pieces.</li>

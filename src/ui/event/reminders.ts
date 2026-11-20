@@ -56,10 +56,10 @@ function reminderLine(task: TaskView, name: (id: string) => string, ccy: string)
 
 /** Does not include recovery keys, join codes, images or payment details. */
 export function reminderMessage(view: EventView, reminders: Reminder[], eventUrl: string): string {
-  const lines = [`AteAnne reminder: ${view.event.title}`, ""];
+  const lines = [`Hatian reminder: ${view.event.title}`, ""];
   for (const person of reminders) {
     lines.push(`${person.name}:`, ...person.tasks.map((t) => `• ${t}`), "");
   }
-  lines.push("Open AteAnne to check the latest status before acting:", eventUrl, "", "The app refreshes while it is open. This is a manual reminder, not a payment confirmation.");
+  lines.push("Open Hatian to check the latest status before acting:", eventUrl, "", "The app refreshes while it is open. This is a manual reminder, not a payment confirmation.");
   return lines.join("\n");
 }

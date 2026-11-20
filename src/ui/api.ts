@@ -1,6 +1,6 @@
 "use client";
 
-/** Error returned by the AteAnne API, with machine code and optional gate blockers. */
+/** Error returned by the Hatian API, with machine code and optional gate blockers. */
 export class ApiError extends Error {
   constructor(
     public readonly status: number,

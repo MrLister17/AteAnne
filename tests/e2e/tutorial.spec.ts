@@ -9,7 +9,7 @@ test("first visit asks once; walkthrough covers every step; button reopens it", 
   await page.screenshot({ path: "test-results/screens/11-first-visit-ask.png", animations: "disabled" });
   await ask.getByRole("button", { name: "Show me how" }).click();
 
-  const tour = page.getByRole("dialog", { name: "How to use AteAnne" });
+  const tour = page.getByRole("dialog", { name: "How to use Hatian" });
   for (const [n, step] of TUTORIAL_STEPS.entries()) {
     await expect(tour.getByText(`Step ${n + 1} of ${TUTORIAL_STEPS.length}`)).toBeVisible();
     await expect(tour.getByRole("heading", { name: step.title })).toBeVisible();
@@ -28,7 +28,7 @@ test("first visit asks once; walkthrough covers every step; button reopens it", 
   await expect(page.getByRole("dialog", { name: "First time here?" })).toHaveCount(0);
 
   // Tutorial button reopens it from step 1; Back works; Escape closes.
-  await page.getByRole("button", { name: /Tutorial: how to use AteAnne/ }).first().click();
+  await page.getByRole("button", { name: /Tutorial: how to use Hatian/ }).first().click();
   await expect(tour.getByText(`Step 1 of ${TUTORIAL_STEPS.length}`)).toBeVisible();
   await tour.getByRole("button", { name: "Next" }).click();
   await tour.getByRole("button", { name: "Back" }).click();

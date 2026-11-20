@@ -53,11 +53,11 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "welcome",
     who: "Everyone",
-    title: "Welcome to AteAnne",
+    title: "Welcome to Hatian",
     points: [
-      "AteAnne splits a shared bill by what each person actually had, not just total ÷ people.",
+      "Hatian splits a shared bill by what each person actually had, not just total ÷ people.",
       "It runs in 3 steps: Add & claim → Pay → Done. It moves on by itself; nobody waits for a button.",
-      "No accounts, no bank logins. Money moves outside the app; AteAnne keeps the exact record.",
+      "No accounts, no bank logins. Money moves outside the app; Hatian keeps the exact record.",
     ],
     art: (
       <div aria-hidden className="flex items-center justify-center gap-2">
@@ -78,9 +78,9 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Add to Home Screen before joining",
     points: [
       "Do this before starting or joining: iPhone keeps a separate sign-in for the Home Screen app.",
-      "iPhone: open AteAnne in Safari, tap Share → Add to Home Screen → Add. Safari requires those taps; a website cannot do them for you.",
+      "iPhone: open Hatian in Safari, tap Share → Add to Home Screen → Add. Safari requires those taps; a website cannot do them for you.",
       "Android: in Chrome, tap “Install app” (or ⋮ → Add to Home screen).",
-      "Open AteAnne from its new icon, then start or join there. Keep your join code handy.",
+      "Open Hatian from its new icon, then start or join there. Keep your join code handy.",
     ],
     art: (
       <Phone>
@@ -119,7 +119,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Everyone",
     title: "Save your recovery key",
     points: [
-      "Right after you create or join, AteAnne shows a personal recovery key once.",
+      "Right after you create or join, Hatian shows a personal recovery key once.",
       "Copy it into Notes or a password manager. If you lose your phone, it brings back the same you — your receipts, claims and payments.",
       "To use it: on the first screen tap “I have a recovery key” and paste it.",
       "Keep it private; don’t post it in the group chat.",
@@ -177,7 +177,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     points: [
       "Everyone taps “I’m done adding receipts” on Home, even if they paid nothing.",
       "The organizer taps “Everyone’s here” once everyone who shared the bill has joined. Nobody new can join after this.",
-      "The moment everyone is done, AteAnne freezes the bill and shows simple transfers, e.g. “Juan → Mark ₱495.00”.",
+      "The moment everyone is done, Hatian freezes the bill and shows simple transfers, e.g. “Juan → Mark ₱495.00”.",
     ],
     art: (
       <Phone>
@@ -231,9 +231,9 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Everyone",
     title: "Done!",
     points: [
-      "When every transfer is confirmed, AteAnne closes the hatian by itself a day later (the organizer can close it sooner). Something wrong before then? The organizer can reopen the bill with a reason; confirmed money is kept.",
+      "When every transfer is confirmed, Hatian closes the hatian by itself a day later (the organizer can close it sooner). Something wrong before then? The organizer can reopen the bill with a reason; confirmed money is kept.",
       "The event becomes a read-only record. Every event is deleted 30 days after it was created — finished or not — so export a CSV/JSON copy from People if you want one.",
-      "Lost your phone, or opened AteAnne from your Home Screen and your event is missing? Tap “I have a recovery key” on the first screen. If you lost the key too, ask the organizer in person for replacement access.",
+      "Lost your phone, or opened Hatian from your Home Screen and your event is missing? Tap “I have a recovery key” on the first screen. If you lost the key too, ask the organizer in person for replacement access.",
     ],
     art: (
       <div aria-hidden className="space-y-3">

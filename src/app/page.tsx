@@ -16,7 +16,7 @@ type MyEvent = { eventId: string; title: string; phase: Phase; cancelled: boolea
 
 /**
  * Start screen (D48). Returning people see their events first; newcomers see
- * what AteAnne is and the install step. Start / Join are the two big actions;
+ * what Hatian is and the install step. Start / Join are the two big actions;
  * the recovery key is a lighter row right under them; help is the "?" icon.
  */
 export default function Home() {
@@ -85,7 +85,7 @@ export default function Home() {
 
       {installed && events !== null && events.length === 0 && (
         <div className="mt-3">
-          <Notice tone="info" title="Joined in Safari before adding AteAnne to your Home Screen?">
+          <Notice tone="info" title="Joined in Safari before adding Hatian to your Home Screen?">
             The Home Screen app keeps its own sign-in. Tap <b>I have a recovery key</b> and paste the key you saved, once per event, to bring your events here.
           </Notice>
         </div>

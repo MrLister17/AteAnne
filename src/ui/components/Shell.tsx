@@ -26,7 +26,7 @@ export function Brand({ size = "lg" }: { size?: "lg" | "sm" }) {
       <img src="/icons/icon-192.png" alt="" width={size === "lg" ? 56 : 36} height={size === "lg" ? 56 : 36} className={size === "lg" ? "size-14 rounded-2xl" : "size-9 rounded-xl"} />
       <div>
         <p className={`${size === "lg" ? "text-[28px]" : "text-[20px]"} leading-tight font-extrabold tracking-tight`}>
-          Ate<span className="text-violet">Anne</span>
+          <span className="text-violet">Hatian</span>
         </p>
         {size === "lg" && <p className="text-[15px] text-muted">Hatian na malinaw. Bayaran na tama.</p>}
       </div>

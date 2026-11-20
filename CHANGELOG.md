@@ -1,4 +1,4 @@
-# AteAnne — version history and handoff
+# Hatian — version history and handoff
 
 This file records every release of AteAnne, what changed and why, and where work stopped. It is written so a person or another AI can pick the project up cold.
 
@@ -7,6 +7,12 @@ This file records every release of AteAnne, what changed and why, and where work
 Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from the git history; the code only started carrying a version number (`package.json`) at 0.5.0.
 
 ---
+
+## Hatian name update
+
+- Renamed the app across the interface, browser metadata, install manifest, tutorials, shared messages, and statement downloads.
+- Kept the production origin, event URLs, session and storage keys, and ledger policy identifiers for compatibility.
+- Updated the service worker cache version so offline users receive the renamed shell on their next connection.
 
 ## v0.9.1: Compact event screens (2026-11-20 Manila) · merged to `main` and deployed
 

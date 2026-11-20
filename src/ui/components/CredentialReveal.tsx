@@ -49,7 +49,7 @@ export function CredentialReveal({ recoveryKey, joinCode, onDone, doneLabel = "I
 
 export function ShareJoin({ code }: { code: string }) {
   const link = typeof window !== "undefined" ? `${window.location.origin}/join#code=${code.replace("-", "")}` : "";
-  const text = `Join my AteAnne hatian! Code: ${code}`;
+  const text = `Join my event on Hatian! Code: ${code}`;
   return (
     <div className="grid grid-cols-2 gap-2">
       <CopyButton text={code} label="Copy code" />
@@ -60,7 +60,7 @@ export function ShareJoin({ code }: { code: string }) {
         onClick={async () => {
           if (navigator.share) {
             try {
-              await navigator.share({ title: "AteAnne", text, url: link });
+              await navigator.share({ title: "Hatian", text, url: link });
             } catch {
               /* cancelled */
             }

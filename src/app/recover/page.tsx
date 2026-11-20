@@ -54,7 +54,7 @@ export default function Recover() {
         }}
       >
         <p className="text-[15px] text-muted">
-          Lost your phone, cleared your browser, or opened AteAnne from your Home Screen and your event is missing? Paste the key you saved when you joined.
+          Lost your phone, cleared your browser, or opened Hatian from your Home Screen and your event is missing? Paste the key you saved when you joined.
         </p>
         <Field label="Personal recovery key" hint="Starts with AA- and is about 46 characters long. Spaces or line breaks from copying are fine." error={tooShort ? "That doesn’t look like a whole key yet. Copy the full line that starts with AA-." : null}>
           {(p) => (
@@ -94,7 +94,7 @@ export default function Recover() {
           Get back into my event
         </Button>
         {installed && (
-          <Notice tone="info" title="Using AteAnne from your Home Screen?">
+          <Notice tone="info" title="Using Hatian from your Home Screen?">
             On iPhone, the Home Screen app keeps its own sign-in, separate from Safari. If you joined in Safari first, enter your key here once and your event moves into the app.
           </Notice>
         )}
