@@ -2,6 +2,10 @@
 
 _Last updated: 2026-11-20 Manila (v0.10.0)_
 
+## Hatian name update
+
+The app is branded Hatian as of `87c6e4a`. The production URL remains https://ateanne.vercel.app. Keep the manifest ID, session identifiers, local storage keys, and settlement policy identifiers stable for existing users. See [test report](test-report.md) for verification.
+
 ## Current state (v0.10.0)
 
 - **v0.10.0 (D64): running event payments and credit.** It is built on v0.9.1 (compact event screens, D63, PR #1).

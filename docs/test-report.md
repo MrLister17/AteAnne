@@ -1,5 +1,11 @@
 # Test report
 
+## Hatian name update (2026-11-20 UTC)
+
+On the rename branch, the Python reference check, lint, type checking, 260 unit tests, 84 PostgreSQL integration tests, production build, and 77 browser tests all passed. The browser suite used synthetic data and the configured fixture receipt reader. Both GitHub Actions checks on [PR #2](https://github.com/MrLister17/AteAnne/pull/2) passed.
+
+Production served version `87c6e4a` with receipt scanning configured for Groq, and the public manifest returned `short_name: Hatian`.
+
 ## v0.10.0 — running event payments and credit (D64, 2026-11-20 Manila)
 
 Branch `claude/admiring-albattani-yinlr3`. It holds v0.9.1 (PR #1 plus the `backup.sh` fix) and then D64, built from `docs/running-event-payments.md`. Local Linux run: Node 22.23.5, PostgreSQL 16 (isolated `ateanne_test`), pre-installed Chromium, fake exchange rates (`FX_RATES_FAKE=1`). Synthetic data only.
