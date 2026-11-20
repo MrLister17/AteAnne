@@ -1,10 +1,10 @@
-/* AteAnne service worker.
+/* Hatian service worker.
  * Caches only the public app shell (static build assets, icons, offline page)
  * so the installed app opens instantly and shows a friendly offline screen.
  * NEVER caches /api/* responses or private images: financial data must
  * always come fresh from the server (they are sent with Cache-Control: no-store).
  */
-const VERSION = "ateanne-shell-v1";
+const VERSION = "ateanne-shell-v2";
 const SHELL = ["/offline", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/apple-touch-icon.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (event) => {

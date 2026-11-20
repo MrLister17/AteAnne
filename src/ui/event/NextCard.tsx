@@ -89,7 +89,7 @@ function NextBody({ next, where }: { next: NextView; where: Where }) {
     case "allPaid":
       return (
         <>
-          <Status title="Everyone’s paid" line="AteAnne closes this tomorrow, so a mistake can still be undone." />
+          <Status title="Everyone’s paid" line="Hatian closes this tomorrow, so a mistake can still be undone." />
           {owner && (
             <>
               <Button

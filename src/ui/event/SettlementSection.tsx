@@ -161,7 +161,7 @@ function PayEdge({ edge, focused }: { edge: EdgeView; focused: boolean }) {
                     <Icon name="qr" size={18} className="text-violet" /> QR{instr.qrLabel ? ` — ${instr.qrLabel}` : ""} <span className="text-[12px] text-muted">(v{instr.version})</span>
                   </p>
                   <img src={`/api/assets/${instr.qrAssetId}`} alt={`Payment QR shared by ${name(edge.to)}`} className="mt-2 w-full max-w-[260px] rounded-xl border border-line bg-white p-2" />
-                  <p className="mt-1 text-[12px] text-muted">Check the name shown in your e-wallet or bank app before sending. AteAnne doesn’t read or check QR codes.</p>
+                  <p className="mt-1 text-[12px] text-muted">Check the name shown in your e-wallet or bank app before sending. Hatian doesn’t read or check QR codes.</p>
                 </div>
               )}
             </div>

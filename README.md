@@ -1,10 +1,10 @@
-# AteAnne — hatian na malinaw, bayaran na tama
+# Hatian — hatian na malinaw, bayaran na tama
 
 > **What changed lately and where work stopped: [CHANGELOG.md](CHANGELOG.md).**
 
 > **New here? Read [GUIDE.md](GUIDE.md)**: a complete map of the app, how it works, and how to change things.
 
-AteAnne (a pun on *hatian*, splitting a bill) is a **mobile-first, installable web app** for splitting shared expenses by **what each person actually had**, then settling with **payments that only the receiver can confirm**.
+Hatian (formerly AteAnne) is a **mobile-first, installable web app** for splitting shared expenses by **what each person actually had**, then settling with **payments that only the receiver can confirm**.
 
 - Whoever paid enters the receipt: items, quantities, discounts, service charge, exact total.
 - First-time visitors are asked if they want a quick walkthrough; a **Tutorial** (?) button opens it any time.
@@ -17,7 +17,7 @@ Built for small groups of friends in Lucena City. It is designed for **iPhone fi
 
 > **Deploy:** ready for Vercel + PostgreSQL. Follow [docs/deploy-vercel.md](docs/deploy-vercel.md).
 
-> Status: engineering complete for the P0 workflow and verified locally (see [docs/test-report.md](docs/test-report.md)). **Not deployed** yet, and **not piloted** with real groups. See [docs/handoff.md](docs/handoff.md).
+> Status: engineering complete for the P0 workflow and verified locally (see [docs/test-report.md](docs/test-report.md)). The app is live at [ateanne.vercel.app](https://ateanne.vercel.app). See the [changelog](CHANGELOG.md) for production verification and pilot status.
 
 ## Quick start (local)
 

@@ -36,7 +36,7 @@ test("the installed iPhone app skips the gate and the install card", async ({ pa
   await expect(page.getByLabel("What’s the occasion?")).toBeVisible();
   await expect(page.getByRole("button", { name: "Continue in this browser" })).toHaveCount(0);
   await page.goto("/");
-  await expect(page.getByRole("complementary", { name: "Install AteAnne" })).toHaveCount(0);
+  await expect(page.getByRole("complementary", { name: "Install Hatian" })).toHaveCount(0);
 });
 
 for (const outcome of ["accepted", "dismissed"] as const) test(`native install requests confirmation once: ${outcome}`, async ({ browser }) => {
@@ -44,7 +44,7 @@ for (const outcome of ["accepted", "dismissed"] as const) test(`native install r
   const page = await context.newPage();
   await page.addInitScript(() => localStorage.setItem("ateanne.tutorial.v1", "asked"));
   await page.goto("/");
-  await expect(page.getByRole("complementary", { name: "Install AteAnne" })).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Install Hatian" })).toBeVisible();
   await page.evaluate((outcome) => {
     const event = new Event("beforeinstallprompt", { cancelable: true });
     Object.assign(event, {
@@ -54,8 +54,8 @@ for (const outcome of ["accepted", "dismissed"] as const) test(`native install r
     window.dispatchEvent(event);
   }, outcome);
   await page.getByRole("link", { name: "Join with a code" }).click();
-  await page.getByRole("button", { name: "Install AteAnne", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: outcome === "accepted" ? "Added! Open AteAnne from your Home Screen" : "Installation was cancelled" })).toBeVisible();
+  await page.getByRole("button", { name: "Install Hatian", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: outcome === "accepted" ? "Added! Open Hatian from your Home Screen" : "Installation was cancelled" })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("data-prompt-calls", "1");
   await expect(page.getByRole("button", { name: "Continue in this browser" })).toBeVisible();
   await context.close();

@@ -6,11 +6,11 @@ import { SetupBanner } from "@/ui/pwa/SetupBanner";
 import { InstallProvider } from "@/ui/pwa/InstallProvider";
 
 export const metadata: Metadata = {
-  title: { default: "AteAnne", template: "%s · AteAnne" },
+  title: { default: "Hatian", template: "%s · Hatian" },
   description: "Hatian na malinaw. Bayaran na tama. Split shared bills by what each person actually had, then settle with recipient-confirmed payments.",
-  applicationName: "AteAnne",
+  applicationName: "Hatian",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "AteAnne", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Hatian", statusBarStyle: "default" },
   formatDetection: { telephone: false, email: false, address: false },
   icons: {
     icon: [

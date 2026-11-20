@@ -282,7 +282,7 @@ export function ConvertedNote({ receipt: r }: { receipt: ReceiptView }) {
   const { event, money } = useEvent();
   if (r.currency === event.currency) return null;
   if (r.rateMissing || !r.rate || r.settlePayable === null) {
-    return <Notice tone="warn" title={`Waiting for the ${shortDay(r.purchasedOn)} exchange rate`}>The bill can’t freeze until AteAnne has the ECB rate for that day. It usually comes out the same evening.</Notice>;
+    return <Notice tone="warn" title={`Waiting for the ${shortDay(r.purchasedOn)} exchange rate`}>The bill can’t freeze until Hatian has the ECB rate for that day. It usually comes out the same evening.</Notice>;
   }
   return (
     <p className="rounded-xl bg-surface-2 px-3 py-2 text-[14px]" data-testid="converted-note">

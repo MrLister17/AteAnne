@@ -2,7 +2,7 @@ import { ValidationError } from "../errors";
 import { Fraction } from "../money/Fraction";
 import { currencyInfo, pow10 } from "../money/Currency";
 
-/** Significant digits kept in every rate AteAnne stores, shows and uses (D63 rule 2). */
+/** Significant digits kept in every rate Hatian stores, shows and uses (D63 rule 2). */
 export const RATE_SIGNIFICANT_DIGITS = 8;
 export const ECB_SOURCE = "ecb";
 

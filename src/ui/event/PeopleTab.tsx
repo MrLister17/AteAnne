@@ -611,7 +611,7 @@ export function PeopleTab() {
               </a>
             </Card>
             <Notice tone="info">
-              AteAnne’s manual record is not a bank statement. Every event is
+              Hatian’s manual record is not a bank statement. Every event is
               deleted {event.retentionDays} days after creation.
             </Notice>
           </div>
@@ -673,7 +673,7 @@ export function PeopleTab() {
         {panel === "help" && (
           <div className="space-y-5">
             <Card className="space-y-3">
-              <h3 className="font-semibold">New to AteAnne?</h3>
+              <h3 className="font-semibold">New to Hatian?</h3>
               <p className="text-[14px] text-muted">
                 A one-minute walkthrough, from joining to settling.
               </p>
@@ -686,7 +686,7 @@ export function PeopleTab() {
                   tutorial.open();
                 }}
               >
-                Tutorial: how to use AteAnne
+                Tutorial: how to use Hatian
               </Button>
             </Card>
             <Card className="space-y-3 text-[15px]">
@@ -723,7 +723,7 @@ export function PeopleTab() {
                     make their own choices.
                   </li>
                   <li>
-                    Payments happen outside AteAnne; only the recipient confirms
+                    Payments happen outside Hatian; only the recipient confirms
                     receiving money.
                   </li>
                   <li>
@@ -741,7 +741,7 @@ export function PeopleTab() {
               <Disclosure summary="Your data & privacy" icon="shield">
                 <p>
                   Group members can see the shared financial statement. Receipts
-                  and QR images are private to authorized members; AteAnne does
+                  and QR images are private to authorized members; Hatian does
                   not collect bank passwords or contacts.
                 </p>
                 <p>
@@ -764,7 +764,7 @@ export function PeopleTab() {
                   <li key={a.id} className="flex items-start gap-3 px-4 py-3">
                     <span className="min-w-0 flex-1 break-words">
                       <b>
-                        {a.actorMemberId ? name(a.actorMemberId) : "AteAnne"}
+                        {a.actorMemberId ? name(a.actorMemberId) : "Hatian"}
                       </b>{" "}
                       {AUDIT_TEXT[a.type] ?? a.type}
                       {a.type === "member.access_reissued" &&
@@ -791,7 +791,7 @@ export function PeopleTab() {
         {panel === "guest-key" && guestKey && person && (
           <div className="space-y-4">
             <Notice tone="info" title={`On ${person.displayName}’s phone`}>
-              Open AteAnne, tap <b>I have a recovery key</b>, and paste this
+              Open Hatian, tap <b>I have a recovery key</b>, and paste this
               key. From then on {person.displayName} makes their own choices,
               with the same items and payments.
             </Notice>
@@ -812,7 +812,7 @@ export function PeopleTab() {
             <p className="text-[14px] text-muted">
               The new key expires in 15 minutes and replaces their old recovery
               key. Their old phone loses access when the replacement is used.
-              Add AteAnne to their Home Screen first, then enter the key there.
+              Add Hatian to their Home Screen first, then enter the key there.
             </p>
             <label className="flex min-h-12 items-center gap-3 text-[15px]">
               <input
@@ -851,7 +851,7 @@ export function PeopleTab() {
         {panel === "replacement" && reissuedKey && person && (
           <div className="space-y-4">
             <Notice tone="info" title={`On ${person.displayName}’s phone`}>
-              Open AteAnne from the Home Screen, tap{" "}
+              Open Hatian from the Home Screen, tap{" "}
               <b>I have a recovery key</b>, and paste this key. Use it before{" "}
               {new Date(reissuedKey.expiresAt).toLocaleTimeString([], {
                 hour: "2-digit",

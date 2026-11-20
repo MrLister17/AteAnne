@@ -137,7 +137,7 @@ function Walkthrough({ onClose }: { onClose: (finished: boolean) => void }) {
   return (
     <Modal
       onEscape={() => onClose(false)}
-      aria-label="How to use AteAnne"
+      aria-label="How to use Hatian"
       onKeyDown={(e) => {
         if (e.key === "ArrowRight") go(1);
         if (e.key === "ArrowLeft") go(-1);
@@ -226,7 +226,7 @@ export function TutorialButton({ variant = "card" }: { variant?: "card" | "icon"
   const { open } = useTutorial();
   if (variant === "icon") {
     return (
-      <button type="button" onClick={open} className="icon-btn" aria-label="Tutorial: how to use AteAnne">
+      <button type="button" onClick={open} className="icon-btn" aria-label="Tutorial: how to use Hatian">
         <Icon name="help" size={22} />
       </button>
     );
@@ -243,7 +243,7 @@ export function TutorialButton({ variant = "card" }: { variant?: "card" | "icon"
     <button type="button" onClick={open} className="card flex min-h-14 w-full items-center gap-3 px-5 text-left text-[17px] font-semibold active:bg-surface-2">
       <Icon name="help" className="text-coral" />
       <span className="flex-1">
-        Tutorial: how to use AteAnne
+        Tutorial: how to use Hatian
         <span className="block text-[13px] font-normal text-muted">Full walkthrough, start to finish · 1 min</span>
       </span>
       <Icon name="chevron" size={18} className="text-muted" />

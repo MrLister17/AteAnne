@@ -32,7 +32,7 @@ export function ReminderButton() {
       }}>Copy reminder</Button>
       <Sheet open={open} onClose={() => setOpen(false)} title="Copy reminder for Messenger">
         <div className="space-y-4">
-          <p className="text-[14px] text-muted">Waiting for someone? Copy their next steps and paste them into your group or private chat. AteAnne doesn’t send reminders by itself.</p>
+          <p className="text-[14px] text-muted">Waiting for someone? Copy their next steps and paste them into your group or private chat. Hatian doesn’t send reminders by itself.</p>
           <label className="block space-y-2 text-[15px] font-semibold">
             <span>Who is this for?</span>
             <select className="field" value={memberId} onChange={(e) => setMemberId(e.target.value)}>

@@ -11,7 +11,7 @@ export interface CurrencyInfo {
 }
 
 /**
- * Currencies AteAnne supports: every one the European Central Bank publishes a
+ * Currencies Hatian supports: every one the European Central Bank publishes a
  * daily reference rate for and that Filipino groups commonly travel with (D62).
  * IDR is kept in whole rupiah, which is how prices are written.
  */

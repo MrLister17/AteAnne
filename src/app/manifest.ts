@@ -1,11 +1,11 @@
 import type { MetadataRoute } from "next";
 
-/** Web app manifest — lets iPhone (Add to Home Screen) and Android (Install app) run AteAnne full-screen. */
+/** Web app manifest — lets iPhone (Add to Home Screen) and Android (Install app) run Hatian full-screen. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "AteAnne — Hatian na malinaw",
-    short_name: "AteAnne",
+    name: "Hatian — Hatian na malinaw",
+    short_name: "Hatian",
     description: "Split shared bills by what each person actually had, and settle with recipient-confirmed payments.",
     start_url: "/?source=pwa",
     scope: "/",
