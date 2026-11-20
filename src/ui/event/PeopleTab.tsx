@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { api } from "../api";
 import { CredentialReveal } from "../components/CredentialReveal";
 import { Icon, type IconName } from "../components/Icon";
@@ -10,6 +10,7 @@ import {
   Button,
   Card,
   CopyButton,
+  Disclosure,
   Field,
   Notice,
   SectionTitle,
@@ -179,68 +180,58 @@ export function PeopleTab() {
           {view.members.filter((m) => m.active).length} on the roster
           {event.rosterLockedAt ? " · locked" : ""}
         </p>
-        <p className="mt-1 text-[14px] text-muted">
-          Tap a person for their details and options.
-        </p>
       </div>
       <Card className="p-0">
         <ul className="divide-y divide-line" aria-label="Event members">
-          {view.members.map((m) => (
-            <li key={m.id}>
-              <button
-                type="button"
-                aria-label={`View ${m.displayName}`}
-                aria-haspopup="dialog"
-                aria-describedby={`person-${m.id}-status`}
-                className="flex min-h-18 w-full items-center gap-3 rounded-xl px-4 py-3 text-left active:bg-surface-2"
-                onClick={() => {
-                  setPersonId(m.id);
-                  setDisplayName(me.displayName);
-                  navigate(m.isMe ? "profile" : "person");
-                }}
-              >
-                <Avatar name={m.displayName} seq={m.seq} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold">
-                    {m.displayName}
-                    {m.isMe && (
-                      <span className="font-normal text-muted"> (you)</span>
+          {view.members.map((m) => {
+            const role = m.isOwner
+              ? "Organizer"
+              : m.isAdmin
+                ? "Admin"
+                : m.isGuest
+                  ? "No phone"
+                  : null;
+            const entry = m.entryComplete ? "Entry done" : "Still entering";
+            const status = !m.active ? "Inactive" : event.phase === "COLLECTING" ? entry : null;
+            const description = [role, status].filter(Boolean).join(" · ");
+            const statusId = description ? `person-${m.id}-status` : undefined;
+            return (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  aria-label={`View ${m.displayName}`}
+                  aria-haspopup="dialog"
+                  aria-describedby={statusId}
+                  className="flex min-h-14 w-full items-center gap-3 rounded-xl px-4 py-2 text-left active:bg-surface-2"
+                  onClick={() => {
+                    setPersonId(m.id);
+                    setDisplayName(me.displayName);
+                    navigate(m.isMe ? "profile" : "person");
+                  }}
+                >
+                  <Avatar name={m.displayName} seq={m.seq} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-semibold">
+                      {m.displayName}
+                      {m.isMe && (
+                        <span className="font-normal text-muted"> (you)</span>
+                      )}
+                    </span>
+                    {description && (
+                      <span id={statusId} className="mt-0.5 block text-[13px] break-words text-muted">
+                        {description}
+                      </span>
                     )}
                   </span>
-                  <span
-                    id={`person-${m.id}-status`}
-                    className="mt-0.5 block text-[13px] break-words text-muted"
-                  >
-                    {[
-                      m.isOwner
-                        ? "Organizer"
-                        : m.isAdmin
-                          ? "Admin"
-                          : m.isGuest
-                            ? "No phone"
-                            : null,
-                      !m.active
-                        ? "Inactive"
-                        : event.phase === "COLLECTING"
-                          ? m.entryComplete
-                            ? "Entry done"
-                            : "Still entering"
-                          : m.isGuest && me.canManageGuests
-                            ? "Tap to help"
-                            : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || "Group member"}
-                  </span>
-                </span>
-                <Icon
-                  name="chevron"
-                  size={18}
-                  className="shrink-0 text-muted"
-                />
-              </button>
-            </li>
-          ))}
+                  <Icon
+                    name="chevron"
+                    size={18}
+                    className="shrink-0 text-muted"
+                  />
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </Card>
       {canAdd && (
@@ -260,7 +251,6 @@ export function PeopleTab() {
         <PeopleRow
           icon="user"
           title="Your profile & access"
-          description={`${me.displayName} · Name, recovery key & big text`}
           onClick={() => {
             setDisplayName(me.displayName);
             navigate("profile");
@@ -273,21 +263,18 @@ export function PeopleTab() {
           <PeopleRow
             icon="download"
             title="Download event record"
-            description="Save a spreadsheet or full copy"
             onClick={() => navigate("exports")}
           />
         )}
         <PeopleRow
           icon="clock"
           title="Activity"
-          description="See who changed what"
           onClick={() => navigate("activity")}
         />
         {me.isOwner && !acting && event.phase !== "DONE" && (
           <PeopleRow
             icon="shield"
             title="Event settings"
-            description="Currency, cancel or delete this event"
             onClick={() => navigate("settings")}
           />
         )}
@@ -296,7 +283,6 @@ export function PeopleTab() {
         <PeopleRow
           icon="help"
           title="Help & privacy"
-          description="Tutorial, recovery and how your data is used"
           onClick={() => navigate("help")}
         />
       </Card>
@@ -712,49 +698,51 @@ export function PeopleTab() {
                 Keep keys private. Never post one in the group chat.
               </p>
             </Card>
-            <Card className="space-y-3 text-[15px]">
-              <h3 className="font-semibold">How identity works here</h3>
-              <ul className="list-disc space-y-2 pl-5">
-                <li>
-                  A forwarded join code lets anyone join until the roster locks.
-                  The organizer checks names and removes duplicates first. Names
-                  can repeat.
-                </li>
-                <li>
-                  A different browser joins as a new person unless you use your
-                  recovery key.
-                </li>
-                <li>
-                  The organizer or an admin can help people explicitly added
-                  without a phone. The history records who helped. Phone members
-                  make their own choices.
-                </li>
-                <li>
-                  Payments happen outside AteAnne; only the recipient confirms
-                  receiving money.
-                </li>
-                <li>
-                  Claiming is your agreement: the bill freezes once the
-                  organizer says everyone’s here and everyone is done. Check
-                  your claims before marking entry complete. Corrections keep
-                  confirmed money and prior statements; resolve pending reports
-                  and disputes first, then the organizer freezes the corrected
-                  bill.
-                </li>
-              </ul>
+            <Card className="py-1 text-[15px]">
+              <Disclosure summary="How identity works here" icon="users">
+                <ul className="list-disc space-y-2 pl-5">
+                  <li>
+                    A forwarded join code lets anyone join until the roster locks.
+                    The organizer checks names and removes duplicates first. Names
+                    can repeat.
+                  </li>
+                  <li>
+                    A different browser joins as a new person unless you use your
+                    recovery key.
+                  </li>
+                  <li>
+                    The organizer or an admin can help people explicitly added
+                    without a phone. The history records who helped. Phone members
+                    make their own choices.
+                  </li>
+                  <li>
+                    Payments happen outside AteAnne; only the recipient confirms
+                    receiving money.
+                  </li>
+                  <li>
+                    Claiming is your agreement: the bill freezes once the
+                    organizer says everyone’s here and everyone is done. Check
+                    your claims before marking entry complete. Corrections keep
+                    confirmed money and prior statements; resolve pending reports
+                    and disputes first, then the organizer freezes the corrected
+                    bill.
+                  </li>
+                </ul>
+              </Disclosure>
             </Card>
-            <Card className="space-y-3 text-[15px]">
-              <h3 className="font-semibold">Your data & privacy</h3>
-              <p>
-                Group members can see the shared financial statement. Receipts
-                and QR images are private to authorized members; AteAnne does
-                not collect bank passwords or contacts.
-              </p>
-              <p>
-                Every event is deleted {event.retentionDays} days after
-                creation, even if unfinished. Download its record before then.
-                Deleting a record does not cancel real-world debt.
-              </p>
+            <Card className="py-1 text-[15px]">
+              <Disclosure summary="Your data & privacy" icon="shield">
+                <p>
+                  Group members can see the shared financial statement. Receipts
+                  and QR images are private to authorized members; AteAnne does
+                  not collect bank passwords or contacts.
+                </p>
+                <p>
+                  Every event is deleted {event.retentionDays} days after
+                  creation, even if unfinished. Download its record before then.
+                  Deleting a record does not cancel real-world debt.
+                </p>
+              </Disclosure>
             </Card>
           </div>
         )}
@@ -935,38 +923,26 @@ export function PeopleTab() {
   );
 }
 
-/** A familiar settings row: label and hint remain visible; details open on demand. */
+/** A settings row that opens its details in a sheet. */
 function PeopleRow({
   icon,
   title,
-  description,
   onClick,
 }: {
   icon: IconName;
   title: string;
-  description: string;
   onClick: () => void;
 }) {
-  const hintId = useId();
   return (
     <button
       type="button"
       aria-label={title}
-      aria-describedby={hintId}
       aria-haspopup="dialog"
       onClick={onClick}
-      className="flex min-h-18 w-full items-center gap-3 rounded-xl px-4 py-3 text-left active:bg-surface-2"
+      className="flex min-h-14 w-full items-center gap-3 rounded-xl px-4 py-2 text-left active:bg-surface-2"
     >
       <Icon name={icon} className="shrink-0 text-violet" />
-      <span className="min-w-0 flex-1">
-        <span className="block font-semibold">{title}</span>
-        <span
-          id={hintId}
-          className="mt-0.5 block text-[13px] break-words text-muted"
-        >
-          {description}
-        </span>
-      </span>
+      <span className="min-w-0 flex-1 font-semibold">{title}</span>
       <Icon name="chevron" size={18} className="shrink-0 text-muted" />
     </button>
   );

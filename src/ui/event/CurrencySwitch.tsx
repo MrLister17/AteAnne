@@ -1,6 +1,8 @@
 "use client";
 
 import { currencyInfo, shortDay } from "@/domain/money/Currency";
+import { useId, useState } from "react";
+import { Icon } from "../components/Icon";
 import { todayRate, useEvent, viewCurrencies } from "./EventContext";
 
 /**
@@ -11,6 +13,8 @@ import { todayRate, useEvent, viewCurrencies } from "./EventContext";
  */
 export function CurrencySwitch() {
   const { view, currency, viewCurrency, setViewCurrency } = useEvent();
+  const rateId = useId();
+  const [showRate, setShowRate] = useState(false);
   const options = viewCurrencies(view);
   if (options.length < 2) return null;
   const rate = todayRate(view, currency, viewCurrency);
@@ -18,10 +22,8 @@ export function CurrencySwitch() {
   return (
     <div className="space-y-1" data-testid="currency-switch">
       <div className="flex items-center gap-2">
-        <span id="show-totals-in" className="shrink-0 text-[14px] font-semibold text-muted">
-          Show totals in
-        </span>
-        <div role="radiogroup" aria-labelledby="show-totals-in" className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+        <Icon name="wallet" size={19} className="shrink-0 text-muted" />
+        <div role="radiogroup" aria-label="Show totals in" className="flex min-w-0 flex-1 flex-wrap gap-1.5">
           {options.map((code) => {
             const on = code === viewCurrency;
             const available = code === currency || Boolean(todayRate(view, currency, code));
@@ -41,13 +43,25 @@ export function CurrencySwitch() {
             );
           })}
         </div>
+        {rate && reverse && (
+          <button
+            type="button"
+            aria-label="Today’s exchange rate"
+            aria-expanded={showRate}
+            aria-controls={rateId}
+            onClick={() => setShowRate((open) => !open)}
+            className="inline-grid size-11 shrink-0 place-items-center rounded-full text-violet active:bg-violet-soft"
+          >
+            <Icon name="info" size={19} />
+          </button>
+        )}
       </div>
       {rate && reverse ? (
-        <p className="text-[13px] text-muted" data-testid="view-rate">
-          ≈ today’s rate: 1 {viewCurrency} = {reverse.rateText()} {currency} (ECB, {shortDay(rate.date)}). Payments stay in {currency}.
+        <p id={rateId} hidden={!showRate} className="px-1 text-[13px] text-muted" data-testid="view-rate">
+          1 {viewCurrency} = {reverse.rateText()} {currency} (ECB, {shortDay(rate.date)}). Settlement balances are calculated in {currency}.
         </p>
       ) : (
-        !view.fx.today && <p className="text-[13px] text-muted">Today’s rate isn’t available right now, so totals show in {currency}.</p>
+        !view.fx.today && <p className="text-[13px] text-muted">Rates unavailable · showing {currency}.</p>
       )}
     </div>
   );

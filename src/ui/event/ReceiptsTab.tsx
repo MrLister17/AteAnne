@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { api } from "../api";
 import { Icon } from "../components/Icon";
-import { ActionError, Avatar, Badge, Button, Card, Notice, Sheet } from "../components/ui";
+import { ActionError, Avatar, Badge, Button, Card, Disclosure, Notice, Sheet } from "../components/ui";
 import { shortDay } from "@/domain/money/Currency";
 import { ReceiptEditor } from "./ReceiptEditor";
 import { ReceiptView, useAction, useEvent, useInlineAction } from "./EventContext";
@@ -58,31 +58,40 @@ export function ReceiptsTab() {
       {canAdd && view.features.receiptScan && <ScanPanel scanner={scanner} variant="hero" onFile={(f) => void startScan(f)} onType={() => setEditing("new")} />}
       {canAdd && !view.features.receiptScan && me.isOwner && <ScanOffNote />}
 
-      {(event.phase === "SETTLING" || event.phase === "DONE") && <Notice tone="info">Receipts are frozen with the bill. If something is wrong, the organizer can reopen them from Home → “Something wrong with the bill?”.</Notice>}
-      {(event.phase === "ALLOCATING" || event.phase === "REVIEWING") && <Notice tone="info">Receipts are locked. The organizer can reopen them from Home; that resets claims on the receipt that changes.</Notice>}
+      {event.phase === "DONE" && <Notice tone="info" title="Receipts frozen" />}
+      {event.phase === "SETTLING" && (
+        <Disclosure summary="Receipts frozen" icon="lock" className="card py-1">
+          <p className="text-[14px] text-muted">The organizer can correct the bill from Home → “Something wrong with the bill?”.</p>
+        </Disclosure>
+      )}
+      {(event.phase === "ALLOCATING" || event.phase === "REVIEWING") && (
+        <Disclosure summary="Receipts locked" icon="lock" className="card py-1">
+          <p className="text-[14px] text-muted">The organizer can reopen receipts from Home. Editing a receipt then resets its claims.</p>
+        </Disclosure>
+      )}
 
       {view.receipts.length === 0 && (
         <Card className="py-10 text-center">
           <Icon name="receipt" size={40} className="mx-auto text-muted" />
           <p className="mt-3 font-semibold">No receipts yet</p>
-          <p className="mt-1 text-[15px] text-muted">Whoever paid adds the receipt: items, discounts, service charge and the exact total.</p>
         </Card>
       )}
 
       <ul className="space-y-3">
         {view.receipts.map((r) => (
           <li key={r.id}>
-            <button type="button" onClick={() => setOpenId(r.id)} className="card flex w-full items-center gap-3 p-4 text-left active:bg-surface-2">
+            <button type="button" aria-haspopup="dialog" onClick={() => setOpenId(r.id)} className="card flex w-full items-center gap-3 p-4 text-left active:bg-surface-2">
               <Avatar name={name(r.payerId)} seq={seq(r.payerId)} />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{r.label}</p>
-                <p className="truncate text-[14px] text-muted">
-                  Paid by {name(r.payerId)} · {r.lines.length} item{r.lines.length === 1 ? "" : "s"}
-                  {r.imageAssetId ? " · photo" : ""}
+                <p className="flex items-center gap-1.5 font-semibold">
+                  <span className="truncate">{r.label}</span>
+                  {r.imageAssetId && <Icon name="camera" size={16} label="Photo attached" className="shrink-0 text-muted" />}
                 </p>
+                <p className="truncate text-[14px] text-muted">Paid by {name(r.payerId)}</p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
-                  {r.reconciliation.reconciled ? <Badge tone="receive">✓ Adds up</Badge> : <Badge tone="pay">✗ Doesn’t add up</Badge>}
+                  {!r.reconciliation.reconciled && <Badge tone="pay">Doesn’t add up</Badge>}
                   {r.fundingAcknowledged ? <Badge tone="receive">✓ Paid the store</Badge> : <Badge tone="warn">Payer to confirm</Badge>}
+                  {r.rateMissing && <Badge tone="warn">Awaiting exchange rate</Badge>}
                   {r.equalSplit && <Badge tone="violet">Everyone splits equally</Badge>}
                 </div>
               </div>
@@ -143,7 +152,7 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
         {r.equalSplit && <Notice tone="info" title="Split equally among everyone">All items, discounts and charges are included. Each person confirms their own share; shares can differ by {php(1n)}.</Notice>}
         <div className="flex items-center justify-between">
           <p className="text-muted">
-            Paid by <b className="text-ink">{name(r.payerId)}</b> · entered by {name(r.authorId)} · bought {shortDay(r.purchasedOn)} · v{r.version}
+            Paid by <b className="text-ink">{name(r.payerId)}</b> · {shortDay(r.purchasedOn)}
           </p>
         </div>
         <ConvertedNote receipt={r} />
@@ -235,7 +244,11 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
         {showPhoto && r.imageAssetId && (
           <img src={`/api/assets/${r.imageAssetId}`} alt={`Photo of ${r.label} receipt`} className="w-full rounded-2xl border border-line" />
         )}
-        {r.imageAssetId && <p className="text-[13px] text-muted">Older receipts may have a photo. The typed amounts are what count. Only people in this event can see it, and it’s deleted with the event.</p>}
+        <Disclosure summary="Receipt details" icon="info">
+          <p className="text-[14px] text-muted">Entered by {name(r.authorId)} · version {r.version} · {r.lines.length} item{r.lines.length === 1 ? "" : "s"}</p>
+          {r.reconciliation.reconciled && <p className="text-[14px] text-receive">Receipt adds up</p>}
+          {r.imageAssetId && <p className="text-[14px] text-muted">The typed amounts are what count. Only people in this event can see the photo, and it’s deleted with the event.</p>}
+        </Disclosure>
         {(view.event.phase === "COLLECTING" || view.event.phase === "ALLOCATING") && <ClaimProgress r={r} />}
       </div>
     </Sheet>
@@ -244,20 +257,19 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
 
 function ClaimProgress({ r }: { r: ReceiptView }) {
   const { view, name } = useEvent();
+  const acks = r.acks.filter((a) => view.members.find((m) => m.id === a.memberId)?.active);
+  const answered = acks.filter((a) => a.kind && !a.stale).length;
   return (
-    <Card>
-      <p className="mb-2 font-semibold">Who has answered</p>
+    <Disclosure summary={`Claims answered (${answered}/${acks.length})`} icon="users">
       <ul className="space-y-1 text-[15px]">
-        {r.acks
-          .filter((a) => view.members.find((m) => m.id === a.memberId)?.active)
-          .map((a) => (
-            <li key={a.memberId} className="flex justify-between">
-              <span>{name(a.memberId)}</span>
-              <span className="text-muted">{a.kind && !a.stale ? (a.kind === "NONE" ? (r.equalSplit ? "Disagreed" : "Got nothing") : r.equalSplit ? "Confirmed equal share" : "Claimed") : a.stale ? "Needs to re-check" : "Not yet"}</span>
-            </li>
-          ))}
+        {acks.map((a) => (
+          <li key={a.memberId} className="flex flex-wrap justify-between gap-x-2">
+            <span>{name(a.memberId)}</span>
+            <span className="text-muted">{a.kind && !a.stale ? (a.kind === "NONE" ? (r.equalSplit ? "Disagreed" : "Got nothing") : r.equalSplit ? "Confirmed equal share" : "Claimed") : a.stale ? "Needs to re-check" : "Not yet"}</span>
+          </li>
+        ))}
       </ul>
-    </Card>
+    </Disclosure>
   );
 }
 

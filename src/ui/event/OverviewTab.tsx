@@ -28,36 +28,40 @@ export function OverviewTab() {
   const myPos = view.settlement?.positions.find((p) => p.memberId === me.memberId);
   // An estimate only once everyone has answered; until then the first claimant would look like they owe everything.
   const estimate = view.calculation.ok && everyoneAnswered(view) ? view.calculation.positions.find((p) => p.memberId === me.memberId) : null;
+  const position = myPos ?? estimate;
   const deletesSoon = event.daysUntilDeletion <= 7;
   const rosterOpen = phase === "COLLECTING" && !event.rosterLockedAt;
 
   return (
     <div className="space-y-4">
-      {myPos ? (
-        <BalanceBanner
-          net={myPos.remaining}
-          display={shown(myPos.remaining, { abs: true })}
-          exact={viewRate ? moneyAbs(myPos.remaining) : undefined}
-          caption={phase === "DONE" ? "Everything was confirmed received." : `Paid ${shown(myPos.funding)} · your share ${shown(myPos.cost)} · frozen bill`}
-        />
-      ) : estimate ? (
-        <BalanceBanner
-          net={estimate.remaining}
-          estimate
-          display={shown(estimate.remaining, { abs: true })}
-          exact={viewRate ? moneyAbs(estimate.remaining) : undefined}
-          caption={`Paid ${shown(estimate.funding)} · your share so far ${shown(estimate.cost)} · can change until everyone is done`}
-        />
-      ) : null}
-      {(myPos || estimate) && <CurrencySwitch />}
+      {position && (
+        <>
+          <BalanceBanner
+            net={position.remaining}
+            estimate={!myPos}
+            display={shown(position.remaining, { abs: true })}
+            exact={viewRate ? moneyAbs(position.remaining) : undefined}
+          />
+          <CurrencySwitch />
+          <Disclosure summary="Balance details" icon="wallet" className="px-1">
+            <dl className="space-y-1 text-[14px]">
+              <div className="flex flex-wrap justify-between gap-x-2">
+                <dt>Paid to merchants</dt>
+                <dd className="tnum font-semibold">{shown(position.funding)}</dd>
+              </div>
+              <div className="flex flex-wrap justify-between gap-x-2">
+                <dt>Your share</dt>
+                <dd className="tnum font-semibold">{shown(position.cost)}</dd>
+              </div>
+            </dl>
+            <p className="text-[14px] text-muted">
+              {phase === "DONE" ? "All payments confirmed." : myPos ? "Frozen bill · confirmed payments included" : "Estimate until the bill is frozen."}
+            </p>
+          </Disclosure>
+        </>
+      )}
 
       {deletesSoon && <DeletionNotice />}
-
-      {view.actingFor && (
-        <Notice tone="warn" title={`You’re choosing for ${me.displayName}`}>
-          Show them the screen as you go. The history records that you did it for them.
-        </Notice>
-      )}
 
       <NextCard where="home" />
       <EverythingLeft />
@@ -174,16 +178,16 @@ function NextStep() {
       <>
         <SectionTitle>The group</SectionTitle>
         <Card className="space-y-3">
-          <div>
-            <p className="text-[17px] font-semibold">{done.ready ? "Everyone’s paid" : "Everyone pays what they owe"}</p>
-            <p className="mt-0.5 text-[14px] text-muted">
-              {done.ready
-                ? "AteAnne closes this hatian by itself a day after the last payment, so a mistake can still be undone."
-                : "A payment counts once the person who got it confirms it. When everything is confirmed, the hatian closes by itself a day later."}
-            </p>
-          </div>
+          <p className="text-[17px] font-semibold">{done.ready ? "Everyone’s paid" : "Payments in progress"}</p>
           <Blockers items={transferBlockers(done.blockers)} title="Still to confirm" limit={3} quiet />
           {!(owner && view.next.kind === "waiting") && <ReminderButton />}
+          <Disclosure summary="How payments close" icon="info" className="border-t border-line pt-1">
+            <p className="text-[14px] text-muted">
+              {done.ready
+                ? "The event closes a day after the last confirmation, leaving time to correct a mistake."
+                : "The recipient confirms each payment. The event closes a day after the last confirmation."}
+            </p>
+          </Disclosure>
           {owner && (
             <Disclosure summary="Something wrong with the bill?" className="border-t border-line pt-1">
               <p className="text-[14px] text-muted">A correction reopens receipts and claims. Earlier statements and confirmed money are kept; overpayments become return transfers. You freeze the fixed bill yourself.</p>
@@ -265,14 +269,14 @@ function InviteCard() {
   const addGuest = me.canManageGuests && noGuests && (
     <button type="button" onClick={() => setTab("people")} className="flex min-h-11 w-full items-center gap-2 text-left text-[15px] font-semibold text-violet">
       <Icon name="user" size={18} className="shrink-0" />
-      <span className="flex-1">Someone without a phone? Add them in People</span>
+      <span className="flex-1">Add someone without a phone</span>
       <Icon name="chevron" size={18} className="shrink-0" />
     </button>
   );
   // When "Everyone's here" is the organizer's next step, the Next card already shows it.
   const everyonesHere = view.next.kind !== "everyoneHere" && (
     <div className="space-y-2 border-t border-line pt-3">
-      <p className="text-[14px] text-muted">Everyone who shared the bill has joined? Tap this. Nobody else can join after it.</p>
+      <p className="text-[14px] text-muted">Closes joining for this event.</p>
       <Button
         full
         variant="secondary"
@@ -302,7 +306,7 @@ function InviteCard() {
             </p>
             <ShareJoin code={event.joinCode} />
             <p className="text-[13px] text-muted">
-              {people} of 20 people joined · code expires {new Date(event.joinCodeExpiresAt!).toLocaleDateString("en-PH", { month: "short", day: "numeric", timeZone: "Asia/Manila" })}. Check names in People.
+              {people} of 20 joined · code expires {new Date(event.joinCodeExpiresAt!).toLocaleDateString("en-PH", { month: "short", day: "numeric", timeZone: "Asia/Manila" })}
             </p>
             {addGuest}
             {everyonesHere}
@@ -342,7 +346,7 @@ function GuestsPanel() {
     return (
       <button type="button" onClick={() => setTab("people")} className="card flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] font-semibold text-violet">
         <Icon name="user" size={20} className="shrink-0" />
-        <span className="flex-1">Someone without a phone? Add them in People</span>
+        <span className="flex-1">Add someone without a phone</span>
         <Icon name="chevron" size={18} className="shrink-0" />
       </button>
     );

@@ -2,11 +2,16 @@
 
 This file records every release of AteAnne, what changed and why, and where work stopped. It is written so a person or another AI can pick the project up cold.
 
-**Read in this order:** this file → [`CLAUDE.md`](CLAUDE.md) (rules for coding agents) → [`GUIDE.md`](GUIDE.md) (map of the app and how to change it) → [`docs/decisions.md`](docs/decisions.md) (why things are the way they are, D1–D62) → [`docs/test-report.md`](docs/test-report.md) (what was really run).
+**Read in this order:** this file → [`CLAUDE.md`](CLAUDE.md) (rules for coding agents) → [`GUIDE.md`](GUIDE.md) (map of the app and how to change it) → [`docs/decisions.md`](docs/decisions.md) (why things are the way they are, D1–D63) → [`docs/test-report.md`](docs/test-report.md) (what was really run).
 
 Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from the git history; the code only started carrying a version number (`package.json`) at 0.5.0.
 
 ---
+
+## Unreleased
+
+- Reduced text density on event screens. Balance amounts, statuses and primary actions stay visible. Supporting breakdowns, guidance and history are available through disclosures.
+- Added the [running event payments and credit specification](docs/running-event-payments.md), including confirmation, settlement carry-forward and currency handling.
 
 ## Where we left off (2026-11-19 Manila)
 

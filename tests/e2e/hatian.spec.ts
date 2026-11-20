@@ -200,7 +200,19 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
     await expect(banner).toContainText(amount);
     await expect(p.getByRole("button", { name: "I agree with this split" })).toHaveCount(0);
     if (p === juan.page) {
-      // Juan has no rice and no drinks; service only on his PHP 450 of items. The breakdown is one tap away.
+      // Balances stay visible. Expense totals and receipt math are available on demand.
+      const markBalance = p.locator("summary").filter({ hasText: "Mark" }).filter({ hasText: "+PHP 706.00" });
+      await expect(markBalance).toContainText("To receive");
+      const paidDetails = markBalance.locator("..").getByText("Paid for expenses");
+      await expect(paidDetails).toBeHidden();
+      await markBalance.click();
+      await expect(paidDetails).toBeVisible();
+      await markBalance.click();
+      await expect(paidDetails).toBeHidden();
+      await expectNoHorizontalScroll(p);
+      await expect(p.getByText("Kusina", { exact: true }).last()).toBeHidden();
+      await p.locator("summary").getByText("Your share", { exact: true }).click();
+      // Juan has no rice and no drinks, and pays service only on his PHP 450 of items.
       await p.getByText("Kusina", { exact: true }).last().click();
       await p.getByText("Drinks", { exact: true }).last().click();
       await expect(p.getByText("You had nothing from this receipt")).toBeVisible();
@@ -265,7 +277,7 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
   // Nothing to close while reports are pending.
   await mark.page.reload();
   await tab(mark.page, "Home");
-  await expect(mark.page.getByText("Everyone pays what they owe")).toBeVisible();
+  await expect(mark.page.getByText("Payments in progress", { exact: true })).toBeVisible();
   await expect(mark.page.getByRole("button", { name: "Close it now" })).toHaveCount(0);
   await tab(mark.page, "Pay");
   for (let i = 0; i < 2; i++) {

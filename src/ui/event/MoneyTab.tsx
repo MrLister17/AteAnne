@@ -1,7 +1,7 @@
 "use client";
 
 import { Icon } from "../components/Icon";
-import { Avatar, BalanceBanner, Card, Notice, SectionTitle, balanceLabel } from "../components/ui";
+import { Avatar, BalanceBanner, Card, Disclosure, Notice, SectionTitle, balanceLabel } from "../components/ui";
 import { shortDay } from "@/domain/money/Currency";
 import { useEvent } from "./EventContext";
 import { signed } from "../format";
@@ -36,6 +36,8 @@ export function MoneyTab() {
         <Notice tone="info" title="No split yet">
           Your share appears once everyone has claimed what they had. The bill freezes by itself once everyone is done.
         </Notice>
+        <PaymentHistory />
+        <PolicyNote />
       </div>
     );
   }
@@ -48,9 +50,11 @@ export function MoneyTab() {
         <CurrencySwitch />
         <NextCard where="pay" />
         <SettlementSection />
-        <SectionTitle>Where your share came from</SectionTitle>
-        <Breakdown receipts={facts.receipts} sharesFor={(rid) => facts.receipts.find((r) => r.id === rid)?.shares ?? []} />
-        <Everyone positions={frozen.positions} frozen />
+        <Everyone positions={frozen.positions} />
+        <Disclosure summary="Your share" icon="receipt" className="card px-4 py-0">
+          <Breakdown receipts={facts.receipts} sharesFor={(rid) => facts.receipts.find((r) => r.id === rid)?.shares ?? []} />
+        </Disclosure>
+        <PaymentHistory />
         <PolicyNote />
       </div>
     );
@@ -70,13 +74,14 @@ export function MoneyTab() {
         estimate
         display={shown(pos.remaining, { abs: true })}
         exact={viewRate ? moneyAbs(pos.remaining) : undefined}
-        caption={`Paid ${shown(pos.funding)} − your share ${shown(pos.cost)} · confirmed payments included`}
       />
       <CurrencySwitch />
-      <SectionTitle>Your share, line by line</SectionTitle>
-      <Breakdown receipts={receipts} sharesFor={(rid) => view.calculation.receipts.find((x) => x.receiptId === rid)?.shares ?? []} />
       <Everyone positions={view.calculation.positions} />
+      <Disclosure summary="Your share" icon="receipt" className="card px-4 py-0">
+        <Breakdown receipts={receipts} sharesFor={(rid) => view.calculation.receipts.find((x) => x.receiptId === rid)?.shares ?? []} />
+      </Disclosure>
       <ProposedTransfers />
+      <PaymentHistory />
       <PolicyNote />
     </div>
   );
@@ -85,28 +90,24 @@ export function MoneyTab() {
 function Header() {
   const { view } = useEvent();
   return (
-    <div className="px-1">
+    <div className="flex items-center gap-3 px-1">
       <h2 className="text-[22px] font-bold">{view.event.phase === "SETTLING" ? "Pay" : "Money"}</h2>
-      <p className="text-[14px] text-muted">
-        {view.settlement ? `Frozen statement · version ${view.settlement.financialVersion}` : `Version ${view.event.financialVersion} · server-calculated, to the centavo`}
-      </p>
-      {view.paymentHistory.length > 0 && (
-        <>
-          <Notice tone="info" title="Earlier payments are included">
-            Confirmed money carries forward into this bill. Revised transfers can include money to return. Prior statements and reports stay in the history below and in your export.
-          </Notice>
-          <PaymentHistory />
-        </>
+      {view.settlement && (
+        <span className="inline-flex items-center gap-1 text-[13px] text-muted">
+          <Icon name="lock" size={14} /> Frozen
+        </span>
       )}
+      {view.paymentHistory.length > 0 && <span className="ml-auto text-right text-[13px] text-muted">Earlier payments are included</span>}
     </div>
   );
 }
 
 function PaymentHistory() {
   const { view, name, money } = useEvent();
+  if (!view.paymentHistory.length) return null;
   return (
-    <details className="card my-3 text-[14px]">
-      <summary className="min-h-11 cursor-pointer font-semibold">Payment history from prior statements</summary>
+    <Disclosure summary={`Earlier payments (${view.paymentHistory.length})`} icon="clock" className="card px-4 py-0 text-[14px]">
+      <p className="text-muted">Confirmed payments carry forward into this bill. Revised transfers can include money to return. Prior statements and reports are also available in your export.</p>
       <ul className="divide-y divide-line">
         {view.paymentHistory.map((r) => (
           <li key={r.id} className="py-3">
@@ -119,7 +120,7 @@ function PaymentHistory() {
           </li>
         ))}
       </ul>
-    </details>
+    </Disclosure>
   );
 }
 
@@ -141,22 +142,19 @@ function Breakdown({ receipts, sharesFor }: { receipts: ReceiptLike[]; sharesFor
         const basisTotal = shares.reduce((a, s) => a + BigInt(s.itemsGross) - BigInt(s.discountTotal), 0n);
         const myBasis = mine ? BigInt(mine.itemsGross) - BigInt(mine.discountTotal) : 0n;
         return (
-          <details key={r.id} className="card group overflow-hidden p-0">
-            <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">{r.label}</p>
-                <p className="text-[13px] text-muted">
-                  {paidByMe ? `You paid ${php(r.payable)}` : `${name(r.payerId)} paid ${php(r.payable)}`}
-                  {foreign && r.rate && ` · 1 ${r.rate.base} = ${r.rate.rate} ${r.rate.quote} (${shortDay(r.rate.date)})`}
-                </p>
-              </div>
+          <details key={r.id} className="card group/receipt p-0">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0 flex-1 font-semibold break-words">{r.label}</span>
               <span className="tnum text-right font-bold">
                 {php(mine?.total ?? "0")}
-                {foreign && <span className="block text-[13px] font-normal text-muted">{money(mySettle ?? "0")}</span>}
               </span>
-              <Icon name="chevron" size={18} className="text-muted transition group-open:rotate-90" />
+              <Icon name="chevron" size={18} className="shrink-0 text-muted transition-transform group-open/receipt:rotate-90" />
             </summary>
-            <div className="border-t border-line px-4 py-3 text-[15px]">
+            <div className="space-y-2 border-t border-line px-3 py-3 text-[15px]">
+              <p className="text-[13px] text-muted">
+                {paidByMe ? `You paid ${php(r.payable)}` : `${name(r.payerId)} paid ${php(r.payable)}`}
+                {foreign && r.rate && <span className="block">1 {r.rate.base} = {r.rate.rate} {r.rate.quote} ({shortDay(r.rate.date)})</span>}
+              </p>
               {!mine || mine.total === "0" ? (
                 <p className="text-muted">You had nothing from this receipt — your share is {php(0n)}{paidByMe ? `, and you get back the full ${php(r.payable)} from others` : ""}.</p>
               ) : (
@@ -197,13 +195,13 @@ function Breakdown({ receipts, sharesFor }: { receipts: ReceiptLike[]; sharesFor
                     <span>Your share</span>
                     <span>{php(mine.total)}</span>
                   </li>
-                  {foreign && mySettle !== undefined && (
-                    <li className="flex justify-between text-[14px] text-muted">
-                      <span>In {currency}{r.rate ? ` at the ${shortDay(r.rate.date)} rate` : ""}</span>
-                      <span>{money(mySettle)}</span>
-                    </li>
-                  )}
                 </ul>
+              )}
+              {foreign && mySettle !== undefined && (
+                <p className="tnum flex justify-between gap-2 text-[14px] text-muted">
+                  <span>Your share in {currency}</span>
+                  <span>{money(mySettle)}</span>
+                </p>
               )}
             </div>
           </details>
@@ -213,34 +211,49 @@ function Breakdown({ receipts, sharesFor }: { receipts: ReceiptLike[]; sharesFor
   );
 }
 
-function Everyone({ positions, frozen }: { positions: { memberId: string; funding: string; cost: string; net: string; remaining?: string }[]; frozen?: boolean }) {
-  const { name, seq, me, shown } = useEvent();
+function Everyone({ positions }: { positions: { memberId: string; funding: string; cost: string; net: string; remaining: string }[] }) {
+  const { name, seq, me, shown, moneyAbs, viewRate } = useEvent();
   return (
     <>
       <SectionTitle>Everyone</SectionTitle>
       <Card className="p-0">
         <ul className="divide-y divide-line">
           {positions.map((p) => {
-            const net = p.remaining ?? p.net;
-            const b = balanceLabel(net);
+            const b = balanceLabel(p.remaining);
             return (
-              <li key={p.memberId} className="flex items-center gap-3 px-4 py-3">
-                <Avatar name={name(p.memberId)} seq={seq(p.memberId)} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">
-                    {name(p.memberId)}
-                    {p.memberId === me.memberId && <span className="font-normal text-muted"> (you)</span>}
-                  </p>
-                  <p className="tnum text-[13px] text-muted">
-                    paid {shown(p.funding)} · share {shown(p.cost)}
-                  </p>
-                </div>
-                <div className={`tnum text-right ${b.tone === "receive" ? "text-receive" : b.tone === "pay" ? "text-pay" : "text-muted"}`}>
-                  <p className="font-bold">
-                    {signed(b.sign, shown(net, { abs: true }))}
-                  </p>
-                  <p className="text-[12px]">{frozen ? (b.tone === "neutral" ? "settled" : b.tone === "receive" ? "still to receive" : "still to pay") : b.text.toLowerCase()}</p>
-                </div>
+              <li key={p.memberId}>
+                <details className="group">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden">
+                    <Avatar name={name(p.memberId)} seq={seq(p.memberId)} size={30} />
+                    <span className="min-w-0 flex-1 font-semibold break-words">
+                      {name(p.memberId)}
+                      {p.memberId === me.memberId && <span className="font-normal text-muted"> (you)</span>}
+                    </span>
+                    <span className={`tnum text-right ${b.tone === "receive" ? "text-receive" : b.tone === "pay" ? "text-pay" : "text-muted"}`}>
+                      <span className="block font-bold">{signed(b.sign, shown(p.remaining, { abs: true }))}</span>
+                      <span className="block text-[12px]">{b.tone === "neutral" ? "Settled" : b.tone === "receive" ? "To receive" : "To pay"}</span>
+                    </span>
+                    <Icon name="chevron" size={16} className="shrink-0 text-muted transition-transform group-open:rotate-90" />
+                  </summary>
+                  <dl className="tnum grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 border-t border-line px-4 py-2 text-[13px] text-muted">
+                    <dt>Paid for expenses</dt>
+                    <dd className="text-right">{shown(p.funding)}</dd>
+                    <dt>Share of expenses</dt>
+                    <dd className="text-right">{shown(p.cost)}</dd>
+                    {p.net !== p.remaining && (
+                      <>
+                        <dt>Before payments</dt>
+                        <dd className="text-right">{shown(p.net)}</dd>
+                      </>
+                    )}
+                    {viewRate && (
+                      <>
+                        <dt>Exact balance</dt>
+                        <dd className="text-right">{signed(b.sign, moneyAbs(p.remaining))}</dd>
+                      </>
+                    )}
+                  </dl>
+                </details>
               </li>
             );
           })}
@@ -267,25 +280,29 @@ function ProposedTransfers() {
             </p>
           ))
         )}
-        <p className="text-[13px] text-muted">Debts are combined across all receipts to keep transfers few. A transfer settles the event as a whole, not a specific dish.</p>
+        <Disclosure summary="How transfers are grouped" icon="info">
+          <p className="text-[13px] text-muted">Debts are combined across all receipts to keep transfers few. Each transfer settles part of the event balance.</p>
+        </Disclosure>
       </Card>
     </>
   );
 }
 
 function PolicyNote() {
+  const { view } = useEvent();
+  const statementVersion = view.settlement?.financialVersion ?? view.event.financialVersion;
   return (
-    <details className="card p-4 text-[14px]">
-      <summary className="cursor-pointer font-semibold">How AteAnne splits money</summary>
-      <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+    <Disclosure summary="How AteAnne splits money" icon="info" className="card px-4 py-0 text-[14px]">
+      <p className="text-muted">{view.settlement ? "Frozen statement" : "Live estimate"} · Version {statementVersion}</p>
+      <ul className="list-disc space-y-1 pl-5 text-muted">
         <li>Each item is split only among the people who claimed it — equally, or by pieces.</li>
         <li>Discounts reduce only the items they apply to, in proportion to their value.</li>
         <li>Service and other charges follow each person’s item spending after discounts. No spending, no service charge.</li>
-        <li>All amounts are whole centavos. Leftover centavos go to the largest remainders (ties by join order), so totals always match exactly.</li>
-        <li>Your net = what you paid merchants − your share. Getting money back is reimbursement, not income.</li>
+        <li>Amounts use the currency’s smallest unit. Leftover units go to the largest remainders, with ties settled by join order.</li>
+        <li>Your starting balance is what you paid for expenses minus your share. Your balance includes confirmed payments. Money you get back for expenses is reimbursement.</li>
         <li>A receipt in another currency is split in its own currency, then converted once at the ECB rate of the day it was bought and split the same way, so it still adds up exactly. The rates are fixed when the bill freezes.</li>
         <li>Paying in another currency uses the ECB rate on the day you send it, locked into that payment.</li>
       </ul>
-    </details>
+    </Disclosure>
   );
 }

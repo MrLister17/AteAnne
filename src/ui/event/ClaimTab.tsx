@@ -43,7 +43,7 @@ export function ClaimTab() {
     if (target >= 0 && target !== index) setIndex(target);
   }
 
-  if (!view.receipts.length) return <EmptyState title="No receipts yet" text="As soon as someone adds a receipt, you’ll pick what you had here. No need to wait for the others." />;
+  if (!view.receipts.length) return <EmptyState />;
 
   const r = view.receipts[Math.min(index, view.receipts.length - 1)];
   const done = view.receipts.filter((x) => myAck(x, me.memberId)).length;
@@ -105,6 +105,8 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
   const answered = active.filter((m) => r.acks.some((a) => a.memberId === m.id && a.kind && !a.stale));
   const agreed = active.filter((m) => r.acks.some((a) => a.memberId === m.id && a.kind === "FINISHED" && !a.stale));
   const notYet = active.filter((m) => !answered.includes(m)).map((m) => m.id);
+  const waitingFor = notYet.filter((id) => id !== me.memberId);
+  const waitingSummary = waitingFor.length <= 1 ? ` · waiting for ${namesList(waitingFor, name) || "you"}` : "";
   const equalShare = r.equalSplit ? (new EqualReceiptSplit().totals(BigInt(r.payable), active.map((m) => m.id)).get(me.memberId) ?? 0n) : null;
   const itemShare = !r.equalSplit && view.calculation.ok && everyoneAnswered(view, r.id) ? view.calculation.receipts.find((x) => x.receiptId === r.id)?.shares.find((s) => s.memberId === me.memberId)?.total : null;
   const share = equalShare ?? (itemShare ? BigInt(itemShare) : null);
@@ -133,7 +135,10 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
   ) : (
     <Badge tone="coral">Your turn</Badge>
   );
-  const myLines = r.lines.filter((l) => (draft[l.id] ?? 0) > 0);
+  const myItems = r.lines
+    .filter((l) => (draft[l.id] ?? 0) > 0)
+    .map((l) => ({ id: l.id, label: l.mode === "UNITS" ? `${l.label} ×${draft[l.id]}` : l.label }));
+  const showMyItems = folded && !r.equalSplit && ack === "FINISHED" && myItems.length > 0;
 
   const lines = (
     <ul className="space-y-2">
@@ -151,12 +156,11 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
                   {l.label}
                 </p>
                 <p className="tnum text-[14px] text-muted">
-                  {php(l.amount)} · {r.equalSplit ? "split equally" : l.mode === "SHARED" ? "shared equally" : `${otherUnits + mine} of ${l.quantity} pieces claimed`}
+                  {php(l.amount)}
+                  {!r.equalSplit && (l.mode === "SHARED" ? " · shared equally" : ` · ${otherUnits + mine} of ${l.quantity} claimed`)}
                 </p>
               </div>
-              {r.equalSplit ? (
-                <Badge tone="violet">Everyone</Badge>
-              ) : l.mode === "SHARED" ? (
+              {!r.equalSplit && (l.mode === "SHARED" ? (
                 <button
                   type="button"
                   disabled={readOnly}
@@ -186,29 +190,40 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
                     <Icon name="plus" size={22} />
                   </button>
                 </div>
-              )}
+              ))}
             </div>
             {others.length > 0 && !r.equalSplit && (
-              <div className="mt-2 flex items-center gap-1.5 text-[13px] text-muted">
-                <span className="flex -space-x-1.5">
-                  {others.slice(0, 5).map((c) => (
-                    <Avatar key={c.memberId} name={name(c.memberId)} seq={seq(c.memberId)} size={22} />
+              <Disclosure summary={`Other claims (${others.length})`} icon="users">
+                <ul className="space-y-1 text-[13px] text-muted">
+                  {others.map((c) => (
+                    <li key={c.memberId} className="flex items-center gap-1.5">
+                      <Avatar name={name(c.memberId)} seq={seq(c.memberId)} size={22} />
+                      <span className="min-w-0 break-words">{name(c.memberId)}{l.mode === "UNITS" && ` ×${c.units}`}</span>
+                    </li>
                   ))}
-                </span>
-                {others.map((c) => `${name(c.memberId)}${l.mode === "UNITS" ? ` ×${c.units}` : ""}`).join(", ")}
-              </div>
+                </ul>
+              </Disclosure>
             )}
             {l.mode === "UNITS" && left < 0 && <p className="mt-1 text-[13px] text-pay">More than available — reduce your pieces.</p>}
           </li>
         );
       })}
+      {r.equalSplit && <li className="px-1 text-[14px] text-muted">Split equally among {active.length} people. Shares can differ by {php(1n)}.</li>}
       {r.adjustments.length > 0 && (
-        <li className="px-1 text-[14px] text-muted">
-          {r.adjustments.map((a) => `${a.label} ${a.kind === "DISCOUNT" ? "−" : "+"}${php(a.amount)}`).join(" · ")}
-          {r.equalSplit ? " — included in the equal split." : " — split by what each person had."}
+        <li className="px-1">
+          <Disclosure summary={`Discounts & charges (${r.adjustments.length})`}>
+            <ul className="space-y-1 text-[14px] text-muted">
+              {r.adjustments.map((a) => (
+                <li key={a.id} className="flex justify-between gap-2">
+                  <span className="min-w-0 break-words">{a.label}</span>
+                  <span className="tnum shrink-0">{a.kind === "DISCOUNT" ? "−" : "+"}{php(a.amount)}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[14px] text-muted">{r.equalSplit ? "Included in the equal split." : "Split by what each person had."}</p>
+          </Disclosure>
         </li>
       )}
-      {r.equalSplit && <li className="px-1 text-[14px] text-muted">Split equally among {active.length} people. Shares can differ by {php(1n)}.</li>}
     </ul>
   );
 
@@ -256,11 +271,23 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
                 ? `Everyone confirmed (${agreed.length} of ${active.length})`
                 : `${agreed.length} of ${active.length} confirmed`
               : `Everyone answered (${answered.length} of ${active.length})`
-            : `${r.equalSplit ? agreed.length : answered.length} of ${active.length} ${r.equalSplit ? "confirmed" : "answered"} · waiting for ${namesList(notYet.filter((id) => id !== me.memberId), name) || "you"}`}
+            : `${r.equalSplit ? agreed.length : answered.length} of ${active.length} ${r.equalSplit ? "confirmed" : "answered"}${waitingSummary}`}
         </p>
+        {waitingFor.length > 1 && (
+          <Disclosure summary={`Waiting for ${notYet.length}`} icon="clock">
+            <ul className="list-inside list-disc text-[14px] text-muted">
+              {notYet.map((id) => <li key={id} className="break-words">{id === me.memberId ? "You" : name(id)}</li>)}
+            </ul>
+          </Disclosure>
+        )}
         {r.equalSplit && joiningOpen && <p className="text-[13px] text-muted">Can change if someone else joins.</p>}
-        {folded && !r.equalSplit && ack === "FINISHED" && myLines.length > 0 && (
-          <p className="text-[14px] text-muted">You had: {myLines.map((l) => (r.lines.find((x) => x.id === l.id)?.mode === "UNITS" ? `${l.label} ×${draft[l.id]}` : l.label)).join(", ")}</p>
+        {showMyItems && myItems.length === 1 && <p className="break-words text-[14px] text-muted">You had: {myItems[0].label}</p>}
+        {showMyItems && myItems.length > 1 && (
+          <Disclosure summary={`Your items (${myItems.length})`} icon="hand">
+            <ul className="list-inside list-disc text-[14px] text-muted">
+              {myItems.map((item) => <li key={item.id} className="break-words">{item.label}</li>)}
+            </ul>
+          </Disclosure>
         )}
       </Card>
 
@@ -303,7 +330,6 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
             <NextCard where="claim" />
             <Disclosure summary={`See items (${r.lines.length})`} className="px-1">
               {lines}
-              <p className="text-[14px] text-muted">Change your picks and save again if you need to.</p>
               {itemButtons}
               <ActionError message={error} />
             </Disclosure>
@@ -321,12 +347,12 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
   );
 }
 
-function EmptyState({ title, text }: { title: string; text: string }) {
+function EmptyState() {
   return (
     <Card className="mt-6 py-10 text-center">
       <Icon name="hand" size={40} className="mx-auto text-muted" />
-      <p className="mt-3 font-semibold">{title}</p>
-      <p className="mx-auto mt-1 max-w-[320px] text-[15px] text-muted">{text}</p>
+      <p className="mt-3 font-semibold">No receipts yet</p>
+      <p className="mx-auto mt-1 max-w-[320px] text-[15px] text-muted">You can claim items as receipts are added.</p>
     </Card>
   );
 }

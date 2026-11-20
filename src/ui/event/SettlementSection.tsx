@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { api, newIdempotencyKey } from "../api";
 import { Icon } from "../components/Icon";
-import { ActionError, Badge, BalanceBanner, Button, Card, Disclosure, Field, MoneyInput, Notice, Progress, SectionTitle, Sheet, balanceLabel } from "../components/ui";
+import { ActionError, Badge, BalanceBanner, Button, Card, Disclosure, Field, MoneyInput, Notice, Progress, SectionTitle, Sheet } from "../components/ui";
 import { money, timeAgo, toMinor, toMinorInput } from "../format";
 import { MAX_CLIENT_UPLOAD_BYTES, prepareImage, uploadName } from "../image";
 import { EdgeView, View, todayRate, useAction, useEvent, useInlineAction } from "./EventContext";
@@ -32,7 +32,6 @@ export function SettlementSection() {
         net={mine.remaining}
         display={shown(mine.remaining, { abs: true })}
         exact={viewRate ? moneyAbs(mine.remaining) : undefined}
-        caption={mine.remaining === mine.net ? "Frozen bill · only money the other person confirms changes this" : `Bill: ${balanceLabel(mine.net).text.toLowerCase()} ${shown(mine.net, { abs: true })} · confirmed payments included`}
       />
       {event.phase === "DONE" && <Notice tone="receive" title="Done">Every payment was confirmed by the person who got it. This record is read-only.</Notice>}
       {s.edges.length === 0 && <Notice tone="receive">Nobody owes anybody in this event.</Notice>}
@@ -49,10 +48,15 @@ export function SettlementSection() {
 
       {(toReceive.length > 0 || view.instructions[me.memberId]) && event.phase !== "DONE" && <InstructionsEditor />}
 
-      {others.length > 0 && <SectionTitle>Other payments</SectionTitle>}
-      {others.map((e) => (
-        <EdgeSummary key={e.id} edge={e} />
-      ))}
+      {others.length > 0 && (
+        <Disclosure summary={`Other payments (${others.length})`} icon="users" className="card px-4 py-0">
+          {others.map((e) => (
+            <Card key={e.id}>
+              <EdgeHeader edge={e} />
+            </Card>
+          ))}
+        </Disclosure>
+      )}
     </div>
   );
 }
@@ -367,7 +371,7 @@ function ReportList({ edge, role }: { edge: EdgeView; role: "sender" | "recipien
         <PendingReport key={r.id} edge={edge} report={r} />
       ))}
       {history.length > 0 && (
-        <Disclosure summary={`See payments (${history.length})`}>
+        <Disclosure summary={`See payments (${history.length})`} icon="clock">
           <ul className="space-y-2">
             {history.map((r) => (
               <ReportRow key={r.id} edge={edge} report={r} role={role} />
@@ -474,14 +478,6 @@ function DisputeCard({ edge }: { edge: EdgeView }) {
       ))}
       <p className="text-[13px] text-muted">{theirChoice ? `${other} chose: ${label[theirChoice]}` : `Waiting for ${other}.`}</p>
     </div>
-  );
-}
-
-function EdgeSummary({ edge }: { edge: EdgeView }) {
-  return (
-    <Card>
-      <EdgeHeader edge={edge} />
-    </Card>
   );
 }
 

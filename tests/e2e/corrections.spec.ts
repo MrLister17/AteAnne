@@ -61,7 +61,7 @@ test("corrects a reported bill and shows a return transfer with original payment
   expect(corrected.edges[0]).toMatchObject({ from: created.memberId, to: joined.memberId, amount: "5000" });
   await tab(markPage, "Pay");
   await expect(markPage.getByText("Earlier payments are included")).toBeVisible();
-  await markPage.getByText("Payment history from prior statements", { exact: true }).click();
+  await markPage.locator("summary").getByText("Earlier payments (1)", { exact: true }).click();
   await expect(markPage.getByText("Confirmed received — included in this bill", { exact: false })).toBeVisible();
   await expect(markPage.getByText("You pay", { exact: true })).toBeVisible();
   await expect(markPage.getByRole("button", { name: "I sent PHP 50.00", exact: true })).toBeVisible();

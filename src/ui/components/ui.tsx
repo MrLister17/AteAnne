@@ -294,11 +294,11 @@ export function Blockers({ items, title = "Still needed", limit, quiet = false }
  */
 export function Disclosure({ summary, icon, children, className = "", open }: { summary: React.ReactNode; icon?: IconName; children: React.ReactNode; className?: string; open?: boolean }) {
   return (
-    <details className={`group ${className}`} open={open}>
+    <details className={`[&[open]>summary>svg:last-child]:rotate-90 ${className}`} open={open}>
       <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-[15px] font-semibold text-violet [&::-webkit-details-marker]:hidden">
         {icon && <Icon name={icon} size={18} className="shrink-0" />}
         <span className="min-w-0 flex-1">{summary}</span>
-        <Icon name="chevron" size={18} className="shrink-0 transition-transform group-open:rotate-90" />
+        <Icon name="chevron" size={18} className="shrink-0 transition-transform" />
       </summary>
       <div className="space-y-3 pt-1 pb-1">{children}</div>
     </details>

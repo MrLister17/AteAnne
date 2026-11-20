@@ -2,6 +2,11 @@
 
 _Last updated: 2026-11-19 Manila (v0.9.0)_
 
+## In review
+
+- The event UI cleanup uses compact summaries and disclosures for supporting details.
+- [Running event payments and credit](running-event-payments.md) describes the proposed payment flow and its implementation and verification requirements.
+
 ## Current state
 
 - **v0.9.0 (Sprint S10, D58–D62): mixed currencies.** The owner approved every decision and asked for merge and deploy. What it does:
