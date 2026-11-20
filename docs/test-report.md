@@ -52,7 +52,7 @@ Each event load now reads its cash reports: one extra indexed query. Reversals a
 
 ### Release
 
-- **CI.** Branch run [44757925185](https://github.com/MrLister17/AteAnne/actions/runs/44757925185) passed on `77e083a`. Before that, v0.9.1 CI on `main` ([44754651696](https://github.com/MrLister17/AteAnne/actions/runs/44754651696)) passed on `941134f`.
+- **CI.** Branch run [44757925185](https://github.com/MrLister17/AteAnne/actions/runs/44757925185) and `main` run [44758989579](https://github.com/MrLister17/AteAnne/actions/runs/44758989579) both passed on `77e083a`. Before that, v0.9.1 CI on `main` ([44754651696](https://github.com/MrLister17/AteAnne/actions/runs/44754651696)) passed on `941134f`.
 - **Merge.** `main` was fast-forwarded `941134f → 77e083a` on the owner's instruction. There was no database backup, at the owner's request.
 - **Production health** at 15:02:26 UTC returned `{"ok":true,"version":"77e083a",…,"fx":{…,"ok":true}}`. The event loads below read the new `CashReport` table, so the migration ran.
 - **Production smoke test** (Playwright, iPhone 15, organizer in light mode, member in dark mode, synthetic THB event **"D64 smoke (synthetic)"**). No payment was saved, because a saved cash report locks deletion.
