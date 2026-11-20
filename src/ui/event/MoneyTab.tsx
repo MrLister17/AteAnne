@@ -216,24 +216,26 @@ function Everyone({ positions }: { positions: { memberId: string; funding: strin
   return (
     <>
       <SectionTitle>Everyone</SectionTitle>
-      <Card className="p-0">
+      <Card className="!p-0">
         <ul className="divide-y divide-line">
           {positions.map((p) => {
             const b = balanceLabel(p.remaining);
             return (
               <li key={p.memberId}>
                 <details className="group">
-                  <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden">
-                    <Avatar name={name(p.memberId)} seq={seq(p.memberId)} size={30} />
-                    <span className="min-w-0 flex-1 font-semibold break-words">
+                  <summary className="grid min-h-11 cursor-pointer list-none grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-0.5 px-3 py-2 min-[375px]:grid-cols-[auto_minmax(0,1fr)_auto_auto] [&::-webkit-details-marker]:hidden">
+                    <span className="row-span-2 min-[375px]:row-span-1">
+                      <Avatar name={name(p.memberId)} seq={seq(p.memberId)} size={30} />
+                    </span>
+                    <span className="min-w-0 font-semibold break-words">
                       {name(p.memberId)}
                       {p.memberId === me.memberId && <span className="font-normal text-muted"> (you)</span>}
                     </span>
-                    <span className={`tnum text-right ${b.tone === "receive" ? "text-receive" : b.tone === "pay" ? "text-pay" : "text-muted"}`}>
+                    <span className={`tnum col-start-2 row-start-2 flex flex-wrap items-baseline gap-x-2 min-[375px]:col-start-3 min-[375px]:row-start-1 min-[375px]:block min-[375px]:text-right ${b.tone === "receive" ? "text-receive" : b.tone === "pay" ? "text-pay" : "text-muted"}`}>
                       <span className="block font-bold">{signed(b.sign, shown(p.remaining, { abs: true }))}</span>
                       <span className="block text-[12px]">{b.tone === "neutral" ? "Settled" : b.tone === "receive" ? "To receive" : "To pay"}</span>
                     </span>
-                    <Icon name="chevron" size={16} className="shrink-0 text-muted transition-transform group-open:rotate-90" />
+                    <Icon name="chevron" size={16} className="col-start-3 row-span-2 row-start-1 text-muted transition-transform group-open:rotate-90 min-[375px]:col-start-4 min-[375px]:row-span-1" />
                   </summary>
                   <dl className="tnum grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 border-t border-line px-4 py-2 text-[13px] text-muted">
                     <dt>Paid for expenses</dt>

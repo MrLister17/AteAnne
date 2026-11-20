@@ -1,5 +1,19 @@
 # Test report
 
+## Compact event screens (2026-11-20 Manila)
+
+Local checks used Node 22.23.5, isolated PostgreSQL 16, and synthetic event data. The running event payments document is an implementation proposal.
+
+| Check | Result |
+| --- | --- |
+| Reference calculations | Passed |
+| ESLint, TypeScript and production build | Passed |
+| Vitest | 258 unit and 74 integration tests passed |
+| Playwright | 75 passed across iPhone 15 and Android 360 px emulation before the final narrow-layout adjustment |
+| Narrow Pay layout | Production rebuild and 8 targeted browser tests passed after the adjustment. A separate 320 px check in light and dark covered keyboard disclosures, long names, large amounts, nested chevrons and horizontal overflow. |
+
+The browser suite checked tap-to-expand balance details and payment history, mixed currencies, receipt claims and corrections.
+
 ## Sprint S10 — mixed currencies, rate of the day bought (v0.9.0, 2026-11-19 Manila)
 
 Branch `claude/admiring-albattani-yinlr3` from `main` `bb1993f` (v0.8.0). The owner approved every S10 decision (D58–D62). Local Linux run: Node 22.23.5, PostgreSQL 16 (local cluster, isolated `ateanne_test`), pre-installed Playwright Chromium. Synthetic data only; exchange rates come from the fake provider (`FX_RATES_FAKE=1`: PHP 65 / THB 40 per euro, so 1 THB = 1.625 PHP). Before any change, the v0.8.0 baseline passed 240 unit and 64 integration tests in this container.
