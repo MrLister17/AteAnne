@@ -17,6 +17,71 @@ Decision **D63** (PR #1). UI and docs only: no migration, no money-rule change.
 - **Fixed `scripts/backup.sh`.** It loaded `.env` after the command line, so `DATABASE_URL=<production> scripts/backup.sh` silently backed up the local database from `.env` instead. A `DATABASE_URL` given on the command line now wins, and the script prints the host it is backing up.
 - **Checks.** PR #1 CI runs 44684166591 and 44684159069 passed the full chain. The owner asked to release without a database backup.
 
+## Where we left off (2026-11-20 Manila)
+
+- **v0.10.0 (D64): running event payments and credit.** The owner said: "just do everything no back up just push and merge to deploy". So PR #1 shipped first as v0.9.1, and D64 was then built in this session from `docs/running-event-payments.md`. The sandbox implementation from another session was never pushed and was not used. The full local chain passed. Release status is recorded under v0.10.0 below.
+- **Still to do by a person:**
+  - With relatives, on real iPhones: hand someone cash before the first receipt, confirm it, and check that "Credit" makes sense; then record cash during Pay and read the updated plan.
+  - Run the read-only production SQL in `docs/runbooks.md`.
+- **Follow-up backlog:** S9 F1–F8 and S10 (a second FX source for VND/TWD/AED/SAR) are unchanged. New from D64: the event loader's one extra query per load could be folded into the event query if production numbers call for it.
+
+---
+
+## v0.10.0: Running event payments and credit (2026-11-20 Manila)
+
+Decision **D64**, spec [`docs/running-event-payments.md`](docs/running-event-payments.md), built on v0.9.1 (PR #1, D63).
+
+### Added
+
+- **Record payment / Record cash payment.** On Home during Add & claim (even before the first receipt) and on Pay once frozen, anyone can record money they already handed to someone. The amount can be more than they owe, and it can be in another currency the receiver accepts, at today's locked ECB rate. The form shows what the payment will do before you submit: "Once Maya confirms: Credit THB 2,000.00", or "Balance pending".
+- **Confirm received / Report a problem.** The recipient answers in the Next card and in the Payments card.
+  - "Report a problem" asks for a reason. Both people then pick the same answer: "No money was handed over", or "It was handed over: record it again". A re-record is limited to one, with the same amount and currency.
+  - The sender can cancel a report that's still waiting.
+  - The recipient can tap **Undo confirmation** once, with a reason.
+  - A real refund is recorded as a payment the other way.
+- **Credit.** Confirmed cash counts at once. Paying more than you owe shows as **Credit** ("Credit THB 265.52"), and later shares use it whoever paid that receipt. The Payments card shows the actual counterparties: "Paid THB 2,000.00 to Maya", "Received THB 2,000.00 from Sam", with the history behind **See payments (N)**.
+- **During Pay.** Confirming cash updates the remaining transfers straight away: "Confirmed cash was included and the remaining transfers were updated." For example, Maya → Sam THB 265.52 and Maya → Tess THB 380.92 after Tess overpaid. While a cash payment waits, other payments, Done and corrections pause.
+
+### Rules (server)
+
+- **Confirmed transfers.** A confirmed, non-reversed cash handoff is a confirmed transfer everywhere: live balances, the freeze (carried once, with its report ID), corrections and Done.
+- **What waits on cash.** Pending cash or an open cash dispute holds the freeze, a correction and Done.
+- **Re-planning during Pay.** A confirmation or its undo supersedes the statement and re-plans in the same transaction. Receipt facts, shares and locked rates stay the same. Old transfer IDs answer 409 `stale_transfer`.
+- **Lifecycle locks** once any cash report exists:
+  - Deleting the event and changing the settle-up currency are locked.
+  - Payment parties can't be removed.
+  - Cancelling needs every handoff decided and each member's cash net back to zero.
+- **Exports** include cash payments (CSV `cash_payment` rows; JSON `cashPayments`).
+
+### Data
+
+- **Migration `20261120120000_running_event_payments`** is additive only: three new tables (`CashReport`, `CashReversal`, `CashDispute`) with check constraints and RLS on. No existing table, column or row changes. Events without cash reports calculate exactly as before.
+- **No backup.** At the owner's request, this was released without a database backup.
+
+### Tests
+
+- **Local results:** reference PASS, lint, typecheck, **260 unit**, **84 integration**, build, **77 browser** tests, all passed.
+- **New tests:**
+  - `tests/integration/cash-payments.test.ts`, covering the spec's acceptance checks
+  - two `next-action` unit tests
+  - `tests/e2e/cash-payments.spec.ts`: three signed-in browsers at iPhone 15 and 360px
+- Details are in `docs/test-report.md`.
+
+### Rollback
+
+- **v0.9.1 (`941134f`)** is safe only while no cash report exists. After that, v0.9.1 would ignore confirmed cash in balances, so use forward fixes only.
+
+---
+
+## v0.9.1: Compact event screens (2026-11-20 Manila) · merged to `main` and deployed
+
+Decision **D63** (PR #1). UI and docs only: no migration, no money-rule change.
+
+- **Less text on event screens.** Balance amounts, statuses and primary actions stay visible. Supporting breakdowns, guidance and history are available through disclosures.
+- **New spec.** Added the [running event payments and credit specification](docs/running-event-payments.md) (D64), covering confirmation, settlement carry-forward and currency handling. It is implemented in v0.10.0.
+- **Fixed `scripts/backup.sh`.** It loaded `.env` after the command line, so `DATABASE_URL=<production> scripts/backup.sh` silently backed up the local database from `.env` instead. A `DATABASE_URL` given on the command line now wins, and the script prints the host it is backing up.
+- **Checks.** PR #1 CI runs 44684166591 and 44684159069 passed the full chain. The owner asked to release without a database backup.
+
 ## Where we left off (2026-11-19 Manila)
 
 - **v0.9.0 (Sprint S10, D58–D62): mixed currencies, merged to `main` and live.**

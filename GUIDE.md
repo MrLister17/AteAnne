@@ -30,6 +30,8 @@ Events started before v0.7 may still be in `ALLOCATING`/`REVIEWING`; they show a
 
 **Currencies (v0.9.0, Sprint S10, D58–D62):** each receipt has its own currency and purchase date (Currency / Bought on in the receipt editor; a scan fills them in when printed). The event has one **settle-up currency** (Start a hatian → *Settle up in*, default ₱; organizer can change it in People → Event settings during Add & claim, before any payment is reported). A receipt in another currency is converted at the **ECB rate of the day it was bought**: "Breakfast · THB 1,397.00 · counts as PHP 2,270.13 · 1 THB = 1.625 PHP (ECB, 18 Nov)". Rates become final when the bill freezes; a missing rate makes the bill wait (never guesses). **Show totals in** (Home, Pay/Money) lets each person see totals in another currency of the event or pesos at today's rate, marked "≈". On Pay, **Pay in** lets someone send another currency the receiver accepts (payment details → *I accept*), at the rate of the day it's sent, locked into the payment: "Did THB 512.31 from Ana arrive? · Counts as PHP 835.06". Peso-only events look exactly as before.
 
+**Running event payments (v0.10.0, D64):** anyone can record money they already handed to someone, during Add & claim (Home → **Payments** → *Record payment*, even before the first receipt) or Pay (*Record cash payment*). The recipient taps **Confirm received** or **Report a problem**. Confirmed cash counts toward balances at once; paying more than you owe shows as **Credit** ("Paid THB 2,000.00 to Maya", "Credit THB 265.52"), and later shares use it whoever paid that receipt. Cash confirmed during Pay updates the remaining transfers straight away ("Confirmed cash was included and the remaining transfers were updated."). Undo a mistaken confirmation with **Undo confirmation** (once, with a reason); record money given back as a payment the other way.
+
 **Feedback on every tap (D56):** pass `busyLabel` to `Button` ("Saving…"); use `useInlineAction()` and `<ActionError>` so a failure shows beside the button. Reduce Motion turns spinners into a static "…".
 
 **Finding things in People (v0.7.1, Sprint S8, D52):** the first screen is a compact roster. Tap a person (accessible label **View [name]**) to see the actions you can take for them, such as making them an admin, reissuing access or helping a guest. The labeled rows below the roster open focused sheets: **Your profile & access** for your name, recovery key and big-text amount; **Download event record** for **Spreadsheet (CSV)** and **Full record (JSON)**; **Event settings** for organizer cancellation/deletion; **Help & privacy** for the tutorial and identity/retention explanation; **Activity** for the audit history. **Back** returns from a follow-up action to the person or section you opened it from; **Close** returns to the roster. Those actions keep their existing role and event-phase restrictions.
@@ -100,6 +102,7 @@ src/
       EventService.ts         create/join/phases/freeze/cancel/delete; add guest, admins, guest access key
       ReceiptService.ts       receipts, funding confirm (automatic for your own receipt), claims
       PaymentService.ts       payment instructions, reports, confirm/reject/reverse, disputes
+      CashPaymentService.ts   running event payments (D64): cash handed over any time; Pay-phase re-plan
       AssetService.ts         private photos (validate, re-encode, store, serve)
       ReceiptScanService.ts   photo → draft receipt (nothing saved)
       RecoveryService.ts      recovery keys
@@ -136,6 +139,7 @@ src/
     event/ReceiptEditor.tsx   add/edit receipt form (+ "Fill in from a photo"; auto totals, % charges)
     event/PersonScreen.tsx    big-text "show this to them" screen (amount owed/owed to, items)
     event/CurrencySwitch.tsx  "Show totals in" (≈ today's rate; per person, per event)
+    event/CashPayments.tsx    Payments card, Record a payment sheet, cash disputes and history (D64)
     event/todo.ts             everyoneAnswered (estimates only once everyone has answered)
     event/ClaimTab.tsx        claiming wizard (summary, See items, Next card after you answer)
     event/MoneyTab.tsx        frozen split, breakdown and payments
@@ -315,7 +319,7 @@ Latest results and live Groq scan results: `docs/test-report.md`. CI runs everyt
 
 | File | Contents |
 | --- | --- |
-| `docs/decisions.md` | Every decision and why (D1–D62), including your changes to the original spec |
+| `docs/decisions.md` | Every decision and why (D1–D64), including your changes to the original spec |
 | `docs/requirements.md` | Each requirement from the spec → where it's implemented → which test proves it |
 | `docs/architecture.md` | Class diagram, database diagram, phase and payment state machines |
 | `docs/financial-rules.md` | The money rules with worked examples |

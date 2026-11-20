@@ -87,3 +87,21 @@ The transfer stays in the settle-up currency. The rate "1 sent-currency = r sett
 ### Changing currencies (D59)
 
 A receipt's currency/date can change during Add & claim (an ordinary edit) or through Correct the bill. The settle-up currency can change only during Add & claim and only while no payment has been reported in any statement. Changing either relabels: typed numbers are never converted.
+
+## Running event payments and credit (D64, v0.10)
+
+- A **cash report** records money one member already handed another, at any time during Add & claim or Pay. It has no cap. Only the recipient's confirmation makes it count; reported, rejected and cancelled reports, and undone confirmations, have no effect.
+- **Every effective transfer is applied to raw receipt nets**, never to an already-adjusted balance: settlement-edge reports from every statement plus confirmed cash (`confirmedTransfers`). Σ remaining = 0 always.
+
+```text
+expenseNet = paid to merchants − allocated share        (frozen statement, or live split; pending while it can't calculate)
+paymentNet = confirmed money sent − confirmed money received
+remaining  = expenseNet + paymentNet
+credit     = max(0, max(0, remaining) − max(0, expenseNet))
+```
+
+**Example (synthetic, THB event).** Sam owes THB 1,734.48 and Maya is due THB 6,353.56. Sam hands Maya THB 2,000.00 and Maya confirms. Sam's remaining becomes +265.52, all of it credit; Maya's becomes 4,353.56. If Sam later shares THB 100.00 of a receipt Tess paid, his credit drops to 165.52.
+
+- **At the freeze**, the residual positions are planned with `SettlementPlanner`. Each confirmed transfer is recorded once in `facts.carriedPayments`, with `source` and `reportId`. A correction rebuilds from raw nets plus all effective transfers, so cash is never counted twice.
+- **During Pay**, confirming cash (or undoing a confirmation) supersedes the active statement. The new statement copies its receipt facts, shares and locked rates, then plans the residual transfers again, all in one transaction. Example: after the freeze above, Tess hands Maya THB 5,000.00 against her THB 4,353.56 transfer. The new plan is Maya → Sam THB 265.52 and Maya → Tess THB 380.92.
+- **Another currency:** credit = convert(amount handed over) at today's locked ECB rate, half-up. There is no cap.

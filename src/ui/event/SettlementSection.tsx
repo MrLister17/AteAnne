@@ -7,6 +7,7 @@ import { ActionError, Badge, BalanceBanner, Button, Card, Disclosure, Field, Mon
 import { money, timeAgo, toMinor, toMinorInput } from "../format";
 import { MAX_CLIENT_UPLOAD_BYTES, prepareImage, uploadName } from "../image";
 import { EdgeView, View, todayRate, useAction, useEvent, useInlineAction } from "./EventContext";
+import { creditLabel } from "./CashPayments";
 import { Decimal, ExchangeRate } from "@/domain/fx/ExchangeRate";
 import { ForeignPayment } from "@/domain/payments/ForeignPayment";
 import { currencyInfo, shortDay } from "@/domain/money/Currency";
@@ -32,6 +33,7 @@ export function SettlementSection() {
         net={mine.remaining}
         display={shown(mine.remaining, { abs: true })}
         exact={viewRate ? moneyAbs(mine.remaining) : undefined}
+        {...creditLabel(view, me.memberId, (v) => moneyAbs(v))}
       />
       {event.phase === "DONE" && <Notice tone="receive" title="Done">Every payment was confirmed by the person who got it. This record is read-only.</Notice>}
       {s.edges.length === 0 && <Notice tone="receive">Nobody owes anybody in this event.</Notice>}
@@ -128,7 +130,8 @@ function PayEdge({ edge, focused }: { edge: EdgeView; focused: boolean }) {
   const [reporting, setReporting] = useState(false);
   const instr = view.instructions[edge.to];
   const agreedReplacement = edge.dispute?.status === "AWAITING_REPLACEMENT" ? edge.dispute.rejectedReportId : null;
-  const canReport = !edge.settled && event.phase === "SETTLING" && (!edge.disputed || agreedReplacement) && edge.capacity !== "0";
+  // Paused while a cash payment awaits a decision: the plan may change under it (D64).
+  const canReport = !edge.settled && event.phase === "SETTLING" && (!edge.disputed || agreedReplacement) && edge.capacity !== "0" && !view.cash.paused;
   const sentSome = edge.pending !== "0";
   // Pay in (D58): the receiver's accepted currencies with a rate today. A replacement re-records the same money in its original currency.
   const rejected = agreedReplacement ? edge.reports.find((r) => r.id === agreedReplacement) : undefined;

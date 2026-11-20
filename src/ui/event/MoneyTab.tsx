@@ -8,6 +8,7 @@ import { signed } from "../format";
 import { SettlementSection } from "./SettlementSection";
 import { NextCard } from "./NextCard";
 import { CurrencySwitch } from "./CurrencySwitch";
+import { CashPayments } from "./CashPayments";
 
 type ShareLike = { memberId: string; lines: Record<string, string>; discounts: Record<string, string>; charges: Record<string, string>; itemsGross: string; discountTotal: string; chargeTotal: string; total: string };
 /** `currency` is the receipt's own (absent in statements frozen before v0.9: the event's); `settleShares` in the settle-up currency. */
@@ -48,8 +49,14 @@ export function MoneyTab() {
       <div className="space-y-3">
         <Header />
         <CurrencySwitch />
+        {(frozen.facts as { revision?: { reason: string } }).revision && (
+          <Notice tone="info" title={(frozen.facts as { revision: { reason: string } }).revision.reason === "cash_reversed" ? "Payment plan updated" : "Cash payment included"}>
+            {(frozen.facts as { revision: { reason: string } }).revision.reason === "cash_reversed" ? "A cash confirmation was undone, so the remaining transfers were updated." : "Confirmed cash was included and the remaining transfers were updated."}
+          </Notice>
+        )}
         <NextCard where="pay" />
         <SettlementSection />
+        <CashPayments where={view.event.phase === "DONE" ? "done" : "pay"} />
         <Everyone positions={frozen.positions} />
         <Disclosure summary="Your share" icon="receipt" className="card px-4 py-0">
           <Breakdown receipts={facts.receipts} sharesFor={(rid) => facts.receipts.find((r) => r.id === rid)?.shares ?? []} />

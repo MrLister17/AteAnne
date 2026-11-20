@@ -4,7 +4,8 @@ import { useState } from "react";
 import { api } from "../api";
 import { ActionError, Button, Sheet } from "../components/ui";
 import { useEvent, useInlineAction } from "./EventContext";
-import { isTask, namesList, receivedAmount, taskLine, waitingSentence, type NextView, type TaskView } from "./next";
+import { cashAmount, isTask, namesList, receivedAmount, taskLine, waitingSentence, type NextView, type TaskView } from "./next";
+import { CashDisputeCard } from "./CashPayments";
 import { ReminderButton } from "./ReminderPanel";
 import { DidntArriveSheet } from "./SettlementSection";
 
@@ -256,6 +257,31 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
           {didntArrive && <DidntArriveSheet reportId={task.reportId} reportVersion={task.reportVersion} senderId={task.fromId} onClose={() => setDidntArrive(false)} />}
         </>
       );
+    case "confirmCash": {
+      const report = view.cash.reports.find((c) => c.id === task.reportId);
+      return (
+        <>
+          <Status title={`Did ${cashAmount(task, currency)} from ${name(task.fromId)} arrive?`} line={task.paid ? `Counts as ${money(task.amount)}. Not there yet? Leave this and check later.` : "Not there yet? Leave this and check later."} />
+          <Button
+            full
+            variant="receive"
+            icon="check"
+            busyLabel="Confirming…"
+            onClick={() => run(() => api.post(`/api/cash-payments/${task.reportId}/verify`, { expectedVersion: task.reportVersion }), `Confirmed. ${cashAmount(task, currency)} from ${name(task.fromId)}.`)}
+          >
+            Confirm received
+          </Button>
+          <ActionError message={error} />
+          <Secondary onClick={() => setDidntArrive(true)}>Report a problem</Secondary>
+          {didntArrive && report && <CashProblem reportId={report.id} version={report.version} fromId={report.from} onClose={() => setDidntArrive(false)} />}
+        </>
+      );
+    }
+    case "sortOutCash": {
+      const report = view.cash.reports.find((c) => c.id === task.reportId);
+      if (!report) return <Status title={taskLine(task, name, currency)} />;
+      return <CashDisputeCard report={report} />;
+    }
     case "shareDetails": {
       const owes = (view.settlement?.edges ?? []).filter((e) => e.to === me.memberId && !e.settled).map((e) => e.from);
       return (
@@ -309,6 +335,43 @@ function WhatsLeft({ onClose }: { onClose: () => void }) {
             ))}
           </ul>
         )}
+      </div>
+    </Sheet>
+  );
+}
+
+/** "Report a problem" from the Next card: same reason sheet as the Payments card (D64). */
+function CashProblem({ reportId, version, fromId, onClose }: { reportId: string; version: number; fromId: string; onClose: () => void }) {
+  const { name } = useEvent();
+  const { run, error } = useInlineAction();
+  const [reason, setReason] = useState("");
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      title="What happened?"
+      footer={
+        <div className="space-y-2">
+          <ActionError message={error} />
+          <Button
+            full
+            variant="danger"
+            busyLabel="Sending…"
+            disabled={reason.trim().length < 3}
+            onClick={async () => {
+              const ok = await run(() => api.post(`/api/cash-payments/${reportId}/reject`, { reason: reason.trim(), expectedVersion: version }), `Saved. ${name(fromId)} will see it.`);
+              if (ok) onClose();
+              return ok;
+            }}
+          >
+            Tell {name(fromId)}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-[15px] text-muted">Only continue if {name(fromId)} says they gave it to you and nothing came.</p>
+        <textarea aria-label="What happened?" className="field min-h-24" maxLength={200} value={reason} placeholder="e.g. I never got the cash" onChange={(e) => setReason(e.target.value)} />
       </div>
     </Sheet>
   );

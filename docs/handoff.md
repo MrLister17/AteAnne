@@ -1,11 +1,20 @@
 # Handoff
 
-_Last updated: 2026-11-19 Manila (v0.9.0)_
+_Last updated: 2026-11-20 Manila (v0.10.0)_
 
-## In review
+## Current state (v0.10.0)
 
-- The event UI cleanup uses compact summaries and disclosures for supporting details.
-- [Running event payments and credit](running-event-payments.md) describes the proposed payment flow and its implementation and verification requirements.
+- **v0.10.0 (D64): running event payments and credit.** It is built on v0.9.1 (compact event screens, D63, PR #1).
+  - Anyone can record cash already handed over, during Add & claim or Pay. The recipient confirms it.
+  - Confirmed cash counts everywhere through `EventAggregate.confirmedTransfers()`.
+  - Paying ahead shows as Credit.
+  - During Pay, a confirmation re-plans the statement in the same transaction.
+  - The migration `20261120120000_running_event_payments` is additive. It was released without a backup at the owner's request.
+- **Preserve:**
+  - Apply transfers to raw nets only.
+  - Allow one cash question at a time during Pay.
+  - Re-planning keeps the receipt facts, shares and locked rates.
+  - Never fetch FX inside a lock.
 
 ## Current state
 

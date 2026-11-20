@@ -1,5 +1,60 @@
 # Test report
 
+## v0.10.0 — running event payments and credit (D64, 2026-11-20 Manila)
+
+Branch `claude/admiring-albattani-yinlr3`. It holds v0.9.1 (PR #1 plus the `backup.sh` fix) and then D64, built from `docs/running-event-payments.md`. Local Linux run: Node 22.23.5, PostgreSQL 16 (isolated `ateanne_test`), pre-installed Chromium, fake exchange rates (`FX_RATES_FAKE=1`). Synthetic data only.
+
+| Command | Actual result |
+| --- | --- |
+| `npm run test:reference` | PASS, no fixture diff |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run test:unit` | **12 files, 260 passed** (+2 in `next-action.test.ts`) |
+| `npm run test:integration` | **14 files, 84 passed** (+10 in `cash-payments.test.ts`) |
+| `npm run build` | Passed |
+| `npm run test:e2e` | **77 passed in one full run (2.3 min)**, iPhone 15 + 360px (+2: `cash-payments.spec.ts` in both projects) |
+
+The table is from the final run. The same chain also passed once before the last change, which loads cash reversals and disputes only when an event has cash reports.
+
+### What the new tests check
+
+**Integration (`cash-payments.test.ts`, real PostgreSQL):**
+- **The spec's example.** THB 2,000.00 against THB 1,734.48 owed gives Sam THB 265.52 credit. Maya's receivable drops THB 2,000.00, to 4,353.56. A later THB 100.00 share paid by Tess drops the credit to 165.52. Σ balances = 0.
+- **Permissions and early cash.** An unrelated member can't confirm. Cash before any receipt counts too.
+- **Freeze and correction.** A pending report holds the freeze, and confirming it freezes in the same step. The cash is carried once (with `source: "cash"` and its report ID), still once after a correction and a re-freeze, and the residual plan is Tess → Maya 4,353.56 and Tess → Sam 265.52.
+- **Idempotency.** A retry with the same key works after the auto-freeze; a reused key with other input conflicts.
+- **Disputes.** "Didn't arrive" leads to an agreed re-record (a different amount is refused), or to "no money" with no effect.
+- **Undo and refunds.** Undo once with a reason; a refund is recorded as a payment the other way. The CSV gets `cash_payment` rows.
+- **Other currencies.** THB cash in a PHP event: a wrong rate date gives `rate_changed`, a wrong credit says "counts as PHP 1,625.00", JPY is not accepted, and the correct report stores rate 1.625.
+- **Lifecycle locks.** Delete and currency change are locked, and payment parties can't be removed. Cancelling waits until every handoff is decided and the cash nets are back to zero.
+- **During Pay.** Cash above a frozen transfer pauses edge payments, other cash, Done and correction. Confirming it supersedes the statement with identical receipt facts and shares and plans the residual transfers. The old transfer answers "plan changed", and Done is reached after the residual transfers are paid.
+- **Pay-phase guards and undo.** Cash waits while an edge report is pending. Undoing a confirmation re-plans again (`cash_reversed`).
+
+**E2E (`cash-payments.spec.ts`, three signed-in browsers):**
+- **Before any receipt.** Sam records THB 2,000.00 to Maya. The form shows "Once Maya confirms: Credit THB 2,000.00", then "Awaiting confirmation".
+- **Confirmation.** Maya's Next card asks "Did THB 2,000.00 from Sam arrive?" She taps **Confirm received** and sees "Received THB 2,000.00 from Sam".
+- **Credit.** After the dinner and claims, Sam's banner shows **Credit +THB 265.52** and "Paid THB 2,000.00 to Maya".
+- **After the freeze.** Sam sees "Tess pays you THB 265.52". Tess records THB 5,000.00 to Maya and Maya sees the pause notice. She confirms, the plan updates, and she sees "Pay Sam THB 265.52" and "Pay Tess THB 380.92".
+- **Layout.** No sideways scroll.
+- **Screenshots:** `test-results/screens/d64-*.png`.
+
+### Measurements (`scripts/measure-db.ts`, synthetic peso event, no cash reports)
+
+| Operation | SQL statements v0.9.0 → v0.10.0 | Max pool connections |
+| --- | --- | --- |
+| Open event (step 1) | 17 → 18 | 3 → 3 |
+| Save claims (step 1) | 57 → 60 | 3 → 3 |
+| Open event (step 2) | 17 → 18 | 3 → 3 |
+| Report a payment | 24 → 25 | 1 → 1 |
+| Confirm a payment | 22 → 23 | 1 → 1 |
+
+Each event load now reads its cash reports: one extra indexed query. Reversals and disputes are read only when cash reports exist. A first version loaded them always (+3 per load) and was changed before release.
+
+### Not verified
+
+- **Real iPhones and relatives.**
+- **A production backup.** The owner chose to release without one. The migration only creates tables.
+
 ## Compact event screens (2026-11-20 Manila)
 
 Local checks used Node 22.23.5, isolated PostgreSQL 16, and synthetic event data. The running event payments document is an implementation proposal.

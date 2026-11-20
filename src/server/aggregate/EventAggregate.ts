@@ -13,11 +13,13 @@ import { receiptDay } from "../fx/RateService";
 import { NotFoundError } from "../http/HttpError";
 import type { EVENT_INCLUDE } from "./EventRepository";
 
-export type EventRecord = Prisma.EventGetPayload<{ include: typeof EVENT_INCLUDE }>;
+type LoadedEvent = Prisma.EventGetPayload<{ include: typeof EVENT_INCLUDE }>;
+export type CashRecord = Prisma.CashReportGetPayload<{ include: { reversal: true; dispute: true } }>;
+/** One event as `EventRepository.load` returns it (cash reports carry their reversal and dispute). */
+export type EventRecord = Omit<LoadedEvent, "cashReports"> & { cashReports: CashRecord[] };
 export type MemberRecord = EventRecord["members"][number];
 export type ReceiptRecord = EventRecord["receipts"][number];
 export type SnapshotRecord = EventRecord["snapshots"][number];
-export type CashRecord = EventRecord["cashReports"][number];
 
 /** A confirmed transfer, traceable to the report that confirmed it (D64: carried into statements exactly once). */
 export interface SourcedTransfer {

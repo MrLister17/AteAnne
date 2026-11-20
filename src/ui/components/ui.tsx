@@ -212,14 +212,15 @@ export function balanceLabel(net: string | bigint): { tone: "receive" | "pay" | 
 }
 
 /** `display`: the amount as the person chose to see it (D60), e.g. "≈ THB 512.31"; `exact` then shows the real figure underneath. */
-export function BalanceBanner({ net, caption, estimate, display, exact }: { net: string; caption?: string; estimate?: boolean; display?: string; exact?: string }) {
+/** `label` overrides the direction word, e.g. "Credit" when paying ahead made the balance positive (D64). */
+export function BalanceBanner({ net, caption, estimate, display, exact, label }: { net: string; caption?: string; estimate?: boolean; display?: string; exact?: string; label?: string }) {
   const b = balanceLabel(net);
   const tone = b.tone === "receive" ? "bg-receive-soft text-receive" : b.tone === "pay" ? "bg-pay-soft text-pay" : "bg-surface-2 text-ink";
   return (
     <div className={`rounded-2xl p-4 ${tone}`} role="status" aria-live="polite">
       <div className="flex items-center gap-2 text-[14px] font-semibold">
         <Icon name={b.icon} size={18} />
-        {b.text}
+        {label ?? b.text}
         {estimate && <span className="ml-auto rounded-full bg-surface/70 px-2 py-0.5 text-[12px] text-muted">Estimate</span>}
       </div>
       <div className="tnum mt-1 text-[32px] leading-tight font-bold break-words">

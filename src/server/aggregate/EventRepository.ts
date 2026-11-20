@@ -1,6 +1,6 @@
 import type { Tx } from "../db";
 import { NotFoundError } from "../http/HttpError";
-import { EventAggregate } from "./EventAggregate";
+import { EventAggregate, type EventRecord } from "./EventAggregate";
 import { RateService, receiptDay } from "../fx/RateService";
 
 /** Everything needed to evaluate one event; scoped strictly by event ID. */
@@ -16,7 +16,8 @@ export const EVENT_INCLUDE = {
     },
   },
   approvals: true,
-  cashReports: { orderBy: { createdAt: "asc" }, include: { reversal: true, dispute: true } },
+  // Reversals and disputes are loaded only when the event has cash reports (one query instead of three per load).
+  cashReports: { orderBy: { createdAt: "asc" } },
   snapshots: {
     orderBy: { createdAt: "asc" },
     include: {
@@ -40,8 +41,16 @@ export class EventRepository {
   }
 
   async load(tx: Tx, eventId: string): Promise<EventAggregate> {
-    const event = await tx.event.findUnique({ where: { id: eventId }, include: EVENT_INCLUDE });
-    if (!event) throw new NotFoundError("Event not found");
+    const loaded = await tx.event.findUnique({ where: { id: eventId }, include: EVENT_INCLUDE });
+    if (!loaded) throw new NotFoundError("Event not found");
+    const ids = loaded.cashReports.map((c) => c.id);
+    const [reversals, disputes] = ids.length
+      ? await Promise.all([tx.cashReversal.findMany({ where: { reportId: { in: ids } } }), tx.cashDispute.findMany({ where: { reportId: { in: ids } } })])
+      : [[], []];
+    const event: EventRecord = {
+      ...loaded,
+      cashReports: loaded.cashReports.map((c) => ({ ...c, reversal: reversals.find((r) => r.reportId === c.id) ?? null, dispute: disputes.find((d) => d.reportId === c.id) ?? null })),
+    };
     // Only events with receipts in another currency need rates; the read stays on this transaction.
     const days = event.receipts.filter((r) => r.currency !== event.currency).map(receiptDay);
     return new EventAggregate(event, days.length ? await RateService.load(tx, days) : new Map());

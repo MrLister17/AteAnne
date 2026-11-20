@@ -8,6 +8,7 @@ import { Icon } from "../components/Icon";
 import { ActionError, BalanceBanner, Blockers, Button, Card, Disclosure, Notice, SectionTitle, useToast } from "../components/ui";
 import { useAction, useEvent, useInlineAction } from "./EventContext";
 import { CurrencySwitch } from "./CurrencySwitch";
+import { CashPayments, creditLabel } from "./CashPayments";
 import { everyoneAnswered } from "./todo";
 import { ReminderButton } from "./ReminderPanel";
 import { NextCard } from "./NextCard";
@@ -41,6 +42,7 @@ export function OverviewTab() {
             estimate={!myPos}
             display={shown(position.remaining, { abs: true })}
             exact={viewRate ? moneyAbs(position.remaining) : undefined}
+            {...creditLabel(view, me.memberId, (v) => moneyAbs(v))}
           />
           <CurrencySwitch />
           <Disclosure summary="Balance details" icon="wallet" className="px-1">
@@ -65,6 +67,7 @@ export function OverviewTab() {
 
       <NextCard where="home" />
       <EverythingLeft />
+      {(phase === "COLLECTING" || phase === "ALLOCATING" || phase === "REVIEWING") && !event.cancelled && <CashPayments where="home" />}
       {phase === "COLLECTING" && me.entryComplete && !event.cancelled && <UndoDoneAdding />}
 
       {event.note && (

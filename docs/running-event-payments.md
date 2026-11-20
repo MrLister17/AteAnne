@@ -1,6 +1,13 @@
 # Running event payments and credit
 
-Status: proposed for implementation. The current release records settlement payments after the bill freezes. This spec adds cash payments to an open event and defines how those payments carry into the final bill.
+Status: **implemented in v0.10.0** (decision D64). This spec adds cash payments to an open event and defines how those payments carry into the final bill.
+
+Where the implementation made a choice the spec left open:
+- **An agreed re-record must match the original handoff's amount and currency.** To change the amount, both people agree "no money was handed over", then the sender records a new payment.
+- **Method.** The form offers Cash or E-wallet. Both are cash-style handoffs recorded outside the app.
+- **Where cash tasks appear.** Confirm received and Report a problem appear in the Next card (Home, or Pay once frozen) and in the Payments card (Home during Add & claim, Pay once frozen, Money when Done).
+- **Balance labels.** The balance banner keeps the app's existing "Net to pay" / "Net to receive" / "Settled" and adds **Credit**. The form's estimate uses the short labels.
+- **When the balance banner appears.** During Add & claim it still waits until everyone has answered (D51). The Payments card meanwhile shows the paid/received lines and "Balance pending".
 
 ## Product behavior
 

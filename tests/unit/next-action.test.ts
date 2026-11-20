@@ -230,3 +230,24 @@ describe("wire format", () => {
     expect(wire).toEqual({ kind: "pay", transferId: "t1", toId: MARK, amount: "69850", received: "0" });
   });
 });
+
+describe("running event payments (D64)", () => {
+  const cash = (over: Partial<NonNullable<NextActionInput["cash"]>[number]> = {}) => ({ id: "c1", from: ANA, to: MARK, amount: 200_000n, paid: null, status: "REPORTED" as const, version: 1, dispute: null, ...over });
+
+  it("the recipient confirms cash before anything else, in Add & claim and in Pay", () => {
+    expect(next(input({ cash: [cash()] }), MARK)).toEqual({ kind: "confirmCash", reportId: "c1", reportVersion: 1, fromId: ANA, amount: 200_000n });
+    const pay = input({ phase: "SETTLING", receipts: [], transfers: [transfer()], cash: [cash()] });
+    expect(next(pay, MARK)).toMatchObject({ kind: "confirmCash" });
+    // The sender just waits for the recipient, by name.
+    expect(next(input({ cash: [cash()] }), ANA)).toMatchObject({ kind: "waiting", on: [{ memberId: MARK, task: { kind: "confirmCash" } }] });
+  });
+
+  it("a disagreement asks both until they pick the same answer; agreeing to re-record asks only the sender", () => {
+    const open = cash({ status: "REJECTED", dispute: { id: "d1", status: "OPEN", senderChoice: null, recipientChoice: null, version: 1 } });
+    expect(next(input({ cash: [open] }), ANA)).toMatchObject({ kind: "sortOutCash", disputeId: "d1", withId: MARK, recordAgain: false });
+    expect(next(input({ cash: [open] }), MARK)).toMatchObject({ kind: "sortOutCash", withId: ANA });
+    const agreed = cash({ status: "REJECTED", dispute: { id: "d1", status: "AWAITING_REPLACEMENT", senderChoice: "REPLACEMENT", recipientChoice: "REPLACEMENT", version: 3 } });
+    expect(next(input({ cash: [agreed] }), ANA)).toMatchObject({ kind: "sortOutCash", recordAgain: true });
+    expect(next(input({ cash: [agreed] }), MARK)).toEqual({ kind: "everyoneHere" });
+  });
+});
