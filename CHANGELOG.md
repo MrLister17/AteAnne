@@ -8,10 +8,14 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ---
 
-## Unreleased
+## v0.9.1: Compact event screens (2026-11-20 Manila) · merged to `main` and deployed
 
-- Reduced text density on event screens. Balance amounts, statuses and primary actions stay visible. Supporting breakdowns, guidance and history are available through disclosures.
-- Added the [running event payments and credit specification](docs/running-event-payments.md), including confirmation, settlement carry-forward and currency handling.
+Decision **D63** (PR #1). UI and docs only: no migration, no money-rule change.
+
+- **Less text on event screens.** Balance amounts, statuses and primary actions stay visible. Supporting breakdowns, guidance and history are available through disclosures.
+- **New spec.** Added the [running event payments and credit specification](docs/running-event-payments.md) (D64), covering confirmation, settlement carry-forward and currency handling. It is implemented in v0.10.0.
+- **Fixed `scripts/backup.sh`.** It loaded `.env` after the command line, so `DATABASE_URL=<production> scripts/backup.sh` silently backed up the local database from `.env` instead. A `DATABASE_URL` given on the command line now wins, and the script prints the host it is backing up.
+- **Checks.** PR #1 CI runs 44684166591 and 44684159069 passed the full chain. The owner asked to release without a database backup.
 
 ## Where we left off (2026-11-19 Manila)
 

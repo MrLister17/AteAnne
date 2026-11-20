@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 # Back up PostgreSQL AND private images together, with a manifest linking them.
 # Usage: scripts/backup.sh [output-dir]   (reads DATABASE_URL, PRIVATE_UPLOAD_DIR from env/.env)
+# A DATABASE_URL given on the command line always wins over .env, so
+# `DATABASE_URL=<production session pooler> scripts/backup.sh` never dumps the local dev database.
 set -euo pipefail
+GIVEN_DATABASE_URL="${DATABASE_URL:-}"
 [ -f .env ] && set -a && . ./.env && set +a
+if [ -n "$GIVEN_DATABASE_URL" ]; then DATABASE_URL="$GIVEN_DATABASE_URL"; fi
+: "${DATABASE_URL:?set DATABASE_URL (the database to back up)}"
+echo "Backing up host: $(printf '%s' "$DATABASE_URL" | sed -E 's#^[a-z]+://([^@]*@)?([^/:?]+).*#\2#')"
 OUT="${1:-backups}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 DEST="$OUT/ateanne-$STAMP"
