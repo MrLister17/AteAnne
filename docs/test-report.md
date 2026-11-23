@@ -1,5 +1,30 @@
 # Test report
 
+## Production cash smoke test for v0.10.0 (2026-11-23, 10:55–10:56 UTC)
+
+This closes the one gap in the v0.10.0 release record: the earlier production smoke test saved no payment. This run saved, confirmed and returned a real (synthetic) cash payment on production. No code changed.
+
+- **Production version:** `main` `77adccc`. Its CI run [44769011657](https://github.com/MrLister17/AteAnne/actions/runs/44769011657) passed.
+- **Health JSON before the run:** `{"ok":true,"version":"77adccc","receiptScan":"groq","fx":{"source":"ecb","today":"2026-11-23","latest":{"day":"2026-11-23","effectiveDate":"2026-11-20"},"ok":true}}`.
+- **How it ran:** a Playwright script over HTTPS with two separate browser contexts, so two separate signed-in sessions ("Smoke A", organizer, and "Smoke B"), at iPhone 15 emulation. First the same script passed against a local production build (`next start`, isolated PostgreSQL, `FX_RATES_FAKE=1`). A first local attempt failed only because the script read the balance banner while it still said "Loading your event…". The fix was to wait for it.
+- **Event:** THB event **"SMOKE TEST"**, id `cmwt5gtte000208jx4g6yx22l`.
+
+| Step | What happened in production |
+| --- | --- |
+| Create and join | A created the THB event, and B joined with the join code. |
+| One receipt, both claim | A paid THB 1,000.00: A's item THB 400.00, B's item THB 600.00. Both claimed. B's balance was `remaining -60000` (owes THB 600.00), and the event stayed in Add & claim. |
+| B records cash (real form) | The Record a payment sheet showed "Once Smoke A confirms: Credit THB 400.00". After submitting and reloading: "THB 1,000.00 to Smoke A · Awaiting confirmation". |
+| A confirms (Next card) | The prompt was "Did THB 1,000.00 from Smoke B arrive?". After **Confirm received** and a reload, A saw "Received THB 1,000.00 from Smoke B". |
+| B sees credit | Server: B `expenseNet -60000`, `paymentNet 100000`, `remaining 40000`, `credit 40000`; A `remaining -40000`. B's screen after reload: **Credit +THB 400.00** "You paid ahead…", and "Paid THB 1,000.00 to Smoke A". 0 px sideways scroll. |
+| Money goes back | A recorded THB 1,000.00 to B (API), and B confirmed it. Both reports were `VERIFIED`. B was back to `remaining -60000`, `credit 0`, and both cash nets were zero. |
+| Cancel | A cancelled the event: 200, `cancelled: true`. |
+| Delete (expected refusal) | DELETE answered **409 `payments_reported`**. |
+
+- **Result: PASS.** No rows were deleted, and no SQL was run against production.
+- **The event stays.** Events with payments can't be deleted (by design), so "SMOKE TEST" remains, cancelled, until the 30-day retention purge (about 2026-12-23).
+- **Observation for a person (not a failure):** with credit, the header shows "+THB 400.00 · to receive · est." while the balance card says "Credit". Both are correct numbers. Whether the header should also say "Credit" is a wording choice.
+- **Not verified:** a real iPhone, Safari or WebKit (Chromium emulation only), and a production backup. The migration already ran on 2026-11-20 without one, at the owner's earlier request.
+
 ## Hatian name update (2026-11-20 UTC)
 
 On the rename branch, the Python reference check, lint, type checking, 260 unit tests, 84 PostgreSQL integration tests, production build, and 77 browser tests all passed. The browser suite used synthetic data and the configured fixture receipt reader. Both GitHub Actions checks on [PR #2](https://github.com/MrLister17/AteAnne/pull/2) passed.

@@ -26,8 +26,10 @@ Decision **D63** (PR #1). UI and docs only: no migration, no money-rule change.
 ## Where we left off (2026-11-20 Manila)
 
 - **v0.10.0 (D64): running event payments and credit, live on `main` (`77e083a`).** The owner said: "just do everything no back up just push and merge to deploy". So PR #1 shipped first as v0.9.1 (`941134f`, CI 44754651696 passed), and D64 was then built in this session from `docs/running-event-payments.md`. The sandbox implementation from another session was never pushed and was not used. Branch CI 44757925185 and `main` CI 44758989579 passed. Production health returned `version` `77e083a`. The production smoke test checked the new view data, the route's validation and the Payments sheet, saved no payment, and was then deleted.
+- **2026-11-23: production cash smoke test passed** on `77adccc` (`main` CI 44769011657). Two sessions on a THB "SMOKE TEST" event: cash recorded, confirmed, Credit +THB 400.00 shown, the money returned and confirmed, the event cancelled, and deletion refused (409, by design). The event stays until the 30-day purge. Details are in `docs/test-report.md`.
 - **Still to do by a person:**
   - With relatives, on real iPhones: hand someone cash before the first receipt, confirm it, and check that "Credit" makes sense; then record cash during Pay and read the updated plan.
+  - Decide whether the header should say "Credit" instead of "to receive" when the balance is credit.
   - Run the read-only production SQL in `docs/runbooks.md`.
 - **Follow-up backlog:** S9 F1–F8 and S10 (a second FX source for VND/TWD/AED/SAR) are unchanged. New from D64: the event loader's one extra query per load could be folded into the event query if production numbers call for it.
 
