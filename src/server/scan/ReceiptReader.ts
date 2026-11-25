@@ -77,9 +77,9 @@ export class FakeReceiptReader implements ReceiptReader {
   async read(): Promise<RawReceiptReading> {
     return {
       isReceipt: true,
-      merchant: "Sample Kainan (demo scan)",
+      merchant: "Sample Diner (demo scan)",
       lines: [
-        { label: "Sisig", quantity: 1, unitPrice: null, lineTotal: "320.00" },
+        { label: "Pizza", quantity: 1, unitPrice: null, lineTotal: "320.00" },
         { label: "Rice", quantity: 3, unitPrice: "35.00", lineTotal: "105.00" },
         { label: "Iced tea pitcher", quantity: 1, unitPrice: null, lineTotal: "180.00" },
       ],

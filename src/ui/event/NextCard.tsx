@@ -25,7 +25,7 @@ export function NextCard({ where }: { where: Where }) {
   return (
     <section className="card space-y-3 border-violet/40 p-4" aria-labelledby="next-for-you" data-testid="next-card" data-next={next.kind}>
       <h2 id="next-for-you" className="text-[13px] font-bold tracking-wide text-muted uppercase">
-        Next for you
+        {view.actingFor ? `Next for ${view.me.displayName}` : "Next for you"}
       </h2>
       <NextBody next={next} where={where} />
     </section>
@@ -89,7 +89,7 @@ function NextBody({ next, where }: { next: NextView; where: Where }) {
     case "allPaid":
       return (
         <>
-          <Status title="Everyone’s paid" line="Hatian closes this tomorrow, so a mistake can still be undone." />
+          <Status title="Everyone’s paid" line="It closes by itself tomorrow, so a mistake can still be fixed." />
           {owner && (
             <>
               <Button
@@ -98,7 +98,7 @@ function NextBody({ next, where }: { next: NextView; where: Where }) {
                 icon="check"
                 busyLabel="Closing…"
                 onClick={() => {
-                  if (!confirm("Close this hatian? Nobody can change it after this.")) return;
+                  if (!confirm("Close this split? Nobody can change it after this.")) return;
                   return run(() => api.post(`/api/events/${event.id}/phase`, { target: "DONE", expectedFinancialVersion: event.financialVersion }), "Closed. Everything’s settled.");
                 }}
               >
@@ -121,7 +121,7 @@ function NextBody({ next, where }: { next: NextView; where: Where }) {
         </>
       );
     case "cancelled":
-      return <Status title="This hatian was cancelled" line="Amounts that weren’t settled still count." />;
+      return <Status title="This split was cancelled" line="Amounts that weren’t settled still count." />;
     default:
       void view;
       return null;
@@ -173,22 +173,33 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
           </Button>
         </>
       );
-    case "doneAdding":
+    case "doneAdding": {
+      const markDone = () => run(() => api.patch(`/api/events/${event.id}/me`, { entryComplete: true }), "You’re done adding receipts");
+      // Said "I paid" but hasn't added a receipt yet: adding it is the obvious next tap, not "done".
+      const owesReceipt = me.intent === "PAID_EXPENSE" && !view.receipts.some((r) => r.payerId === me.memberId);
+      if (owesReceipt) {
+        return (
+          <>
+            <Status title="Add the receipt you paid" line="Scan a photo or type the items." />
+            <Button full icon="receipt" disabled={event.cancelled} onClick={() => setTab("receipts")}>
+              Add a receipt
+            </Button>
+            <ActionError message={error} />
+            <Secondary onClick={() => void markDone()}>I didn’t pay for anything</Secondary>
+          </>
+        );
+      }
       return (
         <>
-          <Status title={view.receipts.length ? "Did you pay for anything else?" : "Did you pay for anything?"} line={view.receipts.length ? null : "Add your receipts. If you didn’t pay, you’re done."} />
-          <Button
-            full
-            busyLabel="Saving…"
-            disabled={event.cancelled}
-            onClick={() => run(() => api.patch(`/api/events/${event.id}/me`, { entryComplete: true }), "You’re done adding receipts")}
-          >
+          <Status title={view.receipts.length ? "Did you pay for anything else?" : "Did you pay for anything?"} line={view.receipts.length ? null : "If you didn’t pay, you’re done."} />
+          <Button full busyLabel="Saving…" disabled={event.cancelled} onClick={markDone}>
             I’m done adding receipts
           </Button>
           <ActionError message={error} />
           <Secondary onClick={() => setTab("receipts")}>Add a receipt</Secondary>
         </>
       );
+    }
     case "everyoneHere": {
       const people = view.members.filter((m) => m.active).length;
       return (

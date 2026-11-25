@@ -55,9 +55,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Everyone",
     title: "Welcome to Hatian",
     points: [
-      "Hatian splits a shared bill by what each person actually had, not just total ÷ people.",
-      "It runs in 3 steps: Add & claim → Pay → Done. It moves on by itself; nobody waits for a button.",
-      "No accounts, no bank logins. Money moves outside the app; Hatian keeps the exact record.",
+      "Split a bill by what each person actually had.",
+      "3 steps: Add & claim → Pay → Done.",
     ],
     art: (
       <div aria-hidden className="flex items-center justify-center gap-2">
@@ -75,12 +74,10 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "install",
     who: "Everyone",
-    title: "Add to Home Screen before joining",
+    title: "Add it to your Home Screen",
     points: [
-      "Do this before starting or joining: iPhone keeps a separate sign-in for the Home Screen app.",
-      "iPhone: open Hatian in Safari, tap Share → Add to Home Screen → Add. Safari requires those taps; a website cannot do them for you.",
-      "Android: in Chrome, tap “Install app” (or ⋮ → Add to Home screen).",
-      "Open Hatian from its new icon, then start or join there. Keep your join code handy.",
+      "iPhone: in Safari, tap Share → Add to Home Screen. Android: tap “Install app”.",
+      "Then open Hatian from its icon. After joining, copy your recovery key somewhere safe.",
     ],
     art: (
       <Phone>
@@ -95,11 +92,10 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "start",
     who: "Organizer",
-    title: "Start a hatian and invite the group",
+    title: "Start a split and invite friends",
     points: [
-      "One person taps “Start a hatian”, names the occasion and becomes the organizer.",
-      "You get a 10-character join code. Tap “Share link” to send it to your group chat.",
-      "Friends tap the link (or “Join with a code”) and enter their name.",
+      "Tap “Start a split” and name it.",
+      "Tap “Share link” to send the code to your group chat.",
     ],
     art: (
       <Phone>
@@ -115,38 +111,18 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     ),
   },
   {
-    id: "key",
-    who: "Everyone",
-    title: "Save your recovery key",
-    points: [
-      "Right after you create or join, Hatian shows a personal recovery key once.",
-      "Copy it into Notes or a password manager. If you lose your phone, it brings back the same you — your receipts, claims and payments.",
-      "To use it: on the first screen tap “I have a recovery key” and paste it.",
-      "Keep it private; don’t post it in the group chat.",
-    ],
-    art: (
-      <Phone>
-        <div className="flex items-center gap-2 text-[13px] font-semibold"><Icon name="key" size={18} className="text-coral" /> Your recovery key</div>
-        <div className="rounded-lg border border-dashed border-line bg-surface-2 p-2 font-mono text-[11px] break-all">AA-q7Xb…9fK2</div>
-        <Pill tone="neutral"><Icon name="copy" size={14} /> Copy recovery key</Pill>
-      </Phone>
-    ),
-  },
-  {
     id: "receipts",
     who: "Whoever paid",
-    title: "Add the receipts",
+    title: "Add the receipt",
     points: [
-      "Whoever paid the store opens Receipts and taps “Scan a receipt” to take a photo — the items, service charge and total are filled in for you to check. (Or tap “Add receipt” to type it.)",
-      "Choose “Shared equally” (split among whoever had it) or “By piece” (e.g. 3 rice — each person claims pieces).",
-      "Check every line against the paper receipt and fix anything misread. The bar turns green when items, discounts and charges add up to the exact total.",
-      "Saving a receipt you paid counts as “I paid”. If someone else typed it in for you, you confirm the amount once on the receipt.",
+      "Scan a photo of the receipt, or type the items.",
+      "Pick “Shared equally” or “By piece” for each item.",
     ],
     art: (
       <Phone>
-        <Row left="Sisig (shared equally)" right="₱600.00" />
+        <Row left="Pizza (shared equally)" right="₱600.00" />
         <Row left="3× Rice (by piece)" right="₱180.00" />
-        <Row left="Pancit (shared equally)" right="₱250.00" />
+        <Row left="Pasta (shared equally)" right="₱250.00" />
         <Row left="Service charge" right="+₱103.00" />
         <Row left={<span className="flex items-center gap-1 text-receive"><Icon name="check" size={14} /> Adds up to ₱1,133.00</span>} tone="receive" />
       </Phone>
@@ -157,15 +133,14 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Everyone",
     title: "Claim what you had",
     points: [
-      "Open Claim as soon as a receipt is added; no need to wait for the others. Tap “I had some” on shared items, or use − / + for pieces.",
-      "Didn’t have anything from a receipt? Tap “I got nothing from this receipt” so the group knows you answered.",
-      "You only ever change your own claims. Your claims are your agreement; there is no separate approval round.",
+      "Tap “I had some”, or use − / + for pieces.",
+      "Had nothing? Tap “I got nothing from this receipt”.",
     ],
     art: (
       <Phone>
-        <Row left="Sisig · shared" right={<Pill><Icon name="check" size={12} /> I had some</Pill>} tone="violet" />
+        <Row left="Pizza · shared" right={<Pill><Icon name="check" size={12} /> I had some</Pill>} tone="violet" />
         <Row left="Rice · 2 of 3 claimed" right={<span className="flex items-center gap-2"><span className="flex size-6 items-center justify-center rounded-full border border-line">−</span>1<span className="flex size-6 items-center justify-center rounded-full border border-line">+</span></span>} />
-        <Row left="Pancit · shared" right={<Pill tone="neutral">I had some</Pill>} />
+        <Row left="Pasta · shared" right={<Pill tone="neutral">I had some</Pill>} />
         <Pill tone="neutral">I got nothing from this receipt</Pill>
       </Phone>
     ),
@@ -173,11 +148,10 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "everyone",
     who: "Everyone",
-    title: "Say you’re done; the bill freezes by itself",
+    title: "Say you’re done",
     points: [
-      "Everyone taps “I’m done adding receipts” on Home, even if they paid nothing.",
-      "The organizer taps “Everyone’s here” once everyone who shared the bill has joined. Nobody new can join after this.",
-      "The moment everyone is done, Hatian freezes the bill and shows simple transfers, e.g. “Juan → Mark ₱495.00”.",
+      "On Home, say when you’re done adding receipts. The organizer taps “Everyone’s here”.",
+      "The bill then locks by itself and shows who pays whom.",
     ],
     art: (
       <Phone>
@@ -191,38 +165,17 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "pay",
     who: "Everyone",
-    title: "Pay outside the app, then report it",
+    title: "Pay, then tap “I sent”",
     points: [
-      "People getting paid back set up how they want to be paid in Money: cash and/or their own QR.",
-      "Send the money with cash or your e-wallet/bank, then tap “I sent” and enter the amount. Sending part of it is fine.",
-      "Your payment shows as “Sent” until the other person confirms it arrived. It doesn’t count yet.",
+      "Pay by cash or QR, then tap “I sent”.",
+      "The person you paid taps “Yes, I got it”. Only then does it count.",
     ],
     art: (
       <Phone>
         <Row left={<span className="flex items-center gap-2"><Icon name="qr" size={16} className="text-violet" /> QR — Mark</span>} />
-        <Row left={<span className="flex items-center gap-2"><Icon name="cash" size={16} className="text-receive" /> Cash accepted</span>} />
         <Pill><Icon name="arrowUp" size={14} /> I sent ₱200.00</Pill>
-        <Row left="₱200.00 · cash" right={<span className="text-warn">Sent</span>} tone="warn" />
-      </Phone>
-    ),
-  },
-  {
-    id: "confirm",
-    who: "Person receiving",
-    title: "The receiver confirms",
-    points: [
-      "The person getting the money checks their cash or e-wallet and taps “Yes, I got it”. Only then does the balance go down.",
-      "Not there yet? Leave it and check later. Really didn’t arrive? Tap “It didn’t arrive”. You both then pick what happened — nobody else can decide for you.",
-      "Confirmed by mistake? You can undo it once, with a reason, until the hatian closes.",
-    ],
-    art: (
-      <Phone>
         <Row left="Did ₱200.00 from Juan arrive?" right={<span className="text-warn">Sent</span>} />
-        <div className="grid grid-cols-2 gap-2">
-          <Pill tone="receive"><Icon name="check" size={14} /> Yes, I got it</Pill>
-          <Pill tone="pay">It didn’t arrive</Pill>
-        </div>
-        <Row left="Confirmed" right={<span className="text-receive">₱200.00</span>} tone="receive" />
+        <Pill tone="receive"><Icon name="check" size={14} /> Yes, I got it</Pill>
       </Phone>
     ),
   },
@@ -231,9 +184,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Everyone",
     title: "Done!",
     points: [
-      "When every transfer is confirmed, Hatian closes the hatian by itself a day later (the organizer can close it sooner). Something wrong before then? The organizer can reopen the bill with a reason; confirmed money is kept.",
-      "The event becomes a read-only record. Every event is deleted 30 days after it was created — finished or not — so export a CSV/JSON copy from People if you want one.",
-      "Lost your phone, or opened Hatian from your Home Screen and your event is missing? Tap “I have a recovery key” on the first screen. If you lost the key too, ask the organizer in person for replacement access.",
+      "When everyone has paid, the split closes by itself.",
+      "Lost your phone? Tap “I have a recovery key” on the first screen.",
     ],
     art: (
       <div aria-hidden className="space-y-3">

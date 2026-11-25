@@ -54,9 +54,9 @@ export default function Recover() {
         }}
       >
         <p className="text-[15px] text-muted">
-          Lost your phone, cleared your browser, or opened Hatian from your Home Screen and your event is missing? Paste the key you saved when you joined.
+          Paste the key you saved when you joined.
         </p>
-        <Field label="Personal recovery key" hint="Starts with AA- and is about 46 characters long. Spaces or line breaks from copying are fine." error={tooShort ? "That doesn’t look like a whole key yet. Copy the full line that starts with AA-." : null}>
+        <Field label="Personal recovery key" hint="Starts with AA-." error={tooShort ? "That doesn’t look like a whole key yet. Copy the full line that starts with AA-." : null}>
           {(p) => (
             <textarea
               {...p}
@@ -94,15 +94,15 @@ export default function Recover() {
           Get back into my event
         </Button>
         {installed && (
-          <Notice tone="info" title="Using Hatian from your Home Screen?">
-            On iPhone, the Home Screen app keeps its own sign-in, separate from Safari. If you joined in Safari first, enter your key here once and your event moves into the app.
+          <Notice tone="info" title="Joined in Safari first?">
+            Enter your key here once and your event moves into the app.
           </Notice>
         )}
         <Notice tone="info">
           <span className="flex gap-2">
             <Icon name="key" size={18} className="mt-0.5 shrink-0" />
             <span>
-              Recovery moves your identity to this phone and signs the old one out of that event. It never creates a new person or erases what you paid or owe. Each key is for one event. Lost your key and old phone? Ask the organizer to check your identity in person and reissue access from People.
+              Your old phone is signed out of that event. Nothing you paid or owe changes. Lost your key too? Ask the organizer.
             </span>
           </span>
         </Notice>

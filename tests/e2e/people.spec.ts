@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type BrowserContextOptions, type Page } from "@playwright/test";
 
-async function peopleGroup(browser: Browser, baseURL: string, options: BrowserContextOptions) {
+async function peopleGroup(browser: Browser, baseURL: string, options: BrowserContextOptions, withGuest = true) {
   const phones = await Promise.all(["Mark", "Juan", "Paolo"].map(async (name) => {
     const context = await browser.newContext({ ...options, baseURL });
     await context.addInitScript(() => {
@@ -21,8 +21,10 @@ async function peopleGroup(browser: Browser, baseURL: string, options: BrowserCo
     person.memberId = (await joined.json()).memberId;
   }
   expect((await organizer.context.request.post(`/api/events/${event.eventId}/members/${admin.memberId}/admin`, { headers, data: { isAdmin: true } })).ok()).toBe(true);
-  const guest = await organizer.context.request.post(`/api/events/${event.eventId}/guests`, { headers, data: { displayName: "Lola" } });
-  expect(guest.ok()).toBe(true);
+  if (withGuest) {
+    const guest = await organizer.context.request.post(`/api/events/${event.eventId}/guests`, { headers, data: { displayName: "Lola" } });
+    expect(guest.ok()).toBe(true);
+  }
   const open = async (page: Page) => {
     await page.goto(`/e/${event.eventId}`);
     await page.getByRole("navigation", { name: "Event sections" }).getByRole("button", { name: "People", exact: true }).click({ timeout: 10_000 });
@@ -141,6 +143,37 @@ test("People exposes management controls only to the appropriate roles", async (
   await expect(adminMember.getByRole("button", { name: /Reissue access/ })).toHaveCount(0);
   await expect(adminMember.getByRole("button", { name: "Make admin", exact: true })).toHaveCount(0);
   await group.close();
+});
+
+test("Home opens the add-guest form while the event allows adding people", async ({ browser, baseURL }, testInfo) => {
+  const group = await peopleGroup(browser, baseURL!, testInfo.project.use, false);
+  const name = "Add someone without a phone";
+  const eventPath = `/e/${group.eventId}`;
+  try {
+    for (const { page } of [group.organizer, group.admin]) {
+      await page.goto(eventPath);
+      await page.getByRole("button", { name, exact: true }).click();
+      const form = page.getByRole("dialog", { name, exact: true });
+      await expect(form.getByLabel("Name of person without a phone")).toBeVisible();
+      await form.getByRole("button", { name: "Close", exact: true }).click();
+      await page.getByRole("navigation", { name: "Event sections" }).getByRole("button", { name: "Home", exact: true }).click();
+    }
+    const cancelled = await group.organizer.context.request.post(`/api/events/${group.eventId}/cancel`, {
+      headers: group.headers,
+      data: { cancelled: true },
+    });
+    expect(cancelled.ok()).toBe(true);
+    for (const { page } of [group.organizer, group.admin]) {
+      await page.reload();
+      await expect(page.getByTestId("next-status")).toHaveText("This split was cancelled");
+      await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0);
+      await page.getByRole("navigation", { name: "Event sections" }).getByRole("button", { name: "People", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "People", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name, exact: true })).toHaveCount(0);
+    }
+  } finally {
+    await group.close();
+  }
 });
 
 test("People wraps a long display name in the overview and profile", async ({ browser, baseURL }, testInfo) => {

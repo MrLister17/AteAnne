@@ -36,7 +36,7 @@ export default function Home() {
         <TutorialButton variant="icon" />
       </div>
 
-      {returning ? (
+      {returning && (
         <>
           <SectionTitle>Your events on this phone</SectionTitle>
           <ul className="card divide-y divide-line overflow-hidden p-0">
@@ -58,20 +58,11 @@ export default function Home() {
             ))}
           </ul>
         </>
-      ) : (
-        <>
-          <p className="mt-4 text-[17px] leading-relaxed">
-            Split the bill by <b>what each person actually had</b>, not just total ÷ people.
-          </p>
-          <div className="mt-5">
-            <InstallPrompt quiet />
-          </div>
-        </>
       )}
 
-      <div className={`${returning ? "mt-6" : "mt-4"} grid gap-3`}>
+      <div className="mt-6 grid gap-3">
         <Link href="/new" className="flex min-h-14 items-center gap-3 rounded-2xl bg-violet px-5 text-[17px] font-semibold text-violet-ink shadow-sm active:opacity-90">
-          <Icon name="plus" /> Start a hatian
+          <Icon name="plus" /> Start a split
         </Link>
         <Link href="/join" className="card flex min-h-14 items-center gap-3 px-5 text-[17px] font-semibold active:bg-surface-2">
           <Icon name="users" className="text-violet" /> Join with a code
@@ -85,17 +76,15 @@ export default function Home() {
 
       {installed && events !== null && events.length === 0 && (
         <div className="mt-3">
-          <Notice tone="info" title="Joined in Safari before adding Hatian to your Home Screen?">
-            The Home Screen app keeps its own sign-in. Tap <b>I have a recovery key</b> and paste the key you saved, once per event, to bring your events here.
+          <Notice tone="info" title="Missing an event you joined in the browser?">
+            Tap <b>I have a recovery key</b> and paste the key you saved.
           </Notice>
         </div>
       )}
 
-      {returning && (
-        <div className="mt-6">
-          <InstallPrompt quiet />
-        </div>
-      )}
+      <div className="mt-6">
+        <InstallPrompt quiet />
+      </div>
 
       {/* Newcomers see the steps; people who already have events can open them. Remounts when that changes. */}
       <details key={returning ? "returning" : "new"} className="group mt-6" open={!returning}>
@@ -106,9 +95,9 @@ export default function Home() {
         <div className="card mt-1 space-y-4 p-4">
           <ol className="space-y-3 text-[15px]">
             {[
-              ["receipt", "Add & claim", "Whoever paid adds the receipt. Everyone ticks what they actually had, shared or by piece."],
-              ["wallet", "Pay", "When everyone is done, the bill freezes by itself. Pay by cash or QR; the receiver confirms it arrived."],
-              ["check", "Done", "Once everything is confirmed, the hatian closes by itself."],
+              ["receipt", "Add & claim", "Whoever paid adds the receipt. Everyone ticks what they had."],
+              ["wallet", "Pay", "Pay by cash or QR. The receiver confirms it arrived."],
+              ["check", "Done", "When everyone has paid, the split closes."],
             ].map(([icon, title, text], i) => (
               <li key={title} className="flex gap-3">
                 <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-soft text-violet">

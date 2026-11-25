@@ -174,7 +174,7 @@ function DeletionNotice({ quiet = false }: { quiet?: boolean }) {
   return (
     <Notice tone="warn" title={`Deletes in ${daysLeft} day${daysLeft === 1 ? "" : "s"} (${date})`}>
       <p>
-        Every event is deleted {event.retentionDays} days after it was created{event.phase === "DONE" ? "" : ", even if it isn’t finished"}. Deleting the record doesn’t cancel what people owe. {exportLink}
+        What people owe still counts after it’s deleted. {exportLink}
       </p>
     </Notice>
   );
@@ -199,12 +199,12 @@ function EverythingLeft() {
 
 /** Once you've said you're done adding receipts: a quiet way to take it back. */
 function UndoDoneAdding() {
-  const { event } = useEvent();
+  const { view, me, event } = useEvent();
   const { run, error } = useInlineAction();
   return (
     <div className="px-1">
       <p className="flex flex-wrap items-center gap-x-2 text-[14px] text-muted">
-        <span>You said you’re done adding receipts ·</span>
+        <span>{view.actingFor ? `${me.displayName} is done adding receipts ·` : "You said you’re done adding receipts ·"}</span>
         <button
           type="button"
           className="inline-flex min-h-11 items-center font-semibold text-violet underline underline-offset-2"
@@ -258,7 +258,7 @@ function NextStep() {
           </Disclosure>
           {owner && (
             <Disclosure summary="Something wrong with the bill?" className="border-t border-line pt-1">
-              <p className="text-[14px] text-muted">A correction reopens receipts and claims. Earlier statements and confirmed money are kept; overpayments become return transfers. You freeze the fixed bill yourself.</p>
+              <p className="text-[14px] text-muted">Reopens receipts and claims so you can fix them. Confirmed payments are kept. Freeze the bill again when it’s right.</p>
               {reopenAllowed ? (
                 <Button full variant="tonal" busy={busy} busyLabel="Reopening…" onClick={() => {
                   const reason = prompt("Why does the bill need a correction? Confirmed payments will carry forward. Correct any mistaken payment confirmations first; prior statements become read-only.");
@@ -318,10 +318,23 @@ function NextStep() {
   );
 }
 
-/** The per-transfer lines say it all; "X: a non-zero balance remains" only repeats them. */
+/**
+ * The per-transfer lines say it all; "X: a non-zero balance remains" only repeats them.
+ * Likewise "Ben → Ana: PHP 400.00 not yet confirmed received." repeats the
+ * "…PHP 400.00 awaiting confirmation." line for the same transfer and amount.
+ */
 function transferBlockers(blockers: string[]): string[] {
   const transfers = blockers.filter((b) => !/a non-zero balance remains/.test(b));
-  return transfers.length ? transfers : blockers;
+  const list = transfers.length ? transfers : blockers;
+  const awaiting = new Set<string>();
+  for (const b of list) {
+    const m = /^(.*): (.*) awaiting confirmation\.$/.exec(b);
+    if (m) awaiting.add(`${m[1]}|${m[2]}`);
+  }
+  return list.filter((b) => {
+    const m = /^(.*): (.*) not yet confirmed received\.$/.exec(b);
+    return !(m && awaiting.has(`${m[1]}|${m[2]}`));
+  });
 }
 
 /**
@@ -330,12 +343,12 @@ function transferBlockers(blockers: string[]): string[] {
  * are one tap away.
  */
 function InviteCard() {
-  const { view, me, event, setTab } = useEvent();
+  const { view, me, event, goTo } = useEvent();
   const act = useAction();
   const people = view.members.filter((m) => m.active).length;
   const noGuests = !view.members.some((m) => m.isGuest && m.active);
-  const addGuest = me.canManageGuests && noGuests && (
-    <button type="button" onClick={() => setTab("people")} className="flex min-h-11 w-full items-center gap-2 text-left text-[15px] font-semibold text-violet">
+  const addGuest = me.canManageGuests && !event.cancelled && noGuests && (
+    <button type="button" onClick={() => goTo("people", { addGuest: true })} className="flex min-h-11 w-full items-center gap-2 text-left text-[15px] font-semibold text-violet">
       <Icon name="user" size={18} className="shrink-0" />
       <span className="flex-1">Add someone without a phone</span>
       <Icon name="chevron" size={18} className="shrink-0" />
@@ -406,13 +419,13 @@ function InviteCard() {
 
 /** Organizer/admin: everyone added without a phone, what they're waiting on, and a one-tap way to act for them. */
 function GuestsPanel() {
-  const { view, me, name, actAs, showPerson, setTab } = useEvent();
+  const { view, me, name, actAs, showPerson, goTo } = useEvent();
   const guests = view.members.filter((m) => m.isGuest && m.active);
   if (guests.length === 0) {
     // The organizer gets this link inside "Invite people"; admins get it here.
-    if (me.isOwner || view.event.phase !== "COLLECTING" || view.event.rosterLockedAt) return null;
+    if (me.isOwner || view.event.phase !== "COLLECTING" || view.event.rosterLockedAt || view.event.cancelled) return null;
     return (
-      <button type="button" onClick={() => setTab("people")} className="card flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] font-semibold text-violet">
+      <button type="button" onClick={() => goTo("people", { addGuest: true })} className="card flex min-h-14 w-full items-center gap-3 px-4 text-left text-[15px] font-semibold text-violet">
         <Icon name="user" size={20} className="shrink-0" />
         <span className="flex-1">Add someone without a phone</span>
         <Icon name="chevron" size={18} className="shrink-0" />

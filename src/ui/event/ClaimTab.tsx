@@ -227,17 +227,21 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
     </ul>
   );
 
+  const picked = Object.values(draft).some((u) => u > 0);
   const itemButtons = !readOnly && !r.equalSplit && (
     <div className="space-y-2 pt-1">
-      <Button full busy={busy === "finish"} busyLabel="Saving…" disabled={!Object.values(draft).some((u) => u > 0) || busy !== null} onClick={() => save("finish")}>
+      <Button full busy={busy === "finish"} busyLabel="Saving…" disabled={!picked || busy !== null} onClick={() => save("finish")}>
         {`Save my items${ack ? "" : " & next"}`}
       </Button>
-      <Button full variant="secondary" busy={busy === "none"} busyLabel="Saving…" disabled={busy !== null} onClick={() => save("none")}>
-        I got nothing from this receipt
-      </Button>
+      {/* Once you've ticked something, "nothing" is no longer an answer you'd mean. */}
+      {!picked && (
+        <Button full variant="secondary" busy={busy === "none"} busyLabel="Saving…" disabled={busy !== null} onClick={() => save("none")}>
+          I got nothing from this receipt
+        </Button>
+      )}
       {dirty && (
         <Button full variant="tonal" busy={busy === "draft"} busyLabel="Saving…" disabled={busy !== null} onClick={() => save("draft")}>
-          Save as draft (not finished)
+          Save for later
         </Button>
       )}
     </div>

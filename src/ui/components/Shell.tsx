@@ -28,7 +28,7 @@ export function Brand({ size = "lg" }: { size?: "lg" | "sm" }) {
         <p className={`${size === "lg" ? "text-[28px]" : "text-[20px]"} leading-tight font-extrabold tracking-tight`}>
           <span className="text-violet">Hatian</span>
         </p>
-        {size === "lg" && <p className="text-[15px] text-muted">Hatian na malinaw. Bayaran na tama.</p>}
+        {size === "lg" && <p className="text-[15px] text-muted">Split the bill by what each person had.</p>}
       </div>
     </div>
   );

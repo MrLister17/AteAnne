@@ -51,6 +51,8 @@ export interface FocusTarget {
   payDetails?: boolean;
   /** Home: scroll to the invite card. */
   invite?: boolean;
+  /** People: open "Add someone without a phone" straight away. */
+  addGuest?: boolean;
 }
 
 export const EventContext = createContext<EventCtx | null>(null);

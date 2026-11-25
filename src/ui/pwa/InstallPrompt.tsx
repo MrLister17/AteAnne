@@ -7,7 +7,7 @@ import { useInstall } from "./InstallProvider";
 
 /**
  * Safari has no install API. Never imply that Web Share installs an app.
- * `quiet`: on the start screen, where "Start a hatian" is the main action; /new and /join still pause for installing first.
+ * `quiet`: on the start screen, where "Start a split" is the main action; /new and /join still pause for installing first.
  */
 export function InstallPrompt({ quiet = false }: { quiet?: boolean }) {
   const { device, canPrompt, install } = useInstall();
@@ -20,8 +20,8 @@ export function InstallPrompt({ quiet = false }: { quiet?: boolean }) {
       <div className="flex items-center gap-3">
         <img src="/icons/icon-192.png" alt="" width={48} height={48} className="size-12 rounded-xl" />
         <div className="min-w-0">
-          <h2 className="text-[17px] font-bold">Add Hatian to your Home Screen first</h2>
-          <p className="mt-1 text-[15px] text-muted">Then start or join from the app, so your event stays in it.</p>
+          <h2 className="text-[17px] font-bold">Add Hatian to your Home Screen</h2>
+          <p className="mt-1 text-[15px] text-muted">Opens like an app and keeps your events in one place.</p>
         </div>
       </div>
       <Button

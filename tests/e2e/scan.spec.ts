@@ -30,8 +30,8 @@ test("scan a receipt, check the draft, save only the details (no photo kept)", a
 
   const editor = page.getByRole("dialog", { name: "Add a receipt" });
   await expect(editor.getByText("Drafted from your photo — please check it")).toBeVisible();
-  await expect(editor.getByLabel("Store or label")).toHaveValue("Sample Kainan (demo scan)");
-  await expect(editor.getByLabel("Item 1 name")).toHaveValue("Sisig");
+  await expect(editor.getByLabel("Store or label")).toHaveValue("Sample Diner (demo scan)");
+  await expect(editor.getByLabel("Item 1 name")).toHaveValue("Pizza");
   await expect(editor.getByLabel("Item 2 name")).toHaveValue("Rice");
   await expect(editor.getByLabel("Total paid to the merchant")).toHaveValue("665.50");
   await expect(editor.getByRole("status")).toContainText("matches");
@@ -46,9 +46,9 @@ test("scan a receipt, check the draft, save only the details (no photo kept)", a
   });
   await editor.getByLabel("Item 2 name").fill("Garlic rice");
   await editor.getByRole("button", { name: "Save receipt" }).click();
-  await expect(page.getByRole("button", { name: /Sample Kainan/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Sample Kainan/ })).not.toContainText("photo");
-  await page.getByRole("button", { name: /Sample Kainan/ }).click();
+  await expect(page.getByRole("button", { name: /Sample Diner/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Sample Diner/ })).not.toContainText("photo");
+  await page.getByRole("button", { name: /Sample Diner/ }).click();
   await expect(page.getByText("Garlic rice")).toBeVisible();
   await expect(page.getByRole("button", { name: "View photo" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Attach photo|Replace photo/ })).toHaveCount(0);
@@ -82,7 +82,7 @@ test("the Add-receipt form itself offers 'Fill in from a photo'", async ({ page 
   await page.screenshot({ path: "test-results/screens/15-form-photo-button.png", animations: "disabled" });
   await editor.getByLabel("Choose a receipt photo to fill in this form").setInputFiles(photoPath);
   await expect(editor.getByText("Drafted from your photo — please check it")).toBeVisible();
-  await expect(editor.getByLabel("Item 1 name")).toHaveValue("Sisig");
+  await expect(editor.getByLabel("Item 1 name")).toHaveValue("Pizza");
   await expect(editor.getByLabel("Total paid to the merchant")).toHaveValue("665.50");
   await expect(editor.getByRole("heading", { name: "Scan a different photo" })).toBeVisible();
 });

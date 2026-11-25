@@ -123,7 +123,7 @@ test("start screen: newcomers see how it works, returning people see their event
 
   // First visit: the steps are open; the walkthrough lives with them; the recovery key is on screen once.
   await page.goto("/");
-  await expect(page.getByRole("link", { name: "Start a hatian" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Start a split" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your events on this phone" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Watch the full walkthrough/ })).toBeVisible();
   await expect(page.getByRole("link", { name: "I have a recovery key" })).toHaveCount(1);
@@ -136,7 +136,7 @@ test("start screen: newcomers see how it works, returning people see their event
   const events = page.getByRole("heading", { name: "Your events on this phone" });
   await expect(events).toBeVisible();
   await expect(page.getByRole("link", { name: /Barkada lunch/ })).toBeInViewport();
-  expect(await top(events)).toBeLessThan(await top(page.getByRole("link", { name: "Start a hatian" })));
+  expect(await top(events)).toBeLessThan(await top(page.getByRole("link", { name: "Start a split" })));
   await expect(page.getByRole("button", { name: /Watch the full walkthrough/ })).toBeHidden();
   await page.getByRole("heading", { name: "How it works" }).click();
   await expect(page.getByRole("button", { name: /Watch the full walkthrough/ })).toBeVisible();

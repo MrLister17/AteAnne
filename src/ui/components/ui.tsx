@@ -505,7 +505,7 @@ export const useToast = () => useContext(ToastCtx);
 
 /* ---------------------------------------------------------------- Copy / share */
 
-export function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+export function CopyButton({ text, label = "Copy", onCopied }: { text: string; label?: string; onCopied?: () => void }) {
   const [done, setDone] = useState(false);
   return (
     <Button
@@ -516,6 +516,7 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
         try {
           await navigator.clipboard.writeText(text);
           setDone(true);
+          onCopied?.();
           setTimeout(() => setDone(false), 2000);
         } catch {
           window.prompt("Copy this:", text);

@@ -54,13 +54,16 @@ const TABS: { id: TabId; label: string; icon: IconName }[] = [
 
 /**
  * Only the tabs you can use in this step (D51). Step 1 "Add & claim": Receipts
- * and Claim. Step 2: Pay. Done: Money (the record). Home and People always.
+ * and Claim. Step 2: Pay. Done: Summary. Home and People always.
  */
 export function tabsFor(phase: Phase): { id: TabId; label: string; icon: IconName }[] {
   const ids: TabId[] = phase === "SETTLING" ? ["overview", "money", "receipts", "people"] : phase === "DONE" ? ["overview", "money", "receipts", "people"] : ["overview", "receipts", "claim", "people"];
   return ids.map((id) => {
     const t = TABS.find((x) => x.id === id)!;
-    return id === "money" && phase === "SETTLING" ? { ...t, label: "Pay" } : t;
+    if (id === "money" && phase === "SETTLING") return { ...t, label: "Pay" };
+    // After Done, the tab is the record; "See summary" on Home opens it.
+    if (id === "money" && phase === "DONE") return { ...t, label: "Summary" };
+    return t;
   });
 }
 
@@ -68,7 +71,7 @@ export function tabsFor(phase: Phase): { id: TabId; label: string; icon: IconNam
 const STEP_NEWS: Partial<Record<Phase, string>> = {
   SETTLING: "Bill frozen. Time to pay.",
   COLLECTING: "The organizer reopened the bill to fix it.",
-  DONE: "This hatian is closed. Everything was paid.",
+  DONE: "All paid. This split is closed.",
 };
 
 export function EventApp({ eventId }: { eventId: string }) {

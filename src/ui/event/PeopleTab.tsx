@@ -88,11 +88,16 @@ type Panel =
 
 export function PeopleTab() {
   const router = useRouter();
-  const { view, me, event, name, actAs, showPerson } = useEvent();
+  const { view, me, event, name, actAs, showPerson, focus } = useEvent();
   const tutorial = useTutorial();
   const act = useAction();
   const acting = Boolean(view.actingFor);
-  const [panel, setPanel] = useState<Panel | null>(null);
+  const canAdd =
+    me.canManageGuests &&
+    event.phase === "COLLECTING" &&
+    !event.rosterLockedAt &&
+    !event.cancelled;
+  const [panel, setPanel] = useState<Panel | null>(() => (focus?.addGuest && canAdd ? "add" : null));
   const navigationGeneration = useRef(0);
   const navigate = (next: Panel | null) => {
     navigationGeneration.current += 1;
@@ -110,11 +115,6 @@ export function PeopleTab() {
   const [newKey, setNewKey] = useState<string | null>(null);
   const [confirmTitle, setConfirmTitle] = useState("");
   const person = view.members.find((m) => m.id === personId);
-  const canAdd =
-    me.canManageGuests &&
-    event.phase === "COLLECTING" &&
-    !event.rosterLockedAt &&
-    !event.cancelled;
   const hasReports = Boolean(
     view.settlement?.hasReports || view.paymentHistory.length,
   );
@@ -185,8 +185,9 @@ export function PeopleTab() {
       <div className="px-1">
         <h2 className="text-[22px] font-bold">People</h2>
         <p className="text-[14px] text-muted">
-          {view.members.filter((m) => m.active).length} on the roster
-          {event.rosterLockedAt ? " · locked" : ""}
+          {view.members.filter((m) => m.active).length}{" "}
+          {view.members.filter((m) => m.active).length === 1 ? "person" : "people"}
+          {event.rosterLockedAt ? " · joining closed" : ""}
         </p>
       </div>
       <Card className="p-0">
@@ -320,22 +321,15 @@ export function PeopleTab() {
                 </p>
               </div>
             </div>
-            <Card className="space-y-2 text-[15px]">
-              {event.phase === "COLLECTING" && (
+            {event.phase === "COLLECTING" && (
+              <Card className="space-y-2 text-[15px]">
                 <p>
                   {person.entryComplete
                     ? "✓ Finished entering receipts"
                     : "Still entering receipts"}
                 </p>
-              )}
-              <p className="text-muted">
-                Initial plan:{" "}
-                {person.intent === "PAID_EXPENSE"
-                  ? "paid something"
-                  : "pays a share"}
-                . Anyone can pay and consume.
-              </p>
-            </Card>
+              </Card>
+            )}
             {(canHelp || !acting) && (
               <Button
                 full
@@ -360,8 +354,7 @@ export function PeopleTab() {
                   Act for them
                 </Button>
                 <p className="text-[14px] text-muted">
-                  Show {person.displayName} the screen as you choose their items
-                  or record their payments. The history shows you helped.
+                  Claim items or record payments for {person.displayName}.
                 </p>
                 {event.phase !== "DONE" && (
                   <Button
@@ -469,7 +462,9 @@ export function PeopleTab() {
             )}
           </div>
         )}
-        {panel === "add" && <AddGuest onAdded={close} />}
+        {panel === "add" && (
+          canAdd ? <AddGuest onAdded={close} /> : <Notice tone="warn">You can’t add anyone right now.</Notice>
+        )}
         {panel === "profile" && (
           <div className="space-y-4">
             <Card className="space-y-3">
@@ -964,9 +959,8 @@ function AddGuest({ onAdded }: { onAdded: () => void }) {
   return (
     <div className="space-y-4">
       <p className="text-[15px] text-muted">
-        For a lola, a kid, or anyone with no phone or data. You (or an admin)
-        claim their items and record their payments for them, then show them
-        their amount in big text.
+        For a kid, a grandparent, or anyone without a phone. You can claim
+        items and record payments for them.
       </p>
       <form
         className="space-y-4"
@@ -993,7 +987,7 @@ function AddGuest({ onAdded }: { onAdded: () => void }) {
               maxLength={40}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Lola Nena"
+              placeholder="e.g. Grandma Rose"
               disabled={full}
               required
             />

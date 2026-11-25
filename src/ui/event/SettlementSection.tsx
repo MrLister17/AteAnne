@@ -158,10 +158,10 @@ function PayEdge({ edge, focused }: { edge: EdgeView; focused: boolean }) {
               {instr.qrAssetId && (
                 <div>
                   <p className="flex items-center gap-2">
-                    <Icon name="qr" size={18} className="text-violet" /> QR{instr.qrLabel ? ` — ${instr.qrLabel}` : ""} <span className="text-[12px] text-muted">(v{instr.version})</span>
+                    <Icon name="qr" size={18} className="text-violet" /> QR{instr.qrLabel ? ` — ${instr.qrLabel}` : ""}
                   </p>
                   <img src={`/api/assets/${instr.qrAssetId}`} alt={`Payment QR shared by ${name(edge.to)}`} className="mt-2 w-full max-w-[260px] rounded-xl border border-line bg-white p-2" />
-                  <p className="mt-1 text-[12px] text-muted">Check the name shown in your e-wallet or bank app before sending. Hatian doesn’t read or check QR codes.</p>
+                  <p className="mt-1 text-[12px] text-muted">Check the name in your e-wallet before sending.</p>
                 </div>
               )}
             </div>
@@ -512,7 +512,7 @@ function InstructionsEditor() {
         <div className="min-w-0 flex-1 text-[15px]">
           <p className="font-semibold">How you get paid</p>
           <p className="text-muted">
-            {cur ? [cur.acceptsCash && "Cash", cur.hasQr && "QR"].filter(Boolean).join(" + ") + ` · v${cur.version}` : "Not shared yet"}
+            {cur ? [cur.acceptsCash && "Cash", cur.hasQr && "QR"].filter(Boolean).join(" + ") : "Not shared yet"}
             {currencyOptions.length > 1 && ` · ${(cur ? cur.acceptedCurrencies : view.defaultAcceptedCurrencies).join(", ")}`}
           </p>
         </div>
@@ -568,10 +568,10 @@ function InstructionsEditor() {
                 {(p) => <input {...p} className="field" maxLength={200} value={cashNote} onChange={(e) => setCashNote(e.target.value)} />}
               </Field>
             )}
-            <Field label="Your payment QR (optional)" hint="JPEG/PNG/WebP up to 8 MB. Only people who owe you can see it. Uploading a QR is not proof of payment.">
+            <Field label="Your payment QR (optional)" hint="A screenshot of your GCash, Maya or bank QR. Only people who owe you see it.">
               {(p) => <input {...p} type="file" accept="image/jpeg,image/png,image/webp" className="field" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />}
             </Field>
-            <Field label="QR label (optional)" hint="e.g. “GCash — J. Dela Cruz”. Don’t include full account numbers.">
+            <Field label="QR label (optional)" hint="e.g. “GCash — Mark”. No full account numbers.">
               {(p) => <input {...p} className="field" maxLength={60} value={qrLabel} onChange={(e) => setQrLabel(e.target.value)} />}
             </Field>
             {cur?.hasQr && !file && (
@@ -598,7 +598,7 @@ function InstructionsEditor() {
                 <p className="text-[13px] text-muted">Money sent in another currency counts at the ECB rate of the day it’s sent.</p>
               </fieldset>
             )}
-            <p className="text-[13px] text-muted">Changing these never changes the frozen amounts. Earlier payment reports keep the version they used.</p>
+            <p className="text-[13px] text-muted">Changing these never changes what anyone owes.</p>
           </div>
         </Sheet>
       )}

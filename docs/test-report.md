@@ -1,5 +1,20 @@
 # Test report
 
+## English copy and UX patch (2026-11-25 Manila)
+
+Verified the patch on Windows with Node 22.23.5 and isolated PostgreSQL 18.4. The branch started from GitHub `main` at `bf3deb5`. The changelog entry came from the handoff copy and was added alongside the organizer confirmation entry.
+
+| Check | Result |
+| --- | --- |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run test:unit` | Passed, 260 tests in 12 files |
+| `npm run test:integration` | Passed, 87 tests in 15 files |
+| `npm run build` | Passed |
+| `npm run test:e2e` | Passed, 81 tests across iPhone 15 and 360px Android Chromium profiles |
+
+The browser run used the standard suites with a local config on port 54620, synthetic data, the demo receipt reader, and fixture exchange rates. It covered opening the guest form from Home as organizer or admin, closing guest entry after cancellation, acknowledging a copied recovery key, and the existing organizer confirmation flow.
+
 ## Organizer confirmation (2026-11-25 Manila)
 
 Verified on Windows with Node 22.23.5 and isolated PostgreSQL 18.4 databases. The Python reference check, lint, type check, 260 unit tests, 87 integration tests, and production build passed. The new Playwright flow passed on iPhone 15 and 360px Android emulation. It covers closing the review, rejecting use in guest mode, and freezing the confirmed split with the expected centavo totals.

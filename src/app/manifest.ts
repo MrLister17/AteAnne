@@ -4,7 +4,7 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "Hatian — Hatian na malinaw",
+    name: "Hatian — split the bill",
     short_name: "Hatian",
     description: "Split shared bills by what each person actually had, and settle with recipient-confirmed payments.",
     start_url: "/?source=pwa",

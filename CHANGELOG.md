@@ -12,6 +12,24 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 - Home → **Confirm for everyone** lets the organizer finish receipt entry, confirm receipt payers, and accept the saved split for the group. It preserves item assignments and equal-split objections, and records the organizer’s action in Activity.
 
+## Unreleased: English-only copy and fewer words (2026-11-25 Manila) · proposed patch, not merged
+
+UI copy and small UX fixes only: no migration, no money-rule change. Prepared as a patch against `main` `8ad4dac` after a full live walkthrough on ateanne.vercel.app (create → receipt → claim → guest → freeze → cash → confirm → Done).
+
+- **English only.** Removed every Tagalog string from the app: the "Hatian na malinaw. Bayaran na tama." tagline (now "Split the bill by what each person had."), "Mabuhay!", "Kusina ni Ate" / "Lola Nena" placeholders, the bilingual lines on the big "Show amount" screen, and "hatian" used as a common noun ("Start a hatian" → **Start a split**, "This hatian is closed" → "This split is closed"). The demo scan reader now says "Sample Diner".
+- **Fewer words.** Shorter helper text on Home, Start, Join, Recover, the recovery-key screen, the receipt editor, payment details, Add someone without a phone, and the walkthrough (10 long steps → 7 steps of two short lines). Note and settle-up currency on Start moved under **More options**. Removed "Initial plan: … Anyone can pay and consume", "on the roster", and the "v1" version tags on payment details.
+- **Instinct fixes.**
+  - Said "I paid" but no receipt yet: the Next card's main button is now **Add a receipt**, with "I didn’t pay for anything" as the way out (it used to lead with "I’m done adding receipts").
+  - While acting for someone, the card says "Next for Ben" and "Ben is done adding receipts", not "you".
+  - "Add someone without a phone" on Home opens the form directly instead of only switching to People.
+  - Claim: "I got nothing from this receipt" hides once you’ve ticked an item; "Save as draft (not finished)" → "Save for later".
+  - Copying the recovery key ticks "I saved my recovery key" for you.
+  - Start/Join sit above the install card on the first screen.
+  - The Pay tab becomes **Summary** after Done (matches "See summary").
+  - "Still to confirm" no longer lists the same transfer twice ("awaiting confirmation" + "not yet confirmed received" for the same amount).
+- **Tests updated for the new copy:** `hatian`, `home`, `tutorial`, `reminders`, `scan`, `cash-payments` (e2e) and `scan` (integration).
+- **Verification.** Lint, type checking, unit and integration tests, the production build, and both browser profiles passed. See [test report](docs/test-report.md).
+
 ## Hatian name update
 
 - Renamed the app across the interface, browser metadata, install manifest, tutorials, shared messages, and statement downloads.

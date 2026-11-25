@@ -46,7 +46,7 @@ test("cash before any receipt becomes credit, and cash during Pay updates the pl
   const samPage = await sam.newPage();
   await samPage.goto(`/e/${eventId}#overview`);
   const card = samPage.getByTestId("cash-payments").locator("xpath=..");
-  await expect(card).toContainText("Handed someone money already?");
+  await expect(card).toContainText("Already gave someone money?");
   await card.getByRole("button", { name: "Record payment" }).click();
   const sheet = samPage.getByRole("dialog", { name: "Record a payment" });
   await sheet.getByLabel("Who did you give it to?").selectOption({ label: "Maya" });

@@ -96,7 +96,7 @@ export function CashPayments({ where }: { where: "home" | "pay" | "done" }) {
         </div>
       )}
       {!sentLine && !receivedLine && !actionable.length && where === "home" && (
-        <p className="text-[14px] text-muted">Handed someone money already? Record it so it counts toward what you owe.</p>
+        <p className="text-[14px] text-muted">Already gave someone money? Record it here.</p>
       )}
       {where === "pay" && view.cash.paused && (
         <Notice tone="warn">A cash payment is waiting for a decision. Other payments are paused until it’s confirmed or sorted out.</Notice>

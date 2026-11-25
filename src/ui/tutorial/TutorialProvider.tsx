@@ -107,10 +107,9 @@ function WelcomeAsk({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
             <h2 id="welcome-title" className="text-[20px] font-bold">
               First time here?
             </h2>
-            <p className="text-[15px] text-muted">Mabuhay! Want a quick walkthrough?</p>
+            <p className="text-[15px] text-muted">Want a 1-minute walkthrough?</p>
           </div>
         </div>
-        <p className="mt-4 text-[16px]">See how a hatian works from start to finish — adding receipts, claiming what you had, and getting paid back. About a minute.</p>
         <div className="mt-5 grid gap-2">
           <button type="button" autoFocus onClick={onYes} className="btn btn-primary">
             Show me how
@@ -119,7 +118,7 @@ function WelcomeAsk({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
             Maybe later
           </button>
         </div>
-        <p className="mt-3 text-center text-[13px] text-muted">You can open the tutorial anytime with the ? button.</p>
+        <p className="mt-3 text-center text-[13px] text-muted">Tap ? anytime to see it again.</p>
       </div>
     </Modal>
   );
@@ -199,7 +198,7 @@ function Walkthrough({ onClose }: { onClose: (finished: boolean) => void }) {
           {last ? (
             <div className="grid gap-2">
               <Link href="/new" onClick={() => onClose(true)} className="btn btn-primary">
-                Start a hatian
+                Start a split
               </Link>
               <button type="button" onClick={() => onClose(true)} className="btn btn-secondary">
                 Got it

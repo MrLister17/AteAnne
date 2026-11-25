@@ -98,7 +98,7 @@ function Header() {
   const { view } = useEvent();
   return (
     <div className="flex items-center gap-3 px-1">
-      <h2 className="text-[22px] font-bold">{view.event.phase === "SETTLING" ? "Pay" : "Money"}</h2>
+      <h2 className="text-[22px] font-bold">{view.event.phase === "SETTLING" ? "Pay" : "Summary"}</h2>
       {view.settlement && (
         <span className="inline-flex items-center gap-1 text-[13px] text-muted">
           <Icon name="lock" size={14} /> Frozen

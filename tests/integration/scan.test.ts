@@ -21,7 +21,7 @@ describe("receipt scanning", () => {
   it("returns a reconciled draft and saves nothing", async () => {
     const e = await eventWith(app, ["Mark", "Juan"]);
     const draft = await app.scans.scan(e.people.Juan.actorId, e.eventId, photo);
-    expect(draft.label).toBe("Sample Kainan (demo scan)");
+    expect(draft.label).toBe("Sample Diner (demo scan)");
     expect(draft.lines.map((l) => l.amount)).toEqual(["32000", "10500", "18000"]);
     expect(draft.adjustments).toEqual([{ kind: "SERVICE", label: "Service charge", amount: "6050" }]);
     expect(draft.payable).toBe("66550");

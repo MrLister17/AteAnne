@@ -31,7 +31,7 @@ async function saveRecoveryAndContinue(page: Page, button: RegExp) {
   await page.getByRole("button", { name: button }).click();
 }
 
-async function tab(page: Page, name: "Home" | "Receipts" | "Claim" | "Money" | "Pay" | "People") {
+async function tab(page: Page, name: "Home" | "Receipts" | "Claim" | "Money" | "Pay" | "Summary" | "People") {
   await page.getByRole("navigation", { name: "Event sections" }).getByRole("button", { name }).click();
 }
 
@@ -49,7 +49,7 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
   await mark.page.goto("/");
   await shot(mark.page, "01-home");
   await expectNoHorizontalScroll(mark.page);
-  await mark.page.getByRole("link", { name: "Start a hatian" }).click();
+  await mark.page.getByRole("link", { name: "Start a split" }).click();
   await mark.page.getByLabel("What’s the occasion?").fill("Dinner sa Lucena");
   await mark.page.getByLabel("Your name in this group").fill("Mark");
   await mark.page.getByRole("button", { name: "Create event" }).click();
@@ -232,7 +232,7 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
   await instr.getByLabel("Your payment QR (optional)").setInputFiles(qrPath);
   await instr.getByLabel("QR label (optional)").fill("GCash — Mark (synthetic)");
   await instr.getByRole("button", { name: "Save" }).click();
-  await expect(mark.page.getByText(/Cash \+ QR · v1/)).toBeVisible();
+  await expect(mark.page.getByText("Cash + QR", { exact: true })).toBeVisible();
 
   // Juan pays PHP 200 cash first (partial).
   await juan.page.reload();
@@ -293,7 +293,7 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
 
   // ---------------------------------------------------------------- persistence
   await paolo.page.goto(eventUrl);
-  await tab(paolo.page, "Money");
+  await tab(paolo.page, "Summary");
   await expect(paolo.page.getByRole("status").filter({ hasText: "Settled" })).toBeVisible();
   await expect(paolo.page.getByText("Every payment was confirmed by the person who got it.").first()).toBeVisible();
   await shot(paolo.page, "10-done");

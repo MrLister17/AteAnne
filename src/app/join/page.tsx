@@ -70,7 +70,7 @@ export default function Join() {
           }
         }}
       >
-        <Field label="Join code" hint={isKey ? "That’s your personal recovery key, not a join code. We’ll use it to bring you back into your event." : "10 letters/numbers from the organizer, e.g. K7MPQ-2XRTA. Have a recovery key (AA-…)? You can paste it here too."}>
+        <Field label="Join code" hint={isKey ? "That’s your personal recovery key, not a join code. We’ll use it to bring you back into your event." : "Ask the organizer for the 10-character code."}>
           {(p) => (
             <input
               {...p}
@@ -91,8 +91,8 @@ export default function Join() {
         </Field>
         {!isKey && (
           <>
-            <Field label="Your name in this group" hint="Use a name your friends will recognise.">
-              {(p) => <input {...p} className="field" required maxLength={40} autoComplete="nickname" value={name} onChange={(e) => setName(e.target.value)} placeholder="Juan" />}
+            <Field label="Your name in this group" hint="A name your friends will recognize.">
+              {(p) => <input {...p} className="field" required maxLength={40} autoComplete="nickname" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Juan" />}
             </Field>
             <IntentPicker value={intent} onChange={setIntent} />
           </>
@@ -109,9 +109,6 @@ export default function Join() {
             </Link>
           </p>
         )}
-        <Notice tone="info">
-          The code lets anyone it was forwarded to join, so the organizer checks the roster before locking it. Use one browser per person — a second browser profile would join as someone new.
-        </Notice>
       </form>
       </InstallFirst>
     </PageShell>

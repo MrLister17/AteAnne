@@ -317,13 +317,13 @@ export function ReceiptEditor({
             </div>
           </div>
         )}
-        {receipt && <Notice tone="warn">Saving a change resets everyone’s claims on this receipt to drafts. If someone else paid, they confirm the amount again.</Notice>}
+        {receipt && <Notice tone="warn">Saving a change asks everyone to check their claims on this receipt again.</Notice>}
         <Field label="Store or label" error={tried && !d.label.trim() ? "Required" : null}>
-          {(p) => <input {...p} className="field" maxLength={80} value={d.label} onChange={(e) => setD({ ...d, label: e.target.value })} placeholder="Kusina ni Ate / 7-Eleven snacks" />}
+          {(p) => <input {...p} className="field" maxLength={80} value={d.label} onChange={(e) => setD({ ...d, label: e.target.value })} placeholder="e.g. Pizza place" />}
         </Field>
         <Field
           label="Who actually paid the merchant?"
-          hint={d.payerMemberId === view.me.memberId ? "That’s you: saving this receipt confirms you paid it." : "You can enter a receipt someone else paid. They confirm the amount once on the receipt."}
+          hint={d.payerMemberId === view.me.memberId ? undefined : "They’ll confirm the amount once."}
         >
           {(p) => (
             <select {...p} className="field" value={d.payerMemberId} onChange={(e) => setD({ ...d, payerMemberId: e.target.value })}>
@@ -352,7 +352,7 @@ export function ReceiptEditor({
             <input type="checkbox" className="mt-1 size-5 shrink-0 accent-violet" checked={d.equalSplit} onChange={(e) => setD({ ...d, equalSplit: e.target.checked })} />
             <span className="font-semibold">Split this receipt equally among everyone</span>
           </label>
-          <p className="text-[14px] text-muted">Everyone on the locked roster confirms their own share with one tap. This includes all items, discounts and charges; totals differ by at most {money(1n, d.currency)}. Nobody is signed up for them.</p>
+          {d.equalSplit && <p className="text-[14px] text-muted">Split the total evenly. No need to claim items.</p>}
         </div>
 
         <div>
@@ -362,7 +362,7 @@ export function ReceiptEditor({
               <li key={i} className="card space-y-3 p-3">
                 <div className="flex items-center gap-2">
                   <span className="text-[13px] font-bold text-muted">#{i + 1}</span>
-                  <input aria-label={`Item ${i + 1} name`} className="field flex-1" maxLength={80} value={l.label} onChange={(e) => setLine(i, { label: e.target.value })} placeholder="Sisig / Rice / Coke 1.5L" aria-invalid={tried && !l.label.trim() ? true : undefined} />
+                  <input aria-label={`Item ${i + 1} name`} className="field flex-1" maxLength={80} value={l.label} onChange={(e) => setLine(i, { label: e.target.value })} placeholder="e.g. Pizza, Rice, Coke 1.5L" aria-invalid={tried && !l.label.trim() ? true : undefined} />
                   {d.lines.length > 1 && (
                     <button type="button" className="icon-btn icon-btn-danger" aria-label={`Remove item ${i + 1}`} onClick={() => setD({ ...d, lines: d.lines.filter((_, j) => j !== i), adjustments: d.adjustments.map((a) => ({ ...a, scope: a.scope === "ALL" ? "ALL" : a.scope.filter((x) => x !== i).map((x) => (x > i ? x - 1 : x)) })) })}>
                       <Icon name="trash" size={20} />
@@ -386,7 +386,7 @@ export function ReceiptEditor({
                       </button>
                     ))}
                   </div>
-                  <p className="mt-1 text-[12px] text-muted">{d.equalSplit ? "Included in everyone’s equal share of the whole receipt." : l.mode === "SHARED" ? "Split equally among whoever ticks it (one person = solo)." : `Each person claims whole pieces; all ${l.quantity || "?"} must be claimed.`}</p>
+                  {!d.equalSplit && <p className="mt-1 text-[12px] text-muted">{l.mode === "SHARED" ? "Split among whoever had some." : "Each person claims how many they had."}</p>}
                 </fieldset>
               </li>
             ))}
@@ -398,7 +398,7 @@ export function ReceiptEditor({
 
         <div>
           <h3 className="mb-1 text-[15px] font-bold">Discounts & charges</h3>
-          <p className="mb-2 text-[13px] text-muted">Enter amounts exactly as printed. VAT already inside prices and card-payment lines are not added. Discounts printed on an ex-VAT base: enter the equivalent reduction so the total matches.</p>
+          <p className="mb-2 text-[13px] text-muted">Only add what’s on the receipt. VAT already in the prices doesn’t go here.</p>
           <ol className="space-y-3">
             {d.adjustments.map((a, i) => (
               <li key={i} className="card space-y-3 p-3">
@@ -485,8 +485,8 @@ export function ReceiptEditor({
           label="Total paid to the merchant"
           hint={
             d.payableAuto
-              ? "Filled in for you: items − discounts + charges. If there’s a printed receipt, type its total here to double-check."
-              : "The exact final amount on the receipt. Clear it to fill it in automatically."
+              ? "Added up for you. Type the printed total to double-check."
+              : "The final amount on the receipt. Clear it to add it up for you."
           }
           error={err(resolved.payable)}
         >
@@ -603,7 +603,7 @@ function LineAmounts({ currency, index, line, shownTotal, invalid, onChange }: {
           </button>
         </div>
       )}
-      {!derived && !mismatch && unit === null && <p className="text-[12px] text-muted">Type the price each and we’ll multiply, or type the line total as printed.</p>}
+      {!derived && !mismatch && unit === null && <p className="text-[12px] text-muted">Type the price each, or the line total.</p>}
     </div>
   );
 }

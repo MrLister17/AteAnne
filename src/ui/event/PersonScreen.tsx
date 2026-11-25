@@ -31,10 +31,10 @@ function shareRows(view: View, memberId: string) {
 
 /**
  * A big, simple screen to SHOW someone what they owe or are owed: large
- * type, one headline amount, English with Tagalog underneath, no buttons to
- * press by mistake. Made for people without a phone, people not used to
- * apps, and lolas reading without their glasses. All numbers are the
- * server's; nothing is calculated here.
+ * type, one headline amount, plain English, no buttons to press by mistake.
+ * Made for people without a phone, people not used to apps, and anyone
+ * reading without their glasses. All numbers are the server's; nothing is
+ * calculated here.
  */
 export function PersonScreen({ memberId, onClose }: { memberId: string; onClose: () => void }) {
   const { view, name, seq } = useEvent();
@@ -80,7 +80,7 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
           <div className="flex items-center gap-4">
             <Avatar name={person.displayName} seq={person.seq} size={64} />
             <div className="min-w-0">
-              <p className="text-[15px] text-muted">For / Para kay</p>
+              <p className="text-[15px] text-muted">For</p>
               <h2 className="text-[32px] leading-tight font-bold break-words">{person.displayName}</h2>
             </div>
           </div>
@@ -92,7 +92,6 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
                   key={e.id}
                   tone={e.settled ? "done" : "pay"}
                   title={e.settled ? `Paid ${name(e.to)}` : `Pay ${name(e.to)}`}
-                  tagalog={e.settled ? `Bayad na kay ${name(e.to)}` : `Babayaran mo si ${name(e.to)}`}
                   amount={e.settled ? e.amount : e.outstanding}
                   note={e.settled ? "Confirmed received ✓" : BigInt(e.verified) > 0n ? `${money(e.verified, ccy)} already received · ${money(e.amount, ccy)} in all` : BigInt(e.pending) > 0n ? `${money(e.pending, ccy)} sent, waiting for ${name(e.to)} to confirm` : undefined}
                   avatar={{ name: name(e.to), seq: seq(e.to) }}
@@ -103,36 +102,34 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
                   key={e.id}
                   tone={e.settled ? "done" : "receive"}
                   title={e.settled ? `Got it from ${name(e.from)}` : `${name(e.from)} pays you`}
-                  tagalog={e.settled ? `Natanggap na mula kay ${name(e.from)}` : `Babayaran ka ni ${name(e.from)}`}
                   amount={e.settled ? e.amount : e.outstanding}
                   note={e.settled ? "Confirmed received ✓" : BigInt(e.pending) > 0n ? `${money(e.pending, ccy)} sent, check it arrived` : undefined}
                   avatar={{ name: name(e.from), seq: seq(e.from) }}
                 />
               ))}
-              {pays.length === 0 && gets.length === 0 && <Big tone="done" title="Nothing to pay" tagalog="Wala kang babayaran" amount="0" note="Your share was covered by what you paid." />}
-              {done && <p className="text-center text-[17px] font-semibold text-receive">All settled · Tapos na ang hatian</p>}
+              {pays.length === 0 && gets.length === 0 && <Big tone="done" title="Nothing to pay" amount="0" note="Your share was covered by what you paid." />}
+              {done && <p className="text-center text-[17px] font-semibold text-receive">All settled</p>}
             </div>
           ) : pos ? (
             <div className="mt-8 space-y-4">
-              <Big tone="neutral" title="Your share so far" tagalog="Ang parte mo sa ngayon" amount={pos.cost} note="Not final yet — everyone still has to agree. / Hindi pa ito pinal." />
-              {BigInt(pos.funding) > 0n && <Line label="You paid the store / Binayaran mo sa tindahan" value={money(pos.funding, ccy)} />}
+              <Big tone="neutral" title="Your share so far" amount={pos.cost} note="Not final yet." />
+              {BigInt(pos.funding) > 0n && <Line label="You paid the store" value={money(pos.funding, ccy)} />}
               {(BigInt(pos.funding) > 0n || view.paymentHistory.length > 0) && (
                 <Line
-                  label={BigInt(pos.remaining) >= 0n ? "So you get back / Kaya ibabalik sa iyo" : "So you still pay / Kaya babayaran mo pa"}
+                  label={BigInt(pos.remaining) >= 0n ? "So you get back" : "So you still pay"}
                   value={money(BigInt(pos.remaining) < 0n ? -BigInt(pos.remaining) : BigInt(pos.remaining), ccy)}
                   strong
                 />
               )}
-              {view.paymentHistory.length > 0 && <p className="text-[16px] text-muted">Confirmed payments are included. Wait for the corrected bill to be frozen before paying. / Kasama na ang kumpirmadong bayad.</p>}
+              {view.paymentHistory.length > 0 && <p className="text-[16px] text-muted">Confirmed payments are included. Wait for the corrected bill to be frozen before paying.</p>}
             </div>
           ) : (
-            <p className="mt-8 text-[20px] text-muted">Nothing to show yet. Your amount appears once the items are claimed. / Wala pa. Lalabas ito kapag na-claim na ang mga item.</p>
+            <p className="mt-8 text-[20px] text-muted">Nothing to show yet. Your amount appears once the items are claimed.</p>
           )}
 
           {rows.length > 0 && (
             <section className="mt-10">
               <h3 className="text-[20px] font-bold">What you had</h3>
-              <p className="text-[15px] text-muted">Mga kinain o ginamit mo</p>
               <ul className="mt-3 space-y-4">
                 {rows.map((r) => (
                   <li key={r.id} className="rounded-2xl border border-line p-4">
@@ -146,13 +143,13 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
                       ))}
                       {r.discount !== "0" && (
                         <li className="flex items-baseline justify-between gap-3 text-[17px] text-receive">
-                          <span>Discount / Diskwento</span>
+                          <span>Discount</span>
                           <span className="tnum shrink-0">−{money(r.discount, r.currency)}</span>
                         </li>
                       )}
                       {r.charges !== "0" && (
                         <li className="flex items-baseline justify-between gap-3 text-[17px] text-muted">
-                          <span>Service charge / Serbisyo</span>
+                          <span>Service charge</span>
                           <span className="tnum shrink-0">+{money(r.charges, r.currency)}</span>
                         </li>
                       )}
@@ -176,7 +173,7 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
   );
 }
 
-function Big({ tone, title, tagalog, amount, note, avatar }: { tone: "pay" | "receive" | "done" | "neutral"; title: string; tagalog: string; amount: string; note?: string; avatar?: { name: string; seq: number } }) {
+function Big({ tone, title, amount, note, avatar }: { tone: "pay" | "receive" | "done" | "neutral"; title: string; amount: string; note?: string; avatar?: { name: string; seq: number } }) {
   const { money: exact, shown, viewRate } = useEvent();
   const tones = {
     pay: "bg-pay-soft text-pay",
@@ -190,7 +187,6 @@ function Big({ tone, title, tagalog, amount, note, avatar }: { tone: "pay" | "re
         {avatar && <Avatar name={avatar.name} seq={avatar.seq} size={44} />}
         <div className="min-w-0">
           <p className="text-[22px] leading-tight font-bold text-ink">{title}</p>
-          <p className="text-[16px] text-muted">{tagalog}</p>
         </div>
       </div>
       <p className="tnum mt-3 text-[clamp(32px,11vw,48px)] leading-none font-extrabold break-words" data-testid="person-amount">
