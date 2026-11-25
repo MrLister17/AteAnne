@@ -1,5 +1,9 @@
 # Test report
 
+## Organizer confirmation (2026-11-25 Manila)
+
+Verified on Windows with Node 22.23.5 and isolated PostgreSQL 18.4 databases. The Python reference check, lint, type check, 260 unit tests, 87 integration tests, and production build passed. The new Playwright flow passed on iPhone 15 and 360px Android emulation. It covers closing the review, rejecting use in guest mode, and freezing the confirmed split with the expected centavo totals.
+
 ## Production cash smoke test for v0.10.0 (2026-11-23, 10:55–10:56 UTC)
 
 This closes the one gap in the v0.10.0 release record: the earlier production smoke test saved no payment. This run saved, confirmed and returned a real (synthetic) cash payment on production. No code changed.

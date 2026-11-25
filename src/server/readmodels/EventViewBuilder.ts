@@ -68,6 +68,8 @@ export class EventViewBuilder {
 
     return {
       features: this.features,
+      canConfirmSplit: isOwner && !acting && !e.cancelled && agg.machine.canMoveTo("SETTLING")
+        && e.receipts.length > 0 && agg.hasPendingSplitConfirmations(),
       /** Multi-currency support (D58–D62). */
       fx: {
         /** Settle-up currency first, then every receipt currency used here. */

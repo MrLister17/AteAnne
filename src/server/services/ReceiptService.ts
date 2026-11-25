@@ -5,7 +5,7 @@ import type { Db, Tx } from "../db";
 import { NotFoundError } from "../http/HttpError";
 import { EventAggregate, MAX_LINES, MAX_RECEIPTS, MemberRecord } from "../aggregate/EventAggregate";
 import { RATE_RULES, RateLimiter } from "../security/RateLimiter";
-import { claimsSchema, fundingAckSchema, receiptSchema, updateReceiptSchema } from "../validation";
+import { claimsSchema, confirmSplitSchema, fundingAckSchema, receiptSchema, updateReceiptSchema } from "../validation";
 import { BaseService, Caller, callerParts } from "./BaseService";
 import { addDays, manilaDay } from "@/domain/money/Currency";
 import { MAX_PURCHASE_AGE_DAYS, RateService } from "../fx/RateService";
@@ -280,6 +280,93 @@ export class ReceiptService extends BaseService {
       await this.audit(tx, eventId, me.id, "claims.saved", { receiptId, status: data.status, lines: data.claims.length, equalSplitAccepted: Boolean(data.acceptEqualSplit) });
       await this.advanceIfReady(tx, eventId);
       return { claimVersion: updated.claimVersion };
+    });
+  }
+
+  /** The organizer can attest to the saved split for the entire roster in one transaction. */
+  async confirmSplit(actorId: string, eventId: string, input: z.input<typeof confirmSplitSchema>) {
+    const { expectedFinancialVersion } = confirmSplitSchema.parse(input);
+    await this.countSave(actorId, eventId);
+    return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
+      agg.assertOwner(me.id);
+      agg.assertNotCancelled();
+      agg.machine.assertIn("COLLECTING", "ALLOCATING", "REVIEWING");
+      if (agg.record.financialVersion !== expectedFinancialVersion) {
+        throw new ConflictError("stale_version", "The bill changed. Review it before confirming for everyone.");
+      }
+
+      const receipts = agg.record.receipts;
+      if (!receipts.length) throw new ConflictError("no_receipts", "Add at least one receipt first.");
+      if (!agg.hasPendingSplitConfirmations()) return { phase: agg.phase };
+
+      const members = agg.activeMembers();
+      const objections = receipts.filter((r) =>
+        r.equalSplit && members.some((m) => agg.currentAck(r, m.id)?.kind === "NONE"),
+      );
+      if (objections.length) {
+        throw new ConflictError("equal_split_disagreed", "Resolve the equal-split objections first.", {
+          blockers: objections.map((r) => r.label),
+        });
+      }
+
+      const entryMemberIds = members.filter((m) => !m.entryComplete).map((m) => m.id);
+      if (entryMemberIds.length) {
+        await tx.member.updateMany({ where: { id: { in: entryMemberIds } }, data: { entryComplete: true } });
+      }
+
+      const funding = receipts.filter((r) => !agg.fundingAcknowledged(r)).map((r) => ({
+        receiptId: r.id, memberId: r.payerMemberId, receiptVersion: r.version, amountCentavos: r.payableCentavos,
+      }));
+      if (funding.length) await tx.fundingAck.createMany({ data: funding });
+
+      const shares = [];
+      const claimVersionBumps = new Set<string>();
+      for (const receipt of receipts) {
+        const memberIds = members.filter((m) => !agg.currentAck(receipt, m.id)).map((m) => m.id);
+        if (!memberIds.length) continue;
+        const receiptId = receipt.id;
+        const receiptVersion = receipt.version;
+        const savedClaimants = new Set(receipt.lines.flatMap((line) =>
+          line.claims.filter((c) => c.receiptVersion === receiptVersion).map((c) => c.memberId),
+        ));
+
+        if (receipt.equalSplit) {
+          const claims = new EqualReceiptSplit().claimsFor(receipt.lines);
+          await tx.claim.deleteMany({
+            where: { memberId: { in: memberIds }, lineId: { in: claims.map((c) => c.lineId) } },
+          });
+          await tx.claim.createMany({
+            data: memberIds.flatMap((memberId) => claims.map((c) => ({ ...c, memberId, receiptVersion }))),
+          });
+        }
+
+        await tx.receiptAck.deleteMany({ where: { receiptId, memberId: { in: memberIds } } });
+        await tx.receiptAck.createMany({
+          data: memberIds.map((memberId) => ({
+            receiptId, memberId, receiptVersion,
+            kind: receipt.equalSplit || savedClaimants.has(memberId) ? "FINISHED" : "NONE",
+          })),
+        });
+        for (const memberId of memberIds) claimVersionBumps.add(memberId);
+        shares.push({ receiptId, receiptVersion, memberIds });
+      }
+
+      const updated = await this.repo.load(tx, eventId);
+      const blockers = [...new Set([...updated.allocationGate().blockers, ...updated.reviewGate({ requireRates: false }).blockers])];
+      if (blockers.length) {
+        throw new ConflictError("split_incomplete", "Fix these receipts before confirming for everyone.", { blockers });
+      }
+
+      if (claimVersionBumps.size) {
+        await tx.member.updateMany({ where: { id: { in: [...claimVersionBumps] } }, data: { claimVersion: { increment: 1 } } });
+      }
+      await this.bumpFinancial(tx, eventId);
+      await this.audit(tx, eventId, me.id, "split.organizer_confirmed", {
+        entryMemberIds,
+        funding: funding.map((ack) => ({ ...ack, amountCentavos: ack.amountCentavos.toString() })),
+        shares,
+      });
+      return { phase: await this.advanceIfReady(tx, eventId) };
     });
   }
 

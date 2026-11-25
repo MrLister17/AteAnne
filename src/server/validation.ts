@@ -116,6 +116,8 @@ export const claimsSchema = z.object({
   claims: z.array(z.object({ lineId: id, units: z.number().int().min(1).max(1000) })).max(50),
 });
 
+export const confirmSplitSchema = z.object({ expectedFinancialVersion: z.number().int().positive() });
+
 export const approveSchema = z.object({ financialVersion: z.number().int().positive() });
 
 export const instructionsSchema = z.object({
