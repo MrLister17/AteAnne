@@ -5,7 +5,7 @@ import type { Phase } from "@/domain/event/PhaseMachine";
 import { api } from "../api";
 import { ShareJoin } from "../components/CredentialReveal";
 import { Icon } from "../components/Icon";
-import { ActionError, BalanceBanner, Blockers, Button, Card, Disclosure, Notice, SectionTitle, useToast } from "../components/ui";
+import { ActionError, BalanceBanner, Blockers, Button, Card, Disclosure, Notice, SectionTitle, Sheet, useToast } from "../components/ui";
 import { useAction, useEvent, useInlineAction } from "./EventContext";
 import { CurrencySwitch } from "./CurrencySwitch";
 import { CashPayments, creditLabel } from "./CashPayments";
@@ -66,6 +66,7 @@ export function OverviewTab() {
       {deletesSoon && <DeletionNotice />}
 
       <NextCard where="home" />
+      {view.canConfirmSplit && <ConfirmSplit />}
       <EverythingLeft />
       {(phase === "COLLECTING" || phase === "ALLOCATING" || phase === "REVIEWING") && !event.cancelled && <CashPayments where="home" />}
       {phase === "COLLECTING" && me.entryComplete && !event.cancelled && <UndoDoneAdding />}
@@ -85,6 +86,70 @@ export function OverviewTab() {
 
       {!deletesSoon && <DeletionNotice quiet />}
     </div>
+  );
+}
+
+function ConfirmSplit() {
+  const { view, event, name, money } = useEvent();
+  const { run, error, clearError } = useInlineAction();
+  const [reviewedVersion, setReviewedVersion] = useState<number | null>(null);
+  const changed = reviewedVersion !== event.financialVersion;
+
+  return (
+    <>
+      <Button
+        full
+        variant="tonal"
+        icon="check"
+        onClick={() => {
+          clearError();
+          setReviewedVersion(event.financialVersion);
+        }}
+      >
+        Confirm for everyone
+      </Button>
+      {reviewedVersion !== null && (
+        <Sheet
+          open
+          title="Confirm for everyone?"
+          onClose={() => setReviewedVersion(null)}
+          footer={
+            <div className="space-y-2">
+              <ActionError message={changed ? "The bill changed. Close this and check the latest split." : error} />
+              <Button
+                full
+                busyLabel="Confirming…"
+                disabled={changed}
+                onClick={async () => {
+                  const result = await run(
+                    () => api.post(`/api/events/${event.id}/confirm-split`, { expectedFinancialVersion: reviewedVersion }),
+                    "Split confirmed for everyone.",
+                  );
+                  if (result) setReviewedVersion(null);
+                  return result;
+                }}
+              >
+                Confirm split
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-4">
+            <p>You’re confirming that all receipts are in and the payers below are correct.</p>
+            <ul className="space-y-2" aria-label="Receipts and payers">
+              {view.receipts.map((receipt) => (
+                <li key={receipt.id} className="card p-3">
+                  <p className="font-semibold">{receipt.label}</p>
+                  <p className="text-[15px] text-muted">{name(receipt.payerId)} paid {money(receipt.payable, receipt.currency)}{receipt.equalSplit ? " · split equally" : ""}</p>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[15px] text-muted">Itemized receipts use saved claims. Anyone with no items saved gets no share.</p>
+            <p className="text-[15px] text-muted">Each recipient still confirms the money they receive.</p>
+          </div>
+        </Sheet>
+      )}
+    </>
   );
 }
 

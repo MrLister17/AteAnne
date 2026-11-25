@@ -47,6 +47,7 @@ const AUDIT_TEXT: Record<string, string> = {
   "receipt.scanned": "scanned a receipt photo",
   "funding.acknowledged": "confirmed paying a receipt",
   "claims.saved": "saved claims",
+  "split.organizer_confirmed": "confirmed the split for everyone",
   "review.approved": "approved the split",
   "phase.changed": "moved the event to a new step",
   "snapshot.frozen": "froze the statement",

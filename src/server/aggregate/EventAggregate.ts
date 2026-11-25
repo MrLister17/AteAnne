@@ -247,8 +247,15 @@ export class EventAggregate {
     return { ready: blockers.length === 0, blockers };
   }
 
+  hasPendingSplitConfirmations(): boolean {
+    const members = this.activeMembers();
+    return members.some((m) => !m.entryComplete) || this.record.receipts.some((r) =>
+      !this.fundingAcknowledged(r) || members.some((m) => !this.currentAck(r, m.id)),
+    );
+  }
+
   /** Everyone answered every receipt and the split calculates. Part of freezeGate. */
-  reviewGate(): Gate {
+  reviewGate({ requireRates = true } = {}): Gate {
     const blockers: string[] = [];
     for (const r of this.record.receipts) {
       for (const m of this.activeMembers()) {
@@ -258,7 +265,11 @@ export class EventAggregate {
       if (stale.length) blockers.push(`${r.label} changed; ${new Set(stale.map((c) => c.memberId)).size} member(s) must re-confirm their claims.`);
     }
     const calc = this.calculation();
-    if (!calc.ok) for (const i of calc.issues) blockers.push(`${this.receipt(i.receiptId).label}: ${i.message}`);
+    if (!calc.ok) {
+      for (const issue of calc.issues) {
+        if (requireRates || issue.code !== "RATE_UNAVAILABLE") blockers.push(`${this.receipt(issue.receiptId).label}: ${issue.message}`);
+      }
+    }
     return { ready: blockers.length === 0, blockers };
   }
 

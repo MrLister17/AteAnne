@@ -2,6 +2,10 @@
 
 _Last updated: 2026-11-23 Manila (v0.10.0, production cash smoke test)_
 
+## Organizer confirmation
+
+Home → **Confirm for everyone** posts to `/api/events/:eventId/confirm-split`. The organizer confirms receipt entry, funding, and pending shares against one financial version in the event transaction. People → **Activity** names the organizer. The existing roster and payment gates still apply. No database migration is needed.
+
 ## Hatian name update
 
 The app is branded Hatian as of `87c6e4a`. The production URL remains https://ateanne.vercel.app. Keep the manifest ID, session identifiers, local storage keys, and settlement policy identifiers stable for existing users. See [test report](test-report.md) for verification.

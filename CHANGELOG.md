@@ -8,6 +8,10 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ---
 
+## Organizer confirmation
+
+- Home → **Confirm for everyone** lets the organizer finish receipt entry, confirm receipt payers, and accept the saved split for the group. It preserves item assignments and equal-split objections, and records the organizer’s action in Activity.
+
 ## Hatian name update
 
 - Renamed the app across the interface, browser metadata, install manifest, tutorials, shared messages, and statement downloads.
