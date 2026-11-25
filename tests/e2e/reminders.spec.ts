@@ -17,7 +17,7 @@ test("preview and copy a manual reminder without sending it", async ({ page, con
   await page.getByRole("button", { name: /Open my event/ }).click();
   await page.getByRole("button", { name: "Copy reminder", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: "Copy reminder for Messenger" });
-  await expect(sheet.getByTestId("reminder-preview")).toContainText("then follow the prompt on Home to finish.");
+  await expect(sheet.getByTestId("reminder-preview")).toContainText("Finish on Home, even if you paid nothing.");
   await sheet.getByLabel("Who is this for?").selectOption({ label: "Mark" });
   await sheet.getByRole("button", { name: "Copy message", exact: true }).click();
   await expect(sheet.getByRole("button", { name: "Copied", exact: true })).toBeVisible();

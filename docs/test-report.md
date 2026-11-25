@@ -15,6 +15,8 @@ Verified the patch on Windows with Node 22.23.5 and isolated PostgreSQL 18.4. Th
 
 The browser run used the standard suites with a local config on port 54620, synthetic data, the demo receipt reader, and fixture exchange rates. It covered opening the guest form from Home as organizer or admin, closing guest entry after cancellation, acknowledging a copied recovery key, and the existing organizer confirmation flow.
 
+The first PR CI run failed the unit assertion that reminds people who paid nothing to finish receipt entry. The revised copy restores that instruction and points to Home. Lint, type checking, and all 260 unit tests passed locally after the correction.
+
 ## Organizer confirmation (2026-11-25 Manila)
 
 Verified on Windows with Node 22.23.5 and isolated PostgreSQL 18.4 databases. The Python reference check, lint, type check, 260 unit tests, 87 integration tests, and production build passed. The new Playwright flow passed on iPhone 15 and 360px Android emulation. It covers closing the review, rejecting use in guest mode, and freezing the confirmed split with the expected centavo totals.

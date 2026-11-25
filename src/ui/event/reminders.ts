@@ -32,7 +32,7 @@ function reminderLine(task: TaskView, name: (id: string) => string, ccy: string)
     case "fixReceipt":
       return task.reason === "doesntAddUp" ? `Fix “${task.label}” so its items add up to the total.` : `Change “${task.label}”: someone disagreed with splitting it equally.`;
     case "doneAdding":
-      return "Add any receipts you paid for, then follow the prompt on Home to finish.";
+      return "Add any receipts you paid for. Finish on Home, even if you paid nothing.";
     case "everyoneHere":
       return "Tap “Everyone’s here” once everyone who shared the bill has joined.";
     case "freeze":
