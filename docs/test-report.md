@@ -1,5 +1,28 @@
 # Test report
 
+## Start a split, one question at a time (2026-11-26 Manila)
+
+Branch `claude/nice-einstein-jqrcjj` (D67). Same Linux container, Node 22.23.5, local PostgreSQL 16 (isolated `ateanne_test`), pre-installed Chromium, synthetic data, the fake receipt reader and fake exchange rates.
+
+| Check | Result |
+| --- | --- |
+| `npm run test:reference` | PASS |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run test:unit` | 260 passed |
+| `npm run test:integration` | 87 passed |
+| `npm run build` | Passed |
+| `npm run test:e2e` | 83 passed (iPhone 15 and 360px Android), 2.6 min |
+
+The new browser test, "Start a split asks one question at a time…", runs at both sizes. It caught two real gaps in earlier runs, and both were fixed before this result:
+
+- The first question didn't get the cursor, because the input appears only after the install check finishes loading. The fix was `autoFocus`.
+- After tapping Back to the first question, the cursor wasn't back in the box. `goBack` now focuses it during the tap.
+
+The 8 existing flows that start a split now tap Next between questions. Nothing was skipped or removed.
+
+A dark-mode iPhone 15 capture of the three steps showed the progress bar (1/2/3 of 3), one question per screen, and Create event only on the last step.
+
 ## No closing periods, English-only copy (2026-11-26 Manila)
 
 Branch `claude/nice-einstein-jqrcjj`: PR #4 (`00209c0`) plus the D66 copy sweep. Ran on Linux with Node 22.23.5, a local PostgreSQL 16 (isolated `ateanne_test`), and the pre-installed Playwright Chromium, using synthetic data, the fake receipt reader and fake exchange rates.
