@@ -1,5 +1,23 @@
 # Test report
 
+## Join with a code, one question at a time (2026-11-26 Manila)
+
+Branch `claude/nice-einstein-jqrcjj` (D68). Same Linux container after a session restart (PostgreSQL 16 started again, isolated `ateanne_test`), Node 22.23.5, pre-installed Chromium, synthetic data, the fake receipt reader and fake exchange rates.
+
+| Check | Result |
+| --- | --- |
+| `npm run test:reference` | PASS |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run test:unit` | 260 passed |
+| `npm run test:integration` | 87 passed |
+| `npm run build` | Passed |
+| `npm run test:e2e` | 85 passed (iPhone 15 and 360px Android), 2.7 min |
+
+The new browser test, "Join asks one question at a time…", runs at both sizes. In its first run the shared-link step failed only because the test went from `/join` to `/join#code=…` in the same tab, which is a hash change with no reload. It now loads Home first, as tapping a link in a chat would. The `hatian` and `install` shared-link joins expect to start at the name. Nothing was skipped or removed.
+
+A dark-mode iPhone 15 capture of the three Join steps showed the code, the name and who paid on separate screens, with Join event only on the last.
+
 ## Start a split, one question at a time (2026-11-26 Manila)
 
 Branch `claude/nice-einstein-jqrcjj` (D67). Same Linux container, Node 22.23.5, local PostgreSQL 16 (isolated `ateanne_test`), pre-installed Chromium, synthetic data, the fake receipt reader and fake exchange rates.
