@@ -19,7 +19,7 @@ Decision **D66**. UI copy only: no migration and no money-rule change. Built on 
 - **Leftover Tagalog removed** from `README.md`, the `package.json` description, and the GUIDE line about the big "Show amount" screen.
 - **Rule for agents.** `CLAUDE.md` now says English only and no closing periods.
 - **Tests:** 1 unit, 5 integration and 31 browser assertions were updated to the new wording. Results are in [test report](docs/test-report.md).
-- **Release.** At the owner's instruction ("always merge and push to main to deploy"), `main` was fast-forwarded from `bf3deb5` to `04f23f0`. Production `/api/health` returned `version` `04f23f0`, and the live Home page shows "Split the bill by what each person had" and "Start a split". Main CI run 45728880767 was still running when this was written.
+- **Release.** At the owner's instruction ("always merge and push to main to deploy"), `main` was fast-forwarded from `bf3deb5` to `04f23f0`. Production `/api/health` returned `version` `04f23f0`, and the live Home page shows "Split the bill by what each person had" and "Start a split". Main CI run 45728880767 passed on `04f23f0`.
 
 ## Organizer confirmation
 
