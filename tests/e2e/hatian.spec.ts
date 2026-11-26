@@ -68,8 +68,10 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
     [paolo.page, "Paolo"],
   ] as const) {
     await p.goto(`/join#code=${code.replace("-", "")}`);
-    await expect(p.getByLabel("Join code")).toHaveValue(code.replace("-", ""));
+    // The link already filled in the code, so Join starts at the name question
+    await expect(p.getByRole("progressbar", { name: "Progress" })).toHaveAttribute("aria-valuetext", "Step 2 of 3");
     await p.getByLabel("Your name in this group").fill(name);
+    await p.getByRole("button", { name: "Next", exact: true }).click();
     await p.getByRole("button", { name: "Join event" }).click();
     await saveRecoveryAndContinue(p, /Open the event/);
     await expect(p.getByRole("heading", { name: "Dinner sa Lucena" })).toBeVisible();

@@ -202,3 +202,62 @@ test("Start a split asks one question at a time, keeps answers on Back, and keep
   await expect(page.getByRole("heading", { name: "Event created" })).toBeVisible();
   await ctx.close();
 });
+
+test("Join asks one question at a time, catches a bad code early, and a shared link starts at the name", async ({ browser }, testInfo) => {
+  const use = testInfo.project.use as object;
+  const organizer = await phone(browser, use);
+  const created = await post<{ eventId: string; joinCode: string }>(organizer, "/api/events", { title: "Step join", displayName: "Mark" });
+  const ctx = await phone(browser, use);
+  const page = await ctx.newPage();
+  const progress = page.getByRole("progressbar", { name: "Progress" });
+  const next = page.getByRole("button", { name: "Next", exact: true });
+
+  // Question 1: the code only, with the way back in for people who joined before
+  await page.goto("/join");
+  const codeBox = page.getByLabel("Join code", { exact: true });
+  await expect(codeBox).toBeFocused();
+  await expect(progress).toHaveAttribute("aria-valuetext", "Step 1 of 3");
+  await expect(page.getByLabel("Your name in this group")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Use your recovery key" })).toBeVisible();
+  await expectPhoneFriendly(page);
+
+  // Empty and too-short codes are caught before moving on
+  await next.click();
+  await expect(page.getByRole("alert").filter({ hasText: "Paste or type the code from the organizer" })).toBeVisible();
+  await codeBox.fill("ABC");
+  await next.click();
+  await expect(page.getByRole("alert").filter({ hasText: "A join code has 10 letters and numbers, like K7MPQ-2XRTA" })).toBeVisible();
+
+  // A code the server doesn't know comes back to question 1 with its message and the code kept
+  await codeBox.fill("ZZZZZ-ZZZZZ");
+  await codeBox.evaluate((el) => { el.dataset.sameBox = "yes"; });
+  await next.click();
+  const nameBox = page.getByLabel("Your name in this group");
+  await expect(nameBox).toHaveAttribute("data-same-box", "yes");
+  await expect(nameBox).toBeFocused();
+  await nameBox.fill("Juan");
+  await next.click();
+  await expect(page.getByRole("group", { name: "Who paid the bill?" })).toBeVisible();
+  await expect(progress).toHaveAttribute("aria-valuetext", "Step 3 of 3");
+  await expectPhoneFriendly(page);
+  await page.getByRole("button", { name: "Join event" }).click();
+  await expect(page.getByRole("alert").filter({ hasText: "That code does not match an open event, so check it with the organizer" })).toBeVisible();
+  await expect(codeBox).toHaveValue("ZZZZZ-ZZZZZ");
+  await expect(progress).toHaveAttribute("aria-valuetext", "Step 1 of 3");
+
+  // A shared link answers question 1, so it opens at the name; Back shows the code
+  await page.goto("/"); // a fresh load, as when the link is tapped in a chat (a hash-only change wouldn't reload /join)
+  await page.goto(`/join#code=${created.joinCode}`);
+  await expect(progress).toHaveAttribute("aria-valuetext", "Step 2 of 3");
+  await expect(nameBox).toBeFocused();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(codeBox).toHaveValue(created.joinCode);
+  await expect(codeBox).toBeFocused();
+  await next.click();
+  await nameBox.fill("Ana");
+  await next.click();
+  await page.getByRole("button", { name: "Join event" }).click();
+  await expect(page.getByRole("heading", { name: "You’re in" })).toBeVisible();
+  await ctx.close();
+  await organizer.close();
+});

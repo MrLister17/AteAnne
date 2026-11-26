@@ -1,10 +1,14 @@
 # Handoff
 
-_Last updated: 2026-11-26 Manila (Start a split steps D67, deployed at `ab0f54d`)_
+_Last updated: 2026-11-26 Manila (Join steps D68)_
+
+## Join steps (2026-11-26, D68)
+
+`/join` uses the same one-question pattern as `/new` (`StepProgress`, `PageShell onBack`, one shared `<input>`). A `#code=` link with a full code starts at the name. Code errors (`not_found`, `code_expired`, `joins_closed`) return to the code question. A pasted recovery key stays one step.
 
 ## Start a split steps (2026-11-26, D67)
 
-`/new` asks one question per screen: the occasion, your name, then who paid, with More options and Create event on the last step. `PageShell` has an `onBack` prop for in-page steps. Both typing questions use the same `<input>` on purpose, and Next blocks `mousedown` focus, so the iPhone keyboard stays up. Don't key the input by step. Join is still a single form, so applying the same pattern there is the natural next step if the owner wants it.
+`/new` asks one question per screen: the occasion, your name, then who paid, with More options and Create event on the last step. `PageShell` has an `onBack` prop for in-page steps. Both typing questions use the same `<input>` on purpose, and Next blocks `mousedown` focus, so the iPhone keyboard stays up. Don't key the input by step. Join got the same pattern in D68.
 
 ## Copy rules (2026-11-26, D66)
 

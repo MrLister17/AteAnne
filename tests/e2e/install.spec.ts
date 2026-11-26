@@ -23,8 +23,10 @@ test("Safari guides install before joining and retains the shared code when cont
   await page.screenshot({ path: "test-results/screens/install-guide.png", fullPage: true, animations: "disabled" });
   expect(joinWrites).toBe(0);
   await page.getByRole("button", { name: "Continue in this browser" }).click();
-  await expect(page.getByLabel("Join code", { exact: true })).toHaveValue("K7MPQ2XRTA");
+  // The shared code answered the first question, so Join opens at the name, and Back shows the code kept
   await expect(page.getByLabel("Your name in this group")).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByLabel("Join code", { exact: true })).toHaveValue("K7MPQ2XRTA");
   // The explicit choice survives navigation in this tab, without pretending installation succeeded.
   await page.goto("/new");
   await expect(page.getByLabel("What’s the occasion?")).toBeVisible();

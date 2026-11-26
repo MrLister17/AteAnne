@@ -8,6 +8,17 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ---
 
+## Join with a code, one question at a time (2026-11-26 Manila)
+
+Decision **D68**. UI only: no API, migration or money-rule change.
+
+- **Same flow as Start a split.** Join now asks *Join code*, then *Your name in this group*, then *Who paid the bill?*, with the progress bar, Back, Next/Enter, and the keyboard staying up between the two typing questions.
+- **Shared links skip a step.** When the link already has the code, Join opens at the name, and Back shows the code.
+- **Bad codes are caught where they belong.** A code that isn’t 10 letters and numbers is caught on the first question. If the server doesn’t know the code, it has expired, or joining is closed, you land back on the code question with the message and your code still there.
+- **Recovery key unchanged.** Pasting a recovery key into the code box still goes straight to **Get back into my event**.
+- **Shared progress bar.** The progress bar moved to `src/ui/components/StepProgress.tsx`, which both screens use.
+- **Tests.** New browser test at iPhone 15 and 360px covering focus, the empty and short code messages, an unknown code sending you back to question 1, the same text box carrying over, the shared link opening at the name, Back showing the code, and joining. The shared-link joins in `hatian` and `install` now expect to start at the name.
+
 ## Start a split, one question at a time (2026-11-26 Manila) · merged to `main` and deployed
 
 Decision **D67**. UI only: no API, migration or money-rule change.

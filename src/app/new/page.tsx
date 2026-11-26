@@ -9,6 +9,7 @@ import { CURRENCIES } from "@/domain/money/Currency";
 import { CredentialReveal } from "@/ui/components/CredentialReveal";
 import { IntentPicker } from "@/ui/components/IntentPicker";
 import { InstallFirst } from "@/ui/pwa/InstallFirst";
+import { StepProgress } from "@/ui/components/StepProgress";
 
 const STEPS = 3;
 
@@ -80,7 +81,7 @@ export default function NewEvent() {
             setStep(step + 1);
           }}
         >
-          <Progress step={step} />
+          <StepProgress step={step} total={STEPS} />
 
           {step < 2 ? (
             <div className="space-y-2">
@@ -145,28 +146,5 @@ export default function NewEvent() {
         </form>
       </InstallFirst>
     </PageShell>
-  );
-}
-
-function Progress({ step }: { step: number }) {
-  return (
-    <div className="flex items-center gap-3">
-      <div
-        role="progressbar"
-        aria-label="Progress"
-        aria-valuemin={1}
-        aria-valuemax={STEPS}
-        aria-valuenow={step + 1}
-        aria-valuetext={`Step ${step + 1} of ${STEPS}`}
-        className="flex flex-1 gap-1.5"
-      >
-        {Array.from({ length: STEPS }, (_, i) => (
-          <span key={i} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${i <= step ? "bg-violet" : "bg-line"}`} />
-        ))}
-      </div>
-      <span aria-hidden className="tnum text-[13px] text-muted">
-        {step + 1} of {STEPS}
-      </span>
-    </div>
   );
 }
