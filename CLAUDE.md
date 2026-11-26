@@ -10,3 +10,4 @@
 - The server recomputes everything; never trust client totals. Frozen snapshots and payment history are append-only.
 - Before finishing: `npm run lint && npm run typecheck && npm run test:unit && npm run test:integration && npm run build && npm run test:e2e`. Record real results in `docs/test-report.md`; never invent results, deployments or pilot data.
 - Keep `docs/decisions.md` and `docs/handoff.md` current.
+- Owner's standing instruction (2026-11-26): "always merge and push to main to deploy". Once the full check chain above passes, merge your branch into `main` and push it (Vercel deploys `main`), then check production `/api/health` and record it.
