@@ -52,7 +52,7 @@ export function ScanPanel({
               {scanner.stage === "preparing" ? "Getting your photo ready…" : "Reading your receipt…"}
             </p>
             <p className="mt-0.5 text-[13px] text-muted">
-              {scanner.seconds < 8 ? "Usually a few seconds." : scanner.seconds < 25 ? "Still reading. Long receipts take a little longer." : "Almost there. This can take up to a minute."}
+              {scanner.seconds < 8 ? "Usually a few seconds" : scanner.seconds < 25 ? "Still reading, long receipts take a little longer" : "Almost there, this can take up to a minute"}
               {scanner.seconds >= 3 && <span className="tnum"> {scanner.seconds}s</span>}
             </p>
           </div>
@@ -72,7 +72,7 @@ export function ScanPanel({
               </span>
               <div className="min-w-0">
                 <h3 className={`font-bold text-ink ${variant === "hero" ? "text-[17px]" : "text-[16px]"}`}>{rescan ? "Scan a different photo" : variant === "hero" ? "Scan a receipt" : "Fill in from a photo"}</h3>
-                <p className="text-[14px] text-muted">We read the photo, you check the details. The photo isn’t saved.</p>
+                <p className="text-[14px] text-muted">We read the photo, you check the details, and the photo isn’t saved</p>
               </div>
             </div>
           )}
@@ -80,7 +80,7 @@ export function ScanPanel({
             <div className="mt-3">
               <Notice tone="pay" title="That didn’t work">
                 <p>{scanner.error}</p>
-                <p className="text-muted">Tip: lay the receipt flat, fit the whole receipt in the frame, and use good light.</p>
+                <p className="text-muted">Tip: lay the receipt flat, fit the whole receipt in the frame, and use good light</p>
               </Notice>
             </div>
           )}
@@ -113,19 +113,19 @@ export function ScanOffNote() {
         <span className="text-violet">Why?</span>
       </summary>
       <div className="space-y-1.5 pb-3">
-        <p>Receipts can still be typed in. Scanning from a photo needs a free Groq key set up by whoever runs this site:</p>
+        <p>Receipts can still be typed in, but scanning from a photo needs a free Groq key set up by whoever runs this site:</p>
         <ol className="list-decimal space-y-1 pl-5">
-          <li>In Vercel, open the project → Settings → Environment Variables.</li>
+          <li>In Vercel, open the project → Settings → Environment Variables</li>
           <li>
-            Add <b className="text-ink">GROQ_API_KEY</b> with <b className="text-ink">Production</b> ticked.
+            Add <b className="text-ink">GROQ_API_KEY</b> with <b className="text-ink">Production</b> ticked
           </li>
-          <li>Deployments → open the newest one → Redeploy.</li>
+          <li>Deployments → open the newest one → Redeploy</li>
         </ol>
         <p>
           <a className="inline-flex min-h-11 items-center font-semibold text-violet underline" href="/api/health" target="_blank" rel="noreferrer">
             Open the setup check
           </a>{" "}
-          It says exactly what is missing.
+          It says exactly what is missing
         </p>
       </div>
     </details>

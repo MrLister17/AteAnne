@@ -1,6 +1,10 @@
 # Handoff
 
-_Last updated: 2026-11-23 Manila (v0.10.0, production cash smoke test)_
+_Last updated: 2026-11-26 Manila (copy rules D66 on branch `claude/nice-einstein-jqrcjj`)_
+
+## Copy rules (2026-11-26, D66)
+
+UI copy is English only, with no period at the end of a statement. Branch `claude/nice-einstein-jqrcjj` holds PR #4 (English-only copy, still open) plus the closing-period sweep. Production shows the Tagalog tagline until this branch, or PR #4, is merged and deployed. The rule is in `CLAUDE.md`. Strings are one sentence each, and periods stay only in abbreviations, list markers, the LLM prompt and code comments.
 
 ## Organizer confirmation
 

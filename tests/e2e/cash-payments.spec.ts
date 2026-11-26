@@ -55,7 +55,7 @@ test("cash before any receipt becomes credit, and cash during Pay updates the pl
   await noSidewaysScroll(samPage);
   await samPage.screenshot({ path: `test-results/screens/d64-record-${testInfo.project.name}.png`, animations: "disabled" });
   await sheet.getByRole("button", { name: "Record THB 2,000.00 to Maya" }).click();
-  await expect(samPage.getByText("Recorded. Maya will confirm.")).toBeVisible();
+  await expect(samPage.getByText("Recorded, Maya will confirm")).toBeVisible();
   await expect(card.getByTestId("cash-item")).toContainText("THB 2,000.00 to Maya · Awaiting confirmation");
 
   // ---------------------------------------------------------------- Maya confirms from her Next card
@@ -64,7 +64,7 @@ test("cash before any receipt becomes credit, and cash during Pay updates the pl
   const next = mayaPage.getByTestId("next-card");
   await expect(next.getByTestId("next-status")).toHaveText("Did THB 2,000.00 from Sam arrive?");
   await next.getByRole("button", { name: "Confirm received" }).click();
-  await expect(mayaPage.getByText("Confirmed. THB 2,000.00 from Sam.")).toBeVisible();
+  await expect(mayaPage.getByText("Confirmed THB 2,000.00 from Sam")).toBeVisible();
   await expect(mayaPage.getByTestId("cash-summary")).toHaveText(/Received THB 2,000.00 from Sam/);
 
   // ---------------------------------------------------------------- the dinner arrives: Sam owes THB 1,734.48, so THB 265.52 is credit
@@ -103,10 +103,10 @@ test("cash before any receipt becomes credit, and cash during Pay updates the pl
   await call(tess, "post", `/api/events/${eventId}/cash-payments`, { recipientMemberId: created.memberId, amount: "500000", idempotencyKey: `e2e-cash-${testInfo.project.name}-${Date.now()}` });
   await mayaPage.reload();
   await tab(mayaPage, "Pay");
-  await expect(mayaPage.getByText("A cash payment is waiting for a decision.")).toBeVisible();
+  await expect(mayaPage.getByText("Other payments are paused until the waiting cash payment is confirmed or sorted out")).toBeVisible();
   await mayaPage.getByTestId("cash-item").getByRole("button", { name: "Confirm received" }).click();
-  await expect(mayaPage.getByText("Confirmed. THB 5,000.00 from Tess.")).toBeVisible();
-  await expect(mayaPage.getByText("Confirmed cash was included and the remaining transfers were updated.")).toBeVisible();
+  await expect(mayaPage.getByText("Confirmed THB 5,000.00 from Tess")).toBeVisible();
+  await expect(mayaPage.getByText("Confirmed cash was included and the remaining transfers were updated")).toBeVisible();
   // Maya now gives back what Tess and Sam paid ahead.
   await expect(mayaPage.getByText("Pay Sam THB 265.52")).toBeVisible();
   await expect(mayaPage.getByText("Pay Tess THB 380.92")).toBeVisible();

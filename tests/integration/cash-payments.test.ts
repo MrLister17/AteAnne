@@ -103,7 +103,7 @@ describe("running event payments during Add & claim", () => {
     await dinner(t);
     const { reportId } = await handOver(t.sam, t.maya, t.eventId, "200000");
     expect((await app.events.lockRoster(t.maya.actorId, t.eventId)).phase).toBe("COLLECTING");
-    expect((await view(t.maya, t.eventId)).gates.freeze!.blockers).toContain("Maya hasn’t confirmed THB 2,000.00 from Sam yet.");
+    expect((await view(t.maya, t.eventId)).gates.freeze!.blockers).toContain("Maya hasn’t confirmed THB 2,000.00 from Sam yet");
     await app.cash.verify(t.maya.actorId, reportId);
 
     let v = await view(t.maya, t.eventId);

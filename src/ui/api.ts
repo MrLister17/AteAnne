@@ -29,10 +29,10 @@ export function onActivity(listener: (busy: boolean) => void): () => void {
 
 /** Hosting platforms answer some failures with plain text/HTML instead of our JSON; give those a human message. */
 function fallbackMessage(status: number): string {
-  if (status === 413) return "That photo is too large to upload. Try a smaller photo or a screenshot of it.";
-  if (status === 504 || status === 408) return "That took too long. Check your connection and try again.";
-  if (status === 429) return "Too many tries in a short time. Wait a minute and try again.";
-  if (status >= 500) return "The server had a problem. Nothing was changed — try again in a moment.";
+  if (status === 413) return "That photo is too large to upload, so try a smaller photo or a screenshot of it";
+  if (status === 504 || status === 408) return "That took too long, so check your connection and try again";
+  if (status === 429) return "Too many tries in a short time, so wait a minute and try again";
+  if (status >= 500) return "The server had a problem and nothing was changed, so try again in a moment";
   return "Something went wrong";
 }
 
@@ -69,15 +69,15 @@ export class ApiClient {
           body: body instanceof FormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
         });
       } catch {
-        if (opts.signal?.aborted) throw new ApiError(0, "aborted", "Stopped.");
-        throw new ApiError(0, "offline", "You seem to be offline. Nothing was saved — try again when connected.");
+        if (opts.signal?.aborted) throw new ApiError(0, "aborted", "Stopped");
+        throw new ApiError(0, "offline", "You seem to be offline and nothing was saved, so try again when connected");
       }
       const text = await res.text();
       let data: Record<string, unknown> & { error?: { code?: string; message?: string } } = {};
       try {
         data = text ? JSON.parse(text) : {};
       } catch {
-        if (res.ok) throw new ApiError(res.status, "bad_response", "The server sent an unexpected reply. Try again.");
+        if (res.ok) throw new ApiError(res.status, "bad_response", "The server sent an unexpected reply, so try again");
       }
       if (!res.ok) {
         const e = data?.error ?? {};

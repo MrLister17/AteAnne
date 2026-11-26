@@ -61,12 +61,12 @@ export function ReceiptsTab() {
       {event.phase === "DONE" && <Notice tone="info" title="Receipts frozen" />}
       {event.phase === "SETTLING" && (
         <Disclosure summary="Receipts frozen" icon="lock" className="card py-1">
-          <p className="text-[14px] text-muted">The organizer can correct the bill from Home → “Something wrong with the bill?”.</p>
+          <p className="text-[14px] text-muted">The organizer can correct the bill from Home → “Something wrong with the bill?”</p>
         </Disclosure>
       )}
       {(event.phase === "ALLOCATING" || event.phase === "REVIEWING") && (
         <Disclosure summary="Receipts locked" icon="lock" className="card py-1">
-          <p className="text-[14px] text-muted">The organizer can reopen receipts from Home. Editing a receipt then resets its claims.</p>
+          <p className="text-[14px] text-muted">The organizer can reopen receipts from Home, and editing a receipt then resets its claims</p>
         </Disclosure>
       )}
 
@@ -149,7 +149,7 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
       }
     >
       <div className="space-y-4">
-        {r.equalSplit && <Notice tone="info" title="Split equally among everyone">All items, discounts and charges are included. Each person confirms their own share; shares can differ by {php(1n)}.</Notice>}
+        {r.equalSplit && <Notice tone="info" title="Split equally among everyone">All items, discounts and charges are included, and each person confirms their own share (shares can differ by {php(1n)})</Notice>}
         <div className="flex items-center justify-between">
           <p className="text-muted">
             Paid by <b className="text-ink">{name(r.payerId)}</b> · {shortDay(r.purchasedOn)}
@@ -217,7 +217,7 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
               icon="trash"
               busyLabel="Removing…"
               onClick={() => {
-                if (!confirm("Remove this photo? The receipt details stay.")) return;
+                if (!confirm("Remove this photo? The receipt details stay")) return;
                 return act(() => api.del(`/api/receipts/${r.id}/image`), "Photo removed");
               }}
             >
@@ -230,7 +230,7 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
               icon="trash"
               busyLabel="Deleting…"
               onClick={() => {
-                if (!confirm(`Delete “${r.label}”? Claims on it are removed.`)) return;
+                if (!confirm(`Delete “${r.label}”? Claims on it are removed`)) return;
                 return act(() => api.del(`/api/receipts/${r.id}`), "Receipt deleted").then((ok) => {
                   if (ok !== undefined) onClose();
                   return ok;
@@ -247,7 +247,7 @@ function ReceiptDetail({ receipt: r, onClose, onEdit }: { receipt: ReceiptView; 
         <Disclosure summary="Receipt details" icon="info">
           <p className="text-[14px] text-muted">Entered by {name(r.authorId)} · version {r.version} · {r.lines.length} item{r.lines.length === 1 ? "" : "s"}</p>
           {r.reconciliation.reconciled && <p className="text-[14px] text-receive">Receipt adds up</p>}
-          {r.imageAssetId && <p className="text-[14px] text-muted">The typed amounts are what count. Only people in this event can see the photo, and it’s deleted with the event.</p>}
+          {r.imageAssetId && <p className="text-[14px] text-muted">The typed amounts are what count (only people in this event can see the photo, and it’s deleted with the event)</p>}
         </Disclosure>
         {(view.event.phase === "COLLECTING" || view.event.phase === "ALLOCATING") && <ClaimProgress r={r} />}
       </div>
@@ -282,12 +282,12 @@ export function ConvertedNote({ receipt: r }: { receipt: ReceiptView }) {
   const { event, money } = useEvent();
   if (r.currency === event.currency) return null;
   if (r.rateMissing || !r.rate || r.settlePayable === null) {
-    return <Notice tone="warn" title={`Waiting for the ${shortDay(r.purchasedOn)} exchange rate`}>The bill can’t freeze until Hatian has the ECB rate for that day. It usually comes out the same evening.</Notice>;
+    return <Notice tone="warn" title={`Waiting for the ${shortDay(r.purchasedOn)} exchange rate`}>The bill can’t freeze until Hatian has the ECB rate for that day, which usually comes out the same evening</Notice>;
   }
   return (
     <p className="rounded-xl bg-surface-2 px-3 py-2 text-[14px]" data-testid="converted-note">
       Counts as <b className="tnum">{money(r.settlePayable)}</b> · 1 {r.rate.base} = {r.rate.rate} {r.rate.quote} (ECB, {shortDay(r.rate.date)})
-      {r.rate.date !== r.purchasedOn && event.phase === "COLLECTING" ? <span className="block text-[13px] text-muted">The {shortDay(r.purchasedOn)} rate isn’t out yet (or it was a weekend/holiday), so this uses the latest one before it.</span> : null}
+      {r.rate.date !== r.purchasedOn && event.phase === "COLLECTING" ? <span className="block text-[13px] text-muted">The {shortDay(r.purchasedOn)} rate isn’t out yet (or it was a weekend/holiday), so this uses the latest one before it</span> : null}
     </p>
   );
 }

@@ -34,7 +34,7 @@ export class GoneError extends HttpError {
 export class RateLimitedError extends HttpError {
   readonly retryAfterSeconds: number;
   constructor(retryAfterSeconds = 60) {
-    super(429, "rate_limited", `Too many tries. Try again in ${waitWords(retryAfterSeconds)}.`, { retryAfterSeconds });
+    super(429, "rate_limited", `Too many tries, try again in ${waitWords(retryAfterSeconds)}`, { retryAfterSeconds });
     this.retryAfterSeconds = retryAfterSeconds;
   }
 }

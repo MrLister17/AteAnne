@@ -35,7 +35,7 @@ export function MoneyTab() {
       <div className="space-y-3">
         <Header />
         <Notice tone="info" title="No split yet">
-          Your share appears once everyone has claimed what they had. The bill freezes by itself once everyone is done.
+          Your share appears once everyone has claimed what they had, and the bill freezes by itself once everyone is done
         </Notice>
         <PaymentHistory />
         <PolicyNote />
@@ -51,7 +51,7 @@ export function MoneyTab() {
         <CurrencySwitch />
         {(frozen.facts as { revision?: { reason: string } }).revision && (
           <Notice tone="info" title={(frozen.facts as { revision: { reason: string } }).revision.reason === "cash_reversed" ? "Payment plan updated" : "Cash payment included"}>
-            {(frozen.facts as { revision: { reason: string } }).revision.reason === "cash_reversed" ? "A cash confirmation was undone, so the remaining transfers were updated." : "Confirmed cash was included and the remaining transfers were updated."}
+            {(frozen.facts as { revision: { reason: string } }).revision.reason === "cash_reversed" ? "A cash confirmation was undone, so the remaining transfers were updated" : "Confirmed cash was included and the remaining transfers were updated"}
           </Notice>
         )}
         <NextCard where="pay" />
@@ -114,7 +114,7 @@ function PaymentHistory() {
   if (!view.paymentHistory.length) return null;
   return (
     <Disclosure summary={`Earlier payments (${view.paymentHistory.length})`} icon="clock" className="card px-4 py-0 text-[14px]">
-      <p className="text-muted">Confirmed payments carry forward into this bill. Revised transfers can include money to return. Prior statements and reports are also available in your export.</p>
+      <p className="text-muted">Confirmed payments carry forward into this bill, revised transfers can include money to return, and prior statements and reports are in your export</p>
       <ul className="divide-y divide-line">
         {view.paymentHistory.map((r) => (
           <li key={r.id} className="py-3">
@@ -163,7 +163,7 @@ function Breakdown({ receipts, sharesFor }: { receipts: ReceiptLike[]; sharesFor
                 {foreign && r.rate && <span className="block">1 {r.rate.base} = {r.rate.rate} {r.rate.quote} ({shortDay(r.rate.date)})</span>}
               </p>
               {!mine || mine.total === "0" ? (
-                <p className="text-muted">You had nothing from this receipt — your share is {php(0n)}{paidByMe ? `, and you get back the full ${php(r.payable)} from others` : ""}.</p>
+                <p className="text-muted">You had nothing from this receipt — your share is {php(0n)}{paidByMe ? `, and you get back the full ${php(r.payable)} from others` : ""}</p>
               ) : (
                 <ul className="tnum space-y-1.5">
                   {myLines.map((l) => {
@@ -280,7 +280,7 @@ function ProposedTransfers() {
       <SectionTitle>Proposed transfers</SectionTitle>
       <Card className="space-y-2">
         {view.calculation.edges.length === 0 ? (
-          <p className="text-muted">Nobody owes anybody after confirmed payments.</p>
+          <p className="text-muted">Nobody owes anybody after confirmed payments</p>
         ) : (
           view.calculation.edges.map((e, i) => (
             <p key={i} className="tnum flex items-center gap-2">
@@ -290,7 +290,7 @@ function ProposedTransfers() {
           ))
         )}
         <Disclosure summary="How transfers are grouped" icon="info">
-          <p className="text-[13px] text-muted">Debts are combined across all receipts to keep transfers few. Each transfer settles part of the event balance.</p>
+          <p className="text-[13px] text-muted">Debts are combined across all receipts to keep transfers few, and each transfer settles part of the event balance</p>
         </Disclosure>
       </Card>
     </>
@@ -304,13 +304,13 @@ function PolicyNote() {
     <Disclosure summary="How Hatian splits money" icon="info" className="card px-4 py-0 text-[14px]">
       <p className="text-muted">{view.settlement ? "Frozen statement" : "Live estimate"} · Version {statementVersion}</p>
       <ul className="list-disc space-y-1 pl-5 text-muted">
-        <li>Each item is split only among the people who claimed it — equally, or by pieces.</li>
-        <li>Discounts reduce only the items they apply to, in proportion to their value.</li>
-        <li>Service and other charges follow each person’s item spending after discounts. No spending, no service charge.</li>
-        <li>Amounts use the currency’s smallest unit. Leftover units go to the largest remainders, with ties settled by join order.</li>
-        <li>Your starting balance is what you paid for expenses minus your share. Your balance includes confirmed payments. Money you get back for expenses is reimbursement.</li>
-        <li>A receipt in another currency is split in its own currency, then converted once at the ECB rate of the day it was bought and split the same way, so it still adds up exactly. The rates are fixed when the bill freezes.</li>
-        <li>Paying in another currency uses the ECB rate on the day you send it, locked into that payment.</li>
+        <li>Each item is split only among the people who claimed it — equally, or by pieces</li>
+        <li>Discounts reduce only the items they apply to, in proportion to their value</li>
+        <li>Service and other charges follow each person’s item spending after discounts, so no spending means no service charge</li>
+        <li>Amounts use the currency’s smallest unit, and leftover units go to the largest remainders, with ties settled by join order</li>
+        <li>Your starting balance is what you paid for expenses minus your share, your balance includes confirmed payments, and money you get back for expenses is reimbursement</li>
+        <li>A receipt in another currency is split in its own currency, then converted once at the ECB rate of the day it was bought and split the same way, so it still adds up exactly (rates are fixed when the bill freezes)</li>
+        <li>Paying in another currency uses the ECB rate on the day you send it, locked into that payment</li>
       </ul>
     </Disclosure>
   );

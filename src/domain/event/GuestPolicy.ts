@@ -54,7 +54,7 @@ export class GuestPolicy {
    */
   assertNoConflict(by: RosterMember, subject: RosterMember, counterpartyId: string): void {
     if (by.id !== subject.id && counterpartyId === by.id) {
-      throw new PermissionError("conflict_of_interest", "You’re the other person in this payment, so you can’t answer it for them. Ask another admin, or make someone an admin in People.");
+      throw new PermissionError("conflict_of_interest", "You’re the other person in this payment, so ask another admin to answer it for them, or make someone an admin in People");
     }
   }
 

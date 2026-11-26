@@ -20,7 +20,7 @@ export class EqualReceiptSplit {
       line.mode === "SHARED" && line.claims.length === members.length &&
       members.every((id) => line.claims.filter((claim) => claim.memberId === id && claim.units === 1).length === 1),
     );
-    return confirmed ? [] : [{ code: "EQUAL_SPLIT_UNCONFIRMED", receiptId: receipt.id, message: "The equal split needs everyone’s confirmation. If someone disagrees, the organizer must change this receipt back to item claims." }];
+    return confirmed ? [] : [{ code: "EQUAL_SPLIT_UNCONFIRMED", receiptId: receipt.id, message: "The equal split needs everyone’s confirmation, and if someone disagrees, the organizer must change this receipt back to item claims" }];
   }
 
   /**

@@ -101,7 +101,7 @@ test("the organizer confirms an equal split from Home without acting for guests"
 
   await open.click();
   await sheet.getByRole("button", { name: "Confirm split" }).click();
-  await expect(page.getByText("Split confirmed for everyone.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Split confirmed for everyone", { exact: true })).toBeVisible();
   await expect(sheet).toBeHidden();
   await expect(open).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Event sections" }).getByRole("button", { name: /^Pay\b/ })).toBeVisible();

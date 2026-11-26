@@ -119,7 +119,7 @@ export class ReceiptService extends BaseService {
       const receipt = agg.receipt(receiptId);
       const isAuthor = receipt.authorMemberId === me.id;
       if (!isAuthor && !agg.isOwner(me.id)) throw new PermissionError("not_author", "Only the person who entered this receipt, or the organizer, can correct it");
-      if (receipt.version !== data.expectedVersion) throw new ConflictError("stale_receipt", "Someone else changed this receipt. Reload it and re-apply your edit.");
+      if (receipt.version !== data.expectedVersion) throw new ConflictError("stale_receipt", "Someone else changed this receipt, so reload it and re-apply your edit");
       this.validatePayload(agg, data);
       const currency = data.currency ?? receipt.currency;
       const purchasedOn = data.purchasedOn ?? agg.receiptDay(receipt);
@@ -208,7 +208,7 @@ export class ReceiptService extends BaseService {
       const receipt = agg.receipt(receiptId);
       if (receipt.payerMemberId !== me.id) throw new PermissionError("not_payer", "Only the named payer can confirm this funding");
       if (receipt.version !== data.receiptVersion || receipt.payableCentavos !== data.amount) {
-        throw new ConflictError("stale_receipt", "The receipt changed. Review the new amount before confirming.");
+        throw new ConflictError("stale_receipt", "The receipt changed, so review the new amount before confirming");
       }
       if (agg.fundingAcknowledged(receipt)) return;
       await tx.fundingAck.create({ data: { receiptId, memberId: me.id, receiptVersion: receipt.version, amountCentavos: receipt.payableCentavos } });
@@ -231,13 +231,13 @@ export class ReceiptService extends BaseService {
       agg.machine.assertIn("COLLECTING", "ALLOCATING");
       agg.assertNotCancelled();
       const receipt = agg.receipt(receiptId);
-      if (receipt.version !== data.receiptVersion) throw new ConflictError("stale_receipt", "This receipt was corrected. Review the new version and claim again.");
-      if (me.claimVersion !== data.expectedClaimVersion) throw new ConflictError("stale_claims", "Your claims were changed from another tab or device. Reload to see them.");
+      if (receipt.version !== data.receiptVersion) throw new ConflictError("stale_receipt", "This receipt was corrected, so review the new version and claim again");
+      if (me.claimVersion !== data.expectedClaimVersion) throw new ConflictError("stale_claims", "Your claims were changed from another tab or device, so reload to see them");
       if (data.acceptEqualSplit) {
-        if (!receipt.equalSplit || data.status !== "finish") throw new ValidationError("not_equal_split", "This receipt is not waiting for equal-split confirmation. Reload it.");
+        if (!receipt.equalSplit || data.status !== "finish") throw new ValidationError("not_equal_split", "This receipt is not waiting for equal-split confirmation, so reload it");
         data.claims = new EqualReceiptSplit().claimsFor(receipt.lines);
       } else if (receipt.equalSplit && data.status !== "none") {
-        throw new ValidationError("equal_split_confirmation", "Confirm your equal share of the whole receipt, or tell the organizer you disagree.");
+        throw new ValidationError("equal_split_confirmation", "Confirm your equal share of the whole receipt, or tell the organizer you disagree");
       }
       if (data.status === "none" && data.claims.length) throw new ValidationError("none_with_claims", "Remove your items to say you got nothing from this receipt");
       if (data.status === "finish" && !data.claims.length) throw new ValidationError("finish_without_claims", "Pick your items, or choose “I got nothing from this receipt”");
@@ -253,7 +253,7 @@ export class ReceiptService extends BaseService {
         if (line.mode === "UNITS") {
           const others = line.claims.filter((x) => x.memberId !== me.id && x.receiptVersion === receipt.version).reduce((a, x) => a + x.units, 0);
           if (others + c.units > line.quantity) {
-            throw new ConflictError("over_claim", `Only ${line.quantity - others} of ${line.quantity} "${line.label}" units are left. Your change was not saved.`, {
+            throw new ConflictError("over_claim", `Only ${line.quantity - others} of ${line.quantity} "${line.label}" units are left, so your change was not saved`, {
               lineId: line.id,
               available: line.quantity - others,
             });
@@ -292,11 +292,11 @@ export class ReceiptService extends BaseService {
       agg.assertNotCancelled();
       agg.machine.assertIn("COLLECTING", "ALLOCATING", "REVIEWING");
       if (agg.record.financialVersion !== expectedFinancialVersion) {
-        throw new ConflictError("stale_version", "The bill changed. Review it before confirming for everyone.");
+        throw new ConflictError("stale_version", "The bill changed, so review it before confirming for everyone");
       }
 
       const receipts = agg.record.receipts;
-      if (!receipts.length) throw new ConflictError("no_receipts", "Add at least one receipt first.");
+      if (!receipts.length) throw new ConflictError("no_receipts", "Add at least one receipt first");
       if (!agg.hasPendingSplitConfirmations()) return { phase: agg.phase };
 
       const members = agg.activeMembers();
@@ -304,7 +304,7 @@ export class ReceiptService extends BaseService {
         r.equalSplit && members.some((m) => agg.currentAck(r, m.id)?.kind === "NONE"),
       );
       if (objections.length) {
-        throw new ConflictError("equal_split_disagreed", "Resolve the equal-split objections first.", {
+        throw new ConflictError("equal_split_disagreed", "Resolve the equal-split objections first", {
           blockers: objections.map((r) => r.label),
         });
       }
@@ -354,7 +354,7 @@ export class ReceiptService extends BaseService {
       const updated = await this.repo.load(tx, eventId);
       const blockers = [...new Set([...updated.allocationGate().blockers, ...updated.reviewGate({ requireRates: false }).blockers])];
       if (blockers.length) {
-        throw new ConflictError("split_incomplete", "Fix these receipts before confirming for everyone.", { blockers });
+        throw new ConflictError("split_incomplete", "Fix these receipts before confirming for everyone", { blockers });
       }
 
       if (claimVersionBumps.size) {
@@ -375,7 +375,7 @@ export class ReceiptService extends BaseService {
     await this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       agg.machine.assertIn("REVIEWING");
       agg.assertNotCancelled();
-      if (agg.record.financialVersion !== financialVersion) throw new ConflictError("stale_version", "The split changed. Review the new version before approving.");
+      if (agg.record.financialVersion !== financialVersion) throw new ConflictError("stale_version", "The split changed, so review the new version before approving");
       const gate = agg.reviewGate();
       if (!gate.ready) throw new ConflictError("gate_blocked", "There are unresolved blockers", { blockers: gate.blockers });
       await tx.reviewApproval.upsert({

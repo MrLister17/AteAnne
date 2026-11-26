@@ -78,7 +78,7 @@ export class RecoveryService extends BaseService {
       if (member.recoveryExpiresAt.getTime() <= Date.now()) throw new GoneError("recovery_expired", "This recovery key has expired");
       const other = await tx.member.findFirst({ where: { eventId: member.eventId, actorId, NOT: { id: member.id } } });
       if (other) {
-        throw new ConflictError("browser_has_other_member", `This browser is already "${other.displayName}" in that event. Use a different browser profile; identities are never merged.`);
+        throw new ConflictError("browser_has_other_member", `This browser is already "${other.displayName}" in that event, so use a different browser profile (identities are never merged)`);
       }
       const recoveryKey = `AA-${this.secrets.token()}`;
       await tx.member.update({

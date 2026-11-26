@@ -117,7 +117,7 @@ test("a baht receipt in a peso trip: converted at its day's rate, seen in baht, 
   const report = anaPage.getByRole("dialog", { name: "How much did you send?" });
   await expect(report.getByTestId("counts-as")).toContainText("Counts as PHP 835.06");
   await report.getByRole("button", { name: "I sent THB 513.88" }).click();
-  await expect(anaPage.getByText("Sent. Mark will confirm.")).toBeVisible();
+  await expect(anaPage.getByText("Sent, Mark will confirm")).toBeVisible();
   await expect(anaPage.getByText("Sent PHP 835.06 · Waiting for Mark")).toBeVisible();
 
   // ---------------------------------------------------------------- Mark confirms the baht that arrived
@@ -128,7 +128,7 @@ test("a baht receipt in a peso trip: converted at its day's rate, seen in baht, 
   await expect(pending).toContainText("Counts as PHP 835.06 · 1 THB = 1.625 PHP");
   await markPage.screenshot({ path: `test-results/screens/s10-receive-baht-${testInfo.project.name}.png`, animations: "disabled" });
   await pending.getByRole("button", { name: "Yes, I got it" }).click();
-  await expect(markPage.getByText("Got it. THB 513.88 from Ana.")).toBeVisible();
+  await expect(markPage.getByText("Got it, THB 513.88 from Ana")).toBeVisible();
   await expect(markPage.getByTestId("edge-status").first()).toHaveText("PHP 835.06 received");
 
   await mark.close();

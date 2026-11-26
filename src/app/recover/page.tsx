@@ -25,7 +25,7 @@ export default function Recover() {
     return (
       <PageShell title="Access recovered" back={null}>
         <Notice tone="receive" title="Welcome back">
-          This phone is now you in that event — same receipts, claims and payments. Your old key no longer works; here is your new one.
+          This phone is now you in that event with the same receipts, claims and payments, and here is your new key (the old one no longer works)
         </Notice>
         <div className="mt-4">
           <CredentialReveal recoveryKey={done.recoveryKey} onDone={() => router.replace(`/e/${done.eventId}`)} doneLabel="Open the event" />
@@ -54,9 +54,9 @@ export default function Recover() {
         }}
       >
         <p className="text-[15px] text-muted">
-          Paste the key you saved when you joined.
+          Paste the key you saved when you joined
         </p>
-        <Field label="Personal recovery key" hint="Starts with AA-." error={tooShort ? "That doesn’t look like a whole key yet. Copy the full line that starts with AA-." : null}>
+        <Field label="Personal recovery key" hint="Starts with AA-" error={tooShort ? "That doesn’t look like a whole key yet, so copy the full line that starts with AA-" : null}>
           {(p) => (
             <textarea
               {...p}
@@ -82,7 +82,7 @@ export default function Recover() {
                 const text = await navigator.clipboard.readText();
                 if (text) setKey(text.trim());
               } catch {
-                setError("Your phone didn’t allow pasting. Press and hold in the box above, then tap Paste.");
+                setError("Your phone didn’t allow pasting, so press and hold in the box above, then tap Paste");
               }
             }}
           >
@@ -95,14 +95,14 @@ export default function Recover() {
         </Button>
         {installed && (
           <Notice tone="info" title="Joined in Safari first?">
-            Enter your key here once and your event moves into the app.
+            Enter your key here once and your event moves into the app
           </Notice>
         )}
         <Notice tone="info">
           <span className="flex gap-2">
             <Icon name="key" size={18} className="mt-0.5 shrink-0" />
             <span>
-              Your old phone is signed out of that event. Nothing you paid or owe changes. Lost your key too? Ask the organizer.
+              Your old phone is signed out of that event and nothing you paid or owe changes (lost your key too? Ask the organizer)
             </span>
           </span>
         </Notice>

@@ -48,7 +48,7 @@ export class QueryService {
     const paidOf = (p: { currency: string; amount: string; rate: string; rateDate: string; source: string } | null) =>
       p ? { currency: p.currency, amount: amt(p.amount, p.currency), rate: `1 ${p.currency} = ${p.rate} ${ccy}`, rateDate: p.rateDate, rateSource: p.source } : null;
     const statement = {
-      notice: "Hatian manual record. Not a bank statement; payments are participant reports confirmed by recipients.",
+      notice: "Hatian manual record, not a bank statement: payments are participant reports confirmed by recipients",
       exportedAt: new Date().toISOString(),
       event: { title: view.event.title, phase: view.event.phase, cancelled: view.event.cancelled, financialVersion: view.event.financialVersion, currency: ccy },
       members: view.members.map((m) => ({ id: m.id, seq: m.seq, displayName: m.displayName, active: m.active })),

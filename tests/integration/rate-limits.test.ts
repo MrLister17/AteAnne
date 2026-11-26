@@ -81,7 +81,7 @@ describe("financial saves with limits on", () => {
     expect(limited.status).toBe(429);
     expect(limited.retryAfterSeconds).toBeGreaterThan(0);
     expect(limited.retryAfterSeconds).toBeLessThanOrEqual(60);
-    expect(limited.message).toBe("Too many tries. Try again in 1 minute.");
+    expect(limited.message).toBe("Too many tries, try again in 1 minute");
   });
 });
 
@@ -128,6 +128,6 @@ describe("429 responses", () => {
     expect(res.status).toBe(429);
     expect(res.headers.get("retry-after")).toBe("90");
     const body = await res.json();
-    expect(body.error).toMatchObject({ code: "rate_limited", retryAfterSeconds: 90, message: "Too many tries. Try again in 2 minutes." });
+    expect(body.error).toMatchObject({ code: "rate_limited", retryAfterSeconds: 90, message: "Too many tries, try again in 2 minutes" });
   });
 });

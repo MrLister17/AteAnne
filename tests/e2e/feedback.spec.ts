@@ -67,7 +67,7 @@ test("saving: busy label, one request for a double tap, error beside the button,
   await page.route("**/api/receipts/*/claims", (route) => route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: { code: "internal", message: "boom" } }) }));
   await page.getByRole("button", { name: "I got nothing from this receipt" }).click();
   const error = page.getByTestId("action-error");
-  await expect(error).toHaveText("Couldn’t save. Try again.");
+  await expect(error).toHaveText("Couldn’t save, try again");
   await expect(page.getByRole("switch", { name: "I had some Sisig" })).toHaveAttribute("aria-checked", "false");
   await page.unroute("**/api/receipts/*/claims");
   await page.getByRole("button", { name: "I got nothing from this receipt" }).click();
@@ -113,7 +113,7 @@ test("first load: skeleton with words, then Try again after a failure or a long 
   await expect(page.getByTestId("event-loading")).toContainText("Loading your event…");
   await expect(page.getByRole("button", { name: "Try again" })).toHaveCount(0);
   await page.clock.fastForward(10_500);
-  await expect(page.getByText("Still loading. Check your connection.")).toBeVisible();
+  await expect(page.getByText("Still loading, check your connection")).toBeVisible();
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   slow.release();
   await expect(page.getByText("Step 1 of 3 · Add & claim")).toBeVisible();
@@ -133,7 +133,7 @@ test("first load: skeleton with words, then Try again after a failure or a long 
   // A failed manual refresh says so (no success tick) and keeps showing what we had.
   fail = true;
   await fresh.getByRole("button", { name: "Refresh" }).click();
-  await expect(fresh.getByText("Couldn’t refresh. Check your connection.")).toBeVisible();
+  await expect(fresh.getByText("Couldn’t refresh, check your connection")).toBeVisible();
   await expect(fresh.getByTestId("stale-banner")).toContainText("Couldn’t refresh · showing");
   await expect(fresh.getByText("Step 1 of 3 · Add & claim")).toBeVisible();
   fail = false;

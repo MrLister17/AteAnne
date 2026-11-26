@@ -21,7 +21,7 @@ export function InstallPrompt({ quiet = false }: { quiet?: boolean }) {
         <img src="/icons/icon-192.png" alt="" width={48} height={48} className="size-12 rounded-xl" />
         <div className="min-w-0">
           <h2 className="text-[17px] font-bold">Add Hatian to your Home Screen</h2>
-          <p className="mt-1 text-[15px] text-muted">Opens like an app and keeps your events in one place.</p>
+          <p className="mt-1 text-[15px] text-muted">Opens like an app and keeps your events in one place</p>
         </div>
       </div>
       <Button
@@ -33,9 +33,9 @@ export function InstallPrompt({ quiet = false }: { quiet?: boolean }) {
         onClick={async () => {
           if (!canPrompt) { setExpanded((open) => !open); return; }
           const outcome = await install();
-          if (outcome === "accepted") setResult("Added! Open Hatian from your Home Screen to start or join there.");
-          else if (outcome === "dismissed") setResult("Installation was cancelled. You can try again from your browser’s menu.");
-          else setResult("The install prompt could not open. Use your browser’s menu to add Hatian to your Home Screen.");
+          if (outcome === "accepted") setResult("Added! Open Hatian from your Home Screen to start or join there");
+          else if (outcome === "dismissed") setResult("Installation was cancelled, but you can try again from your browser’s menu");
+          else setResult("The install prompt couldn’t open, so use your browser’s menu to add Hatian to your Home Screen");
           setExpanded(true);
         }}
       >
@@ -46,18 +46,18 @@ export function InstallPrompt({ quiet = false }: { quiet?: boolean }) {
         <div className="mt-4 space-y-3 text-[15px]">
           {device === "ios" ? (
             <>
-              <Notice tone="info">Safari requires these taps; a website cannot open its Add to Home Screen confirmation for you.</Notice>
+              <Notice tone="info">Safari requires these taps; a website cannot open its Add to Home Screen confirmation for you</Notice>
               <ol className="list-decimal space-y-2 pl-5">
-                <li>Open this page in <b>Safari</b> if you came from Messenger or another app.</li>
-                <li>Tap <Icon name="share" size={16} className="inline align-[-3px]" label="Share" /> <b>Share</b>, then <b>Add to Home Screen</b>. You may need to scroll the menu.</li>
-                <li>Keep <b>Open as Web App</b> on if shown, and tap <b>Add</b>.</li>
-                <li>Open <b>Hatian</b> from your Home Screen, then start or join there.</li>
+                <li>Open this page in <b>Safari</b> if you came from Messenger or another app</li>
+                <li>Tap <Icon name="share" size={16} className="inline align-[-3px]" label="Share" /> <b>Share</b>, then <b>Add to Home Screen</b> (you may need to scroll the menu)</li>
+                <li>Keep <b>Open as Web App</b> on if shown, and tap <b>Add</b></li>
+                <li>Open <b>Hatian</b> from your Home Screen, then start or join there</li>
               </ol>
             </>
           ) : (
             <ol className="list-decimal space-y-2 pl-5">
-              <li>Open your browser’s menu and choose <b>Install app</b> or <b>Add to Home Screen</b>.</li>
-              <li>Confirm, then open <b>Hatian</b> from its new icon to start or join.</li>
+              <li>Open your browser’s menu and choose <b>Install app</b> or <b>Add to Home Screen</b></li>
+              <li>Confirm, then open <b>Hatian</b> from its new icon to start or join</li>
             </ol>
           )}
         </div>

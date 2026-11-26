@@ -36,7 +36,7 @@ test("scan a receipt, check the draft, save only the details (no photo kept)", a
   await expect(editor.getByLabel("Total paid to the merchant")).toHaveValue("665.50");
   await expect(editor.getByRole("status")).toContainText("matches");
   await expect(editor.getByAltText("The receipt photo you scanned")).toBeVisible();
-  await expect(editor.getByText("We don’t keep this photo. Only what you save is kept.")).toBeVisible();
+  await expect(editor.getByText("We don’t keep this photo, only what you save")).toBeVisible();
   await page.screenshot({ path: "test-results/screens/14-scan-draft.png", animations: "disabled" });
 
   // The person corrects a misread line before saving. Saving sends only the details: no upload request.

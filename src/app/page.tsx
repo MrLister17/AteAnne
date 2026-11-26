@@ -77,7 +77,7 @@ export default function Home() {
       {installed && events !== null && events.length === 0 && (
         <div className="mt-3">
           <Notice tone="info" title="Missing an event you joined in the browser?">
-            Tap <b>I have a recovery key</b> and paste the key you saved.
+            Tap <b>I have a recovery key</b> and paste the key you saved
           </Notice>
         </div>
       )}
@@ -95,9 +95,9 @@ export default function Home() {
         <div className="card mt-1 space-y-4 p-4">
           <ol className="space-y-3 text-[15px]">
             {[
-              ["receipt", "Add & claim", "Whoever paid adds the receipt. Everyone ticks what they had."],
-              ["wallet", "Pay", "Pay by cash or QR. The receiver confirms it arrived."],
-              ["check", "Done", "When everyone has paid, the split closes."],
+              ["receipt", "Add & claim", "Whoever paid adds the receipt, then everyone ticks what they had"],
+              ["wallet", "Pay", "Pay by cash or QR, and the receiver confirms it arrived"],
+              ["check", "Done", "When everyone has paid, the split closes"],
             ].map(([icon, title, text], i) => (
               <li key={title} className="flex gap-3">
                 <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-soft text-violet">
@@ -105,7 +105,7 @@ export default function Home() {
                 </span>
                 <p>
                   <b>
-                    {i + 1}. {title}.
+                    {i + 1}. {title}
                   </b>{" "}
                   <span className="text-muted">{text}</span>
                 </p>
@@ -116,7 +116,7 @@ export default function Home() {
         </div>
       </details>
 
-      <p className="mt-6 text-center text-[13px] text-muted">No bank logins. No payment processing. Money moves outside the app.</p>
+      <p className="mt-6 text-center text-[13px] text-muted">Money moves outside the app, with no bank logins or payment processing</p>
     </PageShell>
   );
 }

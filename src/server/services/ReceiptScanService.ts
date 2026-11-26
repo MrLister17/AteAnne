@@ -38,7 +38,7 @@ export class ReceiptScanService {
   /** Nothing is saved, so acting for a guest needs no extra check: the draft is just shown to the caller. */
   async scan(caller: Caller, eventId: string, file: Buffer, currencyHint?: string | null) {
     const { actorId } = callerParts(caller);
-    if (!this.reader) throw new HttpError(503, "scan_not_configured", "Receipt scanning isn’t switched on for this app.");
+    if (!this.reader) throw new HttpError(503, "scan_not_configured", "Receipt scanning isn’t switched on for this app");
     const member = await this.db.member.findFirst({ where: { eventId, actorId, active: true }, include: { event: true } });
     if (!member) throw new NotFoundError("Event not found");
     new PhaseMachine(member.event.phase).assertIn("COLLECTING");

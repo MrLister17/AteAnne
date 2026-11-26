@@ -101,7 +101,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(sheet).toBeVisible();
       if (title === "Download event record") await expect(sheet.getByRole("link", { name: /CSV/ })).toBeVisible();
       if (title === "Event settings") await expect(sheet.getByRole("button", { name: "Cancel event", exact: true })).toBeVisible();
-      if (title === "Help & privacy") await expect(sheet.getByText(/This browser is you. Your personal recovery key/)).toBeVisible();
+      if (title === "Help & privacy") await expect(sheet.getByText(/This browser is you, and your personal recovery key/)).toBeVisible();
       if (title === "Activity") await expect(sheet.getByText(/created the event/)).toBeVisible();
       await checkMobileControls(page);
       await sheet.getByRole("button", { name: "Close", exact: true }).click();

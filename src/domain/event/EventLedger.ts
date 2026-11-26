@@ -60,7 +60,7 @@ export class EventLedger {
       }
       const conversion = receipt.conversion;
       if (conversion && !conversion.rate) {
-        issues.push({ code: "RATE_UNAVAILABLE", receiptId: receipt.id, message: `Waiting for the ${shortDay(conversion.day)} ${conversion.currency} exchange rate.` });
+        issues.push({ code: "RATE_UNAVAILABLE", receiptId: receipt.id, message: `Waiting for the ${shortDay(conversion.day)} ${conversion.currency} exchange rate` });
         continue;
       }
       const rate = conversion?.rate ?? null;

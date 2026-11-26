@@ -120,7 +120,7 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
     setBusy(status);
     const claims = status === "none" ? [] : Object.entries(draft).filter(([, u]) => u > 0).map(([lineId, units]) => ({ lineId, units }));
     const success =
-      status === "none" ? (r.equalSplit ? "Saved. Tell the organizer what needs changing." : `Saved: nothing from ${r.label}`) : status === "finish" ? (r.equalSplit ? "Share confirmed" : "Items saved") : "Draft saved";
+      status === "none" ? (r.equalSplit ? "Saved, now tell the organizer what needs changing" : `Saved: nothing from ${r.label}`) : status === "finish" ? (r.equalSplit ? "Share confirmed" : "Items saved") : "Draft saved";
     const res = await run(
       () => api.put(`/api/receipts/${r.id}/claims`, { receiptVersion: r.version, expectedClaimVersion: view.me.claimVersion, status, claims, ...(r.equalSplit && status === "finish" ? { acceptEqualSplit: true } : {}) }),
       success,
@@ -204,11 +204,11 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
                 </ul>
               </Disclosure>
             )}
-            {l.mode === "UNITS" && left < 0 && <p className="mt-1 text-[13px] text-pay">More than available — reduce your pieces.</p>}
+            {l.mode === "UNITS" && left < 0 && <p className="mt-1 text-[13px] text-pay">More than available — reduce your pieces</p>}
           </li>
         );
       })}
-      {r.equalSplit && <li className="px-1 text-[14px] text-muted">Split equally among {active.length} people. Shares can differ by {php(1n)}.</li>}
+      {r.equalSplit && <li className="px-1 text-[14px] text-muted">Split equally among {active.length} people (shares can differ by {php(1n)})</li>}
       {r.adjustments.length > 0 && (
         <li className="px-1">
           <Disclosure summary={`Discounts & charges (${r.adjustments.length})`}>
@@ -220,7 +220,7 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
                 </li>
               ))}
             </ul>
-            <p className="text-[14px] text-muted">{r.equalSplit ? "Included in the equal split." : "Split by what each person had."}</p>
+            <p className="text-[14px] text-muted">{r.equalSplit ? "Included in the equal split" : "Split by what each person had"}</p>
           </Disclosure>
         </li>
       )}
@@ -284,7 +284,7 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
             </ul>
           </Disclosure>
         )}
-        {r.equalSplit && joiningOpen && <p className="text-[13px] text-muted">Can change if someone else joins.</p>}
+        {r.equalSplit && joiningOpen && <p className="text-[13px] text-muted">Can change if someone else joins</p>}
         {showMyItems && myItems.length === 1 && <p className="break-words text-[14px] text-muted">You had: {myItems[0].label}</p>}
         {showMyItems && myItems.length > 1 && (
           <Disclosure summary={`Your items (${myItems.length})`} icon="hand">
@@ -295,8 +295,8 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
         )}
       </Card>
 
-      {staleDraft && <Notice tone="warn" title="This receipt changed">Your earlier picks are shown as a draft. Check them and save again.</Notice>}
-      {r.equalSplit && ack === "NONE" && <Notice tone="warn" title="You disagreed">Tell the organizer what needs changing. The bill can’t freeze until everyone agrees or the receipt changes.</Notice>}
+      {staleDraft && <Notice tone="warn" title="This receipt changed">Your earlier picks are shown as a draft, so check them and save again</Notice>}
+      {r.equalSplit && ack === "NONE" && <Notice tone="warn" title="You disagreed">Tell the organizer what needs changing, since the bill can’t freeze until everyone agrees or the receipt changes</Notice>}
 
       {/* Equal split: the items are information, not choices. */}
       {r.equalSplit && (
@@ -315,7 +315,7 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
           </Disclosure>
           {!readOnly && (
             <Disclosure summary={ack === "FINISHED" ? "Change my answer" : "Don’t agree with splitting this equally?"} className="px-1">
-              {ack === "FINISHED" && <p className="text-[14px] text-muted">If you didn’t share this receipt, tell the organizer so they can change it to item-by-item.</p>}
+              {ack === "FINISHED" && <p className="text-[14px] text-muted">If you didn’t share this receipt, tell the organizer so they can change it to item-by-item</p>}
               {ack !== "NONE" && (
                 <Button full variant="secondary" busy={busy === "none"} busyLabel="Saving…" onClick={() => save("none")}>
                   I disagree — ask organizer to change it
@@ -346,7 +346,7 @@ function ReceiptClaimer({ receipt: r, readOnly, onSaved }: { receipt: ReceiptVie
           </>
         ))}
 
-      {readOnly && <Notice tone="info">{event.cancelled ? "This event was cancelled; claims are closed." : "Claims are frozen with the bill."}</Notice>}
+      {readOnly && <Notice tone="info">{event.cancelled ? "This event was cancelled; claims are closed" : "Claims are frozen with the bill"}</Notice>}
     </div>
   );
 }
@@ -356,7 +356,7 @@ function EmptyState() {
     <Card className="mt-6 py-10 text-center">
       <Icon name="hand" size={40} className="mx-auto text-muted" />
       <p className="mt-3 font-semibold">No receipts yet</p>
-      <p className="mx-auto mt-1 max-w-[320px] text-[15px] text-muted">You can claim items as receipts are added.</p>
+      <p className="mx-auto mt-1 max-w-[320px] text-[15px] text-muted">You can claim items as receipts are added</p>
     </Card>
   );
 }

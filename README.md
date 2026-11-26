@@ -1,4 +1,4 @@
-# Hatian — hatian na malinaw, bayaran na tama
+# Hatian: split the bill by what each person had
 
 > **What changed lately and where work stopped: [CHANGELOG.md](CHANGELOG.md).**
 

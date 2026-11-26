@@ -36,7 +36,7 @@ describe("equal receipt consent", () => {
     expect(view.gates.freeze!.blockers.join(" ")).toMatch(/everyone’s confirmation/);
     await accept("Paolo");
     view = await app.queries.view(e.owner, e.eventId);
-    expect(view.gates.freeze!.blockers).toEqual(["The organizer hasn’t tapped “Everyone’s here” yet."]);
+    expect(view.gates.freeze!.blockers).toEqual(["The organizer hasn’t tapped “Everyone’s here” yet"]);
     expect(view.calculation.positions.map((p) => p.cost)).toEqual(["3334", "3333", "3333"]);
     await expect(app.receipts.saveClaims(e.people.Juan.actorId, receiptId, { receiptVersion: 99, expectedClaimVersion: view.me.claimVersion, status: "finish", claims: [], acceptEqualSplit: true })).rejects.toThrow(/corrected/);
     expect((await app.events.lockRoster(e.owner, e.eventId)).phase).toBe("SETTLING");

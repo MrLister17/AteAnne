@@ -72,7 +72,7 @@ export function route<P = Record<string, string>>(handler: Handler<P>) {
     let newSession: { token: string; expiresAt: Date } | null = null;
     try {
       if (configProblems().length) {
-        throw new HttpError(503, "not_configured", "Hatian isn't connected to its database yet, so nothing can be saved. Try again once setup is finished.");
+        throw new HttpError(503, "not_configured", "Hatian isn't connected to its database yet, so nothing can be saved until setup is finished");
       }
       assertSameOrigin(req);
       const app = container();
@@ -92,7 +92,7 @@ export function route<P = Record<string, string>>(handler: Handler<P>) {
         requestId,
         ipHash: clientIpHash(req),
         async actor() {
-          if (actAs) throw new HttpError(400, "acting_not_supported", "Stop acting for this person first, then try again as yourself.");
+          if (actAs) throw new HttpError(400, "acting_not_supported", "Stop acting for this person first, then try again as yourself");
           const a = await resolveActor();
           if (!a) throw new UnauthenticatedError();
           return a;
@@ -148,7 +148,7 @@ export function setSessionCookie(res: NextResponse, session: { token: string; ex
 
 function errorResponse(error: unknown, requestId: string): NextResponse {
   let status = 500;
-  let body: Record<string, unknown> = { error: { code: "internal", message: "Something went wrong. Please try again.", requestId } };
+  let body: Record<string, unknown> = { error: { code: "internal", message: "Something went wrong, please try again", requestId } };
   if (error instanceof ZodError) {
     status = 400;
     body = { error: { code: "invalid_input", message: error.issues[0]?.message ?? "Invalid input", issues: error.issues.map((i) => ({ path: i.path.join("."), message: i.message })) } };

@@ -235,14 +235,14 @@ export class EventAggregate {
   /** Receipts are in: everyone said so, everything reconciles, payers confirmed. Part of freezeGate. */
   allocationGate(): Gate {
     const blockers: string[] = [];
-    if (this.record.receipts.length === 0) blockers.push("Add at least one receipt.");
-    for (const m of this.activeMembers()) if (!m.entryComplete) blockers.push(`${m.displayName} isn’t done adding receipts yet.`);
+    if (this.record.receipts.length === 0) blockers.push("Add at least one receipt");
+    for (const m of this.activeMembers()) if (!m.entryComplete) blockers.push(`${m.displayName} isn’t done adding receipts yet`);
     for (const r of this.record.receipts) {
       const rec = this.reconciliation(r);
       for (const issue of rec.issues) blockers.push(`${r.label}: ${issue.message}`);
       const payer = this.member(r.payerMemberId);
-      if (!payer.active) blockers.push(`${r.label}: the payer is no longer on the roster.`);
-      if (!this.fundingAcknowledged(r)) blockers.push(`${r.label}: ${payer.displayName} has not confirmed paying ${formatMinor(r.payableCentavos, r.currency)}.`);
+      if (!payer.active) blockers.push(`${r.label}: the payer is no longer on the roster`);
+      if (!this.fundingAcknowledged(r)) blockers.push(`${r.label}: ${payer.displayName} has not confirmed paying ${formatMinor(r.payableCentavos, r.currency)}`);
     }
     return { ready: blockers.length === 0, blockers };
   }
@@ -259,10 +259,10 @@ export class EventAggregate {
     const blockers: string[] = [];
     for (const r of this.record.receipts) {
       for (const m of this.activeMembers()) {
-        if (!this.currentAck(r, m.id)) blockers.push(`${m.displayName} hasn’t claimed from “${r.label}” yet.`);
+        if (!this.currentAck(r, m.id)) blockers.push(`${m.displayName} hasn’t claimed from “${r.label}” yet`);
       }
       const stale = r.lines.flatMap((l) => l.claims).filter((c) => c.receiptVersion !== r.version);
-      if (stale.length) blockers.push(`${r.label} changed; ${new Set(stale.map((c) => c.memberId)).size} member(s) must re-confirm their claims.`);
+      if (stale.length) blockers.push(`${r.label} changed; ${new Set(stale.map((c) => c.memberId)).size} member(s) must re-confirm their claims`);
     }
     const calc = this.calculation();
     if (!calc.ok) {
@@ -285,7 +285,7 @@ export class EventAggregate {
    */
   freezeGate(): Gate {
     const blockers: string[] = [];
-    if (!this.record.rosterLockedAt) blockers.push("The organizer hasn’t tapped “Everyone’s here” yet.");
+    if (!this.record.rosterLockedAt) blockers.push("The organizer hasn’t tapped “Everyone’s here” yet");
     blockers.push(...this.allocationGate().blockers, ...this.reviewGate().blockers, ...this.cashGate().blockers);
     const unique = [...new Set(blockers)];
     return { ready: unique.length === 0, blockers: unique };
@@ -352,8 +352,8 @@ export class EventAggregate {
     const name = (id: string) => this.member(id).displayName;
     const { pending, disputed } = this.cashOutstanding();
     const blockers = [
-      ...pending.map((c) => `${name(c.recipientMemberId)} hasn’t confirmed ${formatMinor(c.amountCentavos, this.currency)} from ${name(c.senderMemberId)} yet.`),
-      ...disputed.map((c) => `${name(c.senderMemberId)} and ${name(c.recipientMemberId)} need to sort out the ${formatMinor(c.amountCentavos, this.currency)} payment.`),
+      ...pending.map((c) => `${name(c.recipientMemberId)} hasn’t confirmed ${formatMinor(c.amountCentavos, this.currency)} from ${name(c.senderMemberId)} yet`),
+      ...disputed.map((c) => `${name(c.senderMemberId)} and ${name(c.recipientMemberId)} need to sort out the ${formatMinor(c.amountCentavos, this.currency)} payment`),
     ];
     return { ready: blockers.length === 0, blockers };
   }
@@ -366,10 +366,10 @@ export class EventAggregate {
   correctionGate(): Gate {
     const blockers: string[] = [];
     for (const snap of this.record.snapshots) for (const edge of snap.edges) {
-      if (edge.reports.some((r) => r.status === "REPORTED")) blockers.push("Confirm or cancel every pending payment report before correcting the bill.");
-      if (edge.disputes.some((d) => d.status !== "RESOLVED")) blockers.push("Resolve every payment dispute before correcting the bill.");
+      if (edge.reports.some((r) => r.status === "REPORTED")) blockers.push("Confirm or cancel every pending payment report before correcting the bill");
+      if (edge.disputes.some((d) => d.status !== "RESOLVED")) blockers.push("Resolve every payment dispute before correcting the bill");
     }
-    if (this.hasCashOutstanding()) blockers.push("Confirm, reject or sort out every cash payment before correcting the bill.");
+    if (this.hasCashOutstanding()) blockers.push("Confirm, reject or sort out every cash payment before correcting the bill");
     return { ready: blockers.length === 0, blockers: [...new Set(blockers)] };
   }
 
@@ -410,18 +410,18 @@ export class EventAggregate {
   /** Settling → Done. */
   doneGate(): Gate {
     const snapshot = this.activeSnapshot();
-    if (!snapshot) return { ready: false, blockers: ["No frozen settlement."] };
+    if (!snapshot) return { ready: false, blockers: ["No frozen settlement"] };
     const name = (id: string) => this.member(id).displayName;
     const blockers: string[] = [];
     for (const s of this.paymentLedger(snapshot)!.edgeStates()) {
       const label = `${name(s.edge.from)} → ${name(s.edge.to)}`;
-      if (s.pending > 0n) blockers.push(`${label}: ${formatMinor(s.pending, this.currency)} awaiting confirmation.`);
-      if (s.disputed) blockers.push(`${label}: a rejected report is unresolved.`);
-      if (s.outstanding > 0n) blockers.push(`${label}: ${formatMinor(s.outstanding, this.currency)} not yet confirmed received.`);
+      if (s.pending > 0n) blockers.push(`${label}: ${formatMinor(s.pending, this.currency)} awaiting confirmation`);
+      if (s.disputed) blockers.push(`${label}: a rejected report is unresolved`);
+      if (s.outstanding > 0n) blockers.push(`${label}: ${formatMinor(s.outstanding, this.currency)} not yet confirmed received`);
     }
     blockers.push(...this.cashGate().blockers);
     const remaining = this.remainingNets(snapshot.shares.map((s) => [s.memberId, s.netCentavos] as const));
-    for (const [id, amount] of remaining) if (amount !== 0n) blockers.push(`${name(id)}: a non-zero balance remains.`);
+    for (const [id, amount] of remaining) if (amount !== 0n) blockers.push(`${name(id)}: a non-zero balance remains`);
     return { ready: blockers.length === 0, blockers };
   }
 }

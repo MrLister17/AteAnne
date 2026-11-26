@@ -69,9 +69,9 @@ export function tabsFor(phase: Phase): { id: TabId; label: string; icon: IconNam
 
 /** Said once when the step changes under you (your own action or someone else's). */
 const STEP_NEWS: Partial<Record<Phase, string>> = {
-  SETTLING: "Bill frozen. Time to pay.",
-  COLLECTING: "The organizer reopened the bill to fix it.",
-  DONE: "All paid. This split is closed.",
+  SETTLING: "Bill frozen, time to pay",
+  COLLECTING: "The organizer reopened the bill to fix it",
+  DONE: "All paid, this split is closed",
 };
 
 export function EventApp({ eventId }: { eventId: string }) {
@@ -271,7 +271,7 @@ function EventLoader({ eventId }: { eventId: string }) {
         <main className="safe-top mx-auto max-w-[520px] px-4 pt-16 text-center" data-testid="load-error">
           <Icon name="alert" size={40} className="mx-auto text-muted" />
           <h1 className="mt-4 text-[22px] font-bold">{error.status === 0 ? "You’re offline" : "Couldn’t load this event"}</h1>
-          <p className="mt-2 text-muted">{error.status === 0 ? "Check your connection, then try again." : "Something went wrong on our side. Nothing was changed."}</p>
+          <p className="mt-2 text-muted">{error.status === 0 ? "Check your connection, then try again" : "Something went wrong on our side and nothing was changed"}</p>
           <div className="mt-6 grid gap-2">
             <Button full icon="refresh" busyLabel="Trying again…" onClick={() => reload()}>
               Try again
@@ -287,7 +287,7 @@ function EventLoader({ eventId }: { eventId: string }) {
       <main className="safe-top mx-auto max-w-[520px] px-4 pt-16 text-center">
         <Icon name="lock" size={40} className="mx-auto text-muted" />
         <h1 className="mt-4 text-[22px] font-bold">You can’t open this event here</h1>
-        <p className="mt-2 text-muted">This phone isn’t a member of that event. Join with the code, or recover access with your personal key.</p>
+        <p className="mt-2 text-muted">This phone isn’t a member of that event, so join with the code or recover access with your personal key</p>
         <div className="mt-6 grid gap-2">
           <Link href="/join" className="min-h-12 rounded-2xl bg-violet px-5 py-3 font-semibold text-violet-ink">
             Join with a code
@@ -345,7 +345,7 @@ function LoadingEvent({ onRetry }: { onRetry: () => Promise<boolean> }) {
         <p className="flex items-center justify-center gap-2 font-semibold text-violet">
           <Spinner /> Loading your event…
         </p>
-        {slow && <p className="mt-1 text-[14px] text-muted">Still loading. Check your connection.</p>}
+        {slow && <p className="mt-1 text-[14px] text-muted">Still loading, check your connection</p>}
       </div>
       {slow && (
         <div className="mt-3">
@@ -392,7 +392,7 @@ function Header({ view, stale, onRefresh, onStopActing, onShow }: { view: View; 
           aria-label="Refresh"
           onClick={() =>
             onRefresh().then((ok) => {
-              if (!ok) toast("Couldn’t refresh. Check your connection.", "error");
+              if (!ok) toast("Couldn’t refresh, check your connection", "error");
               return ok;
             })
           }

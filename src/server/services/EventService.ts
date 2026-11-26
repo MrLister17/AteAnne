@@ -81,10 +81,10 @@ export class EventService extends BaseService {
     const event = normalized ? await this.db.event.findUnique({ where: { joinCodeHash: this.codes.hash(normalized) } }) : null;
     if (!event) {
       await this.limiter.hit(RATE_RULES.failedCodePerIp, ipHash);
-      throw new NotFoundError("That code does not match an open event. Check it with the organizer.");
+      throw new NotFoundError("That code does not match an open event, so check it with the organizer");
     }
     if (!event.joinCodeExpiresAt || event.joinCodeExpiresAt.getTime() <= Date.now()) {
-      throw new GoneError("code_expired", "This join code has expired. Ask the organizer for a new one.");
+      throw new GoneError("code_expired", "This join code has expired, so ask the organizer for a new one");
     }
     await this.limiter.hit(RATE_RULES.joinsPerEvent, event.id);
     const actorId = typeof actor === "string" ? actor : await actor();
@@ -98,7 +98,7 @@ export class EventService extends BaseService {
         return { eventId: fresh.id, memberId: existing.id, recoveryKey: null };
       }
       if (fresh.phase !== "COLLECTING" || !fresh.joinCodeHash || fresh.cancelled || fresh.rosterLockedAt) {
-        throw new GoneError("joins_closed", "This event's roster is locked; new people cannot join.");
+        throw new GoneError("joins_closed", "This event's roster is locked; new people cannot join");
       }
       if (fresh.members.filter((m) => m.active).length >= MAX_MEMBERS) {
         throw new ConflictError("event_full", `This event already has ${MAX_MEMBERS} people`);
@@ -240,7 +240,7 @@ export class EventService extends BaseService {
       if (agg.isOwner(target.id)) throw new ConflictError("cannot_remove_owner", "The organizer cannot be removed");
       if (agg.record.rosterLockedAt) throw new ConflictError("roster_locked", "The roster is locked; correcting a bill cannot remove a participant");
       if (agg.memberReferenced(target.id)) {
-        throw new ConflictError("member_referenced", `${target.displayName} is referenced by receipts or claims and cannot be removed. Edit those first.`);
+        throw new ConflictError("member_referenced", `${target.displayName} is referenced by receipts or claims, so edit those before removing them`);
       }
       await tx.receiptAck.deleteMany({ where: { memberId: target.id } });
       await tx.reviewApproval.deleteMany({ where: { memberId: target.id } });
@@ -284,12 +284,12 @@ export class EventService extends BaseService {
     await this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
       agg.assertOwner(me.id);
       agg.assertNotCancelled();
-      if (agg.record.financialVersion !== data.expectedFinancialVersion) throw new ConflictError("stale_version", "The event changed while you were looking. Refresh and check again.");
+      if (agg.record.financialVersion !== data.expectedFinancialVersion) throw new ConflictError("stale_version", "The event changed while you were looking, so refresh and check again");
       if (agg.phase !== "COLLECTING") {
-        throw new ConflictError("currency_locked", agg.phase === "DONE" ? "Done events are read-only" : "The bill is frozen. To change its currency, use Correct the bill first.");
+        throw new ConflictError("currency_locked", agg.phase === "DONE" ? "Done events are read-only" : "The bill is frozen, so use Correct the bill before changing its currency");
       }
       if (agg.record.snapshots.some((x) => x.firstReportAt) || agg.record.cashReports.length > 0) {
-        throw new ConflictError("payments_reported", "Payments were already reported in this currency, so it can't change.");
+        throw new ConflictError("payments_reported", "Payments were already reported in this currency, so it can't change");
       }
       if (agg.currency === data.currency) return;
       await tx.event.update({ where: { id: eventId }, data: { currency: data.currency } });
@@ -350,7 +350,7 @@ export class EventService extends BaseService {
     return this.inEvent(actorId, eventId, async ({ tx, agg, me }) => {
       agg.assertOwner(me.id);
       if (agg.record.financialVersion !== expectedFinancialVersion) {
-        throw new ConflictError("stale_version", "The event changed while you were looking. Refresh and check again.");
+        throw new ConflictError("stale_version", "The event changed while you were looking, so refresh and check again");
       }
       agg.machine.assertCanMoveTo(target);
       const from = agg.phase;
@@ -388,9 +388,9 @@ export class EventService extends BaseService {
       if (agg.phase === "DONE") throw new ConflictError("event_done", "Done events are read-only");
       if (cancelled && !agg.record.cancelled) {
         // Cancelling never forgives money (D64): cash handed over must be settled or undone first.
-        if (agg.hasCashOutstanding()) throw new ConflictError("cash_outstanding", "Confirm, reject or sort out every cash payment before cancelling.");
+        if (agg.hasCashOutstanding()) throw new ConflictError("cash_outstanding", "Confirm, reject or sort out every cash payment before cancelling");
         if ([...agg.cashNets().values()].some((n) => n !== 0n)) {
-          throw new ConflictError("cash_not_returned", "Cash was handed over in this event. Record the money given back (or undo a mistaken confirmation) before cancelling.");
+          throw new ConflictError("cash_not_returned", "Cash was handed over in this event, so record the money given back (or undo a mistaken confirmation) before cancelling");
         }
       }
       await tx.event.update({ where: { id: eventId }, data: { cancelled, ...(cancelled ? { joinCodeHash: null, joinCodeCiphertext: null, joinCodeExpiresAt: null } : {}) } });
@@ -404,7 +404,7 @@ export class EventService extends BaseService {
       agg.assertOwner(me.id);
       if (confirmTitle.trim() !== agg.record.title) throw new ValidationError("confirm_mismatch", "Type the event title exactly to confirm");
       if (agg.record.snapshots.some((s) => s.firstReportAt) || agg.record.cashReports.length > 0) {
-        throw new ConflictError("payments_reported", "Payments were reported in this event. Export it instead; deletion after payments needs every member's approval (not in v1).");
+        throw new ConflictError("payments_reported", "Payments were reported in this event, so export it instead (deleting after payments needs every member's approval, which isn't available yet)");
       }
       const assets = await tx.asset.findMany({ where: { eventId }, select: { storageKey: true } });
       await this.purge(tx, eventId);

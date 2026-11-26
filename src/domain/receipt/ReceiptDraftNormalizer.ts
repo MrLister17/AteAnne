@@ -124,7 +124,7 @@ export class ReceiptDraftNormalizer {
     const sum = out.lines.reduce((a, l) => a + l.amount, 0n) - out.adjustments.filter((a) => a.kind === "DISCOUNT").reduce((a, x) => a + x.amount, 0n) + out.adjustments.filter((a) => a.kind !== "DISCOUNT").reduce((a, x) => a + x.amount, 0n);
     out.computedPayable = sum;
     out.reconciled = out.lines.length > 0 && sum === out.payable;
-    if (rounded) out.warnings = [...out.warnings, `${currency} has no decimals, so amounts were rounded to whole ${currency}. Check them.`];
+    if (rounded) out.warnings = [...out.warnings, `${currency} has no decimals, so amounts were rounded to whole ${currency} (check them)`];
     return out;
   }
 
@@ -136,7 +136,7 @@ export class ReceiptDraftNormalizer {
       try {
         return Money.parsePesos(raw).assertWithin().centavos;
       } catch {
-        warnings.push(`Couldn’t read the amount for ${what} (“${raw}”). Enter it by hand.`);
+        warnings.push(`Couldn’t read the amount for ${what} (“${raw}”), so enter it by hand`);
         return null;
       }
     };
@@ -145,7 +145,7 @@ export class ReceiptDraftNormalizer {
     const lines: DraftLine[] = [];
     for (const [i, l] of reading.lines.entries()) {
       if (lines.length >= MAX_LINES) {
-        warnings.push(`Only the first ${MAX_LINES} items were kept.`);
+        warnings.push(`Only the first ${MAX_LINES} items were kept`);
         break;
       }
       const name = label(l.label, `Item ${i + 1}`);
@@ -168,7 +168,7 @@ export class ReceiptDraftNormalizer {
     }
     if (adjustments.length > MAX_ADJUSTMENTS) {
       adjustments = adjustments.slice(0, MAX_ADJUSTMENTS);
-      warnings.push(`Only the first ${MAX_ADJUSTMENTS} discounts/charges were kept.`);
+      warnings.push(`Only the first ${MAX_ADJUSTMENTS} discounts/charges were kept`);
     }
 
     const sum = (xs: bigint[]) => xs.reduce((a, b) => a + b, 0n);
@@ -179,7 +179,7 @@ export class ReceiptDraftNormalizer {
       if (l.unitPrice === null || l.unitPrice <= 0n || l.amount % l.unitPrice !== 0n) continue;
       const k = l.amount / l.unitPrice;
       if (k >= 1n && k <= 1000n && Number(k) !== l.quantity) {
-        warnings.push(`“${l.label}”: quantity set to ${k} because ${k} × ${php(l.unitPrice)} = ${php(l.amount)}.`);
+        warnings.push(`“${l.label}”: quantity set to ${k} because ${k} × ${php(l.unitPrice)} = ${php(l.amount)}`);
         l.quantity = Number(k);
       }
     }
@@ -192,7 +192,7 @@ export class ReceiptDraftNormalizer {
     let payable = totalRead;
     if (payable === null) {
       payable = gross - discounts + charges;
-      warnings.push("No total was found, so the total was calculated from the items. Check it against the receipt.");
+      warnings.push("No total was found, so it was calculated from the items (check it against the receipt)");
     }
 
     // The printed subtotal is believed only when it agrees with the printed total
@@ -218,7 +218,7 @@ export class ReceiptDraftNormalizer {
           if (services.length === 1) {
             const fixes = lookalikes(services[0].amount).filter((v) => agrees(charges - services[0].amount + v));
             if (fixes.length === 1) {
-              warnings.push(`The service charge was read as ${php(services[0].amount)}; changed to ${php(fixes[0])} because that one look-alike digit makes the printed subtotal and total agree. Check it against the photo.`);
+              warnings.push(`The service charge was read as ${php(services[0].amount)}; changed to ${php(fixes[0])} because that one look-alike digit makes the printed subtotal and total agree (check it against the photo)`);
               charges += fixes[0] - services[0].amount;
               services[0].amount = fixes[0];
               subtotal = printed;
@@ -242,20 +242,20 @@ export class ReceiptDraftNormalizer {
         adjustments = [{ kind: "DISCOUNT", label: `${names} (VAT-inclusive equivalent)`.slice(0, MAX_LABEL), amount: needed }, ...adjustments.filter((a) => a.kind !== "DISCOUNT")];
         discounts = needed;
         warnings.push(
-          `The discount was printed as ${php(printed)} on the VAT-exclusive price, so it was changed to the VAT-inclusive equivalent of ${php(needed)} to match the total. Check this is right.`,
+          `The discount was printed as ${php(printed)} on the VAT-exclusive price, so it was changed to the VAT-inclusive equivalent of ${php(needed)} to match the total (check this is right)`,
         );
       }
     }
 
     const computedPayable = gross - discounts + charges;
     const reconciled = computedPayable === payable && lines.length > 0;
-    if (!lines.length) warnings.push("No items could be read. Add them by hand.");
+    if (!lines.length) warnings.push("No items could be read, so add them by hand");
     else if (!reconciled && subtotal !== null && gross !== subtotal) {
       const diff = subtotal - gross;
-      warnings.push(`The items add up to ${php(gross)}, but the receipt’s printed subtotal is ${php(subtotal)} (${diff > 0n ? "short" : "over"} by ${php(diff < 0n ? -diff : diff)}). An item is probably ${diff > 0n ? "missing or misread" : "misread or listed twice"}; compare each amount with the photo.`);
+      warnings.push(`The items add up to ${php(gross)}, but the receipt’s printed subtotal is ${php(subtotal)} (${diff > 0n ? "short" : "over"} by ${php(diff < 0n ? -diff : diff)}), so an item is probably ${diff > 0n ? "missing or misread" : "misread or listed twice"} (compare each amount with the photo)`);
     } else if (!reconciled) {
       const diff = payable - computedPayable;
-      warnings.push(`The items ${diff > 0n ? "come to less" : "come to more"} than the total by ${php(diff < 0n ? -diff : diff)}. An item may be missing or misread.`);
+      warnings.push(`The items ${diff > 0n ? "come to less" : "come to more"} than the total by ${php(diff < 0n ? -diff : diff)}, so an item may be missing or misread`);
     }
     for (const note of reading.unreadableNotes.slice(0, 5)) warnings.push(`Hard to read: ${note.slice(0, 160)}`);
 
@@ -273,7 +273,7 @@ export class ReceiptDraftNormalizer {
     const odd = lines.filter((l) => l.unitPrice !== null && l.unitPrice > 0n && expected(l) !== l.amount);
     const fix = (group: DraftLine[]) => {
       for (const l of group) {
-        warnings.push(`“${l.label}” was read as ${php(l.amount)}, but ${l.quantity} × ${php(l.unitPrice!)} = ${php(expected(l))}, which makes the items add up. Changed to ${php(expected(l))}; check it.`);
+        warnings.push(`“${l.label}” was read as ${php(l.amount)}, but ${l.quantity} × ${php(l.unitPrice!)} = ${php(expected(l))} makes the items add up, so it was changed to ${php(expected(l))} (check it)`);
         l.amount = expected(l);
       }
       return gap;
@@ -294,7 +294,7 @@ export class ReceiptDraftNormalizer {
     }
     if (options.length !== 1) return 0n;
     const [{ line, amount, unitPrice }] = options;
-    warnings.push(`“${line.label}” was read as ${php(line.amount)}; changed to ${php(amount)} because that one look-alike digit makes the items match the receipt’s printed subtotal. Check this line against the photo.`);
+    warnings.push(`“${line.label}” was read as ${php(line.amount)}; changed to ${php(amount)} because that one look-alike digit makes the items match the receipt’s printed subtotal (check this line against the photo)`);
     line.amount = amount;
     line.unitPrice = unitPrice;
     return gap;

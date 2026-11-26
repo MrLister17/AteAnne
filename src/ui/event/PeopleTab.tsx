@@ -354,7 +354,7 @@ export function PeopleTab() {
                   Act for them
                 </Button>
                 <p className="text-[14px] text-muted">
-                  Claim items or record payments for {person.displayName}.
+                  Claim items or record payments for {person.displayName}
                 </p>
                 {event.phase !== "DONE" && (
                   <Button
@@ -364,7 +364,7 @@ export function PeopleTab() {
                     onClick={async () => {
                       if (
                         !confirm(
-                          `Give ${person.displayName} their own access? You’ll get a key for them to open on their own phone. After that, only they can make their choices.`,
+                          `Give ${person.displayName} their own access? You’ll get a key for them to open on their own phone, and after that only they can make their choices`,
                         )
                       )
                         return;
@@ -440,7 +440,7 @@ export function PeopleTab() {
                   onClick={async () => {
                     if (
                       !confirm(
-                        `Remove ${person.displayName}? Use this for duplicates or people added by mistake.`,
+                        `Remove ${person.displayName}? Use this for duplicates or people added by mistake`,
                       )
                     )
                       return;
@@ -463,7 +463,7 @@ export function PeopleTab() {
           </div>
         )}
         {panel === "add" && (
-          canAdd ? <AddGuest onAdded={close} /> : <Notice tone="warn">You can’t add anyone right now.</Notice>
+          canAdd ? <AddGuest onAdded={close} /> : <Notice tone="warn">You can’t add anyone right now</Notice>
         )}
         {panel === "profile" && (
           <div className="space-y-4">
@@ -536,8 +536,8 @@ export function PeopleTab() {
               <Card className="space-y-3">
                 <h3 className="font-semibold">Keep your access safe</h3>
                 <p className="text-[14px] text-muted">
-                  Your recovery key brings back the same you on another phone.
-                  If you lost it, make a replacement here and save it privately.
+                  Your recovery key brings back the same you on another phone, so if
+                  you lost it, make a replacement here and save it privately
                 </p>
                 <Button
                   full
@@ -546,7 +546,7 @@ export function PeopleTab() {
                   onClick={async () => {
                     if (
                       !confirm(
-                        "Make a new recovery key? Your old key stops working.",
+                        "Make a new recovery key? Your old key stops working",
                       )
                     )
                       return;
@@ -574,9 +574,8 @@ export function PeopleTab() {
         {panel === "exports" && !acting && (
           <div className="space-y-4">
             <p className="text-[15px] text-muted">
-              Download a copy before this event is deleted. These files contain
-              the group’s receipts, split and manual payment history. They
-              contain no images or recovery keys.
+              Download the group’s receipts, split and manual payment history before
+              this event is deleted (no images or recovery keys)
             </p>
             <Card className="divide-y divide-line p-0">
               <a
@@ -607,8 +606,8 @@ export function PeopleTab() {
               </a>
             </Card>
             <Notice tone="info">
-              Hatian’s manual record is not a bank statement. Every event is
-              deleted {event.retentionDays} days after creation.
+              Hatian’s manual record is not a bank statement, and every event is
+              deleted {event.retentionDays} days after creation
             </Notice>
           </div>
         )}
@@ -623,8 +622,8 @@ export function PeopleTab() {
                   {event.cancelled ? "Reopen event" : "Cancel event"}
                 </h3>
                 <p className="text-[14px] text-muted">
-                  Cancelling never forgives money. Costs or debts stay visible
-                  and payments can still be confirmed.
+                  Cancelling never forgives money, so costs or debts stay visible
+                  and payments can still be confirmed
                 </p>
                 <Button
                   full
@@ -645,13 +644,13 @@ export function PeopleTab() {
               <Card className="space-y-3">
                 <h3 className="font-semibold">Delete permanently</h3>
                 <p className="text-[14px] text-muted">
-                  Removes the event for everyone, including receipts and photos.
-                  Download a copy first.
+                  Removes the event for everyone, including receipts and photos, so
+                  download a copy first
                 </p>
                 {hasReports ? (
                   <Notice tone="warn">
                     A payment was reported, so this event’s history must be
-                    kept. Download its record instead.
+                    kept (download its record instead)
                   </Notice>
                 ) : (
                   <Button
@@ -671,7 +670,7 @@ export function PeopleTab() {
             <Card className="space-y-3">
               <h3 className="font-semibold">New to Hatian?</h3>
               <p className="text-[14px] text-muted">
-                A one-minute walkthrough, from joining to settling.
+                A one-minute walkthrough, from joining to settling
               </p>
               <Button
                 full
@@ -688,47 +687,53 @@ export function PeopleTab() {
             <Card className="space-y-3 text-[15px]">
               <h3 className="font-semibold">Access & recovery</h3>
               <p>
-                This browser is you. Your personal recovery key moves the same
+                This browser is you, and your personal recovery key moves the same
                 membership to another phone without changing your receipts or
-                payments.
+                payments
               </p>
               <p>
-                Lost the key too? Ask the organizer in person. Their replacement
-                key expires in 15 minutes and grants access to your membership,
-                including payment confirmations.
+                Lost the key too? Ask the organizer in person for a replacement
+                key, which expires in 15 minutes and grants access to your
+                membership, including payment confirmations
               </p>
               <p className="text-muted">
-                Keep keys private. Never post one in the group chat.
+                Keep keys private and never post one in the group chat
               </p>
             </Card>
             <Card className="py-1 text-[15px]">
               <Disclosure summary="How identity works here" icon="users">
                 <ul className="list-disc space-y-2 pl-5">
                   <li>
-                    A forwarded join code lets anyone join until the roster locks.
-                    The organizer checks names and removes duplicates first. Names
-                    can repeat.
+                    A forwarded join code lets anyone join until the roster locks
+                  </li>
+                  <li>
+                    The organizer checks names and removes duplicates first, since
+                    names can repeat
                   </li>
                   <li>
                     A different browser joins as a new person unless you use your
-                    recovery key.
+                    recovery key
                   </li>
                   <li>
                     The organizer or an admin can help people explicitly added
-                    without a phone. The history records who helped. Phone members
-                    make their own choices.
+                    without a phone, and the history records who helped
                   </li>
                   <li>
-                    Payments happen outside Hatian; only the recipient confirms
-                    receiving money.
+                    People with their own phone make their own choices
+                  </li>
+                  <li>
+                    Payments happen outside Hatian, and only the recipient confirms
+                    receiving money
                   </li>
                   <li>
                     Claiming is your agreement: the bill freezes once the
-                    organizer says everyone’s here and everyone is done. Check
-                    your claims before marking entry complete. Corrections keep
-                    confirmed money and prior statements; resolve pending reports
-                    and disputes first, then the organizer freezes the corrected
-                    bill.
+                    organizer says everyone’s here and everyone is done, so check
+                    your claims before marking entry complete
+                  </li>
+                  <li>
+                    Corrections keep confirmed money and prior statements: resolve
+                    pending reports and disputes first, then the organizer freezes
+                    the corrected bill
                   </li>
                 </ul>
               </Disclosure>
@@ -736,14 +741,18 @@ export function PeopleTab() {
             <Card className="py-1 text-[15px]">
               <Disclosure summary="Your data & privacy" icon="shield">
                 <p>
-                  Group members can see the shared financial statement. Receipts
-                  and QR images are private to authorized members; Hatian does
-                  not collect bank passwords or contacts.
+                  Group members can see the shared financial statement, while receipts
+                  and QR images stay private to authorized members
+                </p>
+                <p>
+                  Hatian does not collect bank passwords or contacts
                 </p>
                 <p>
                   Every event is deleted {event.retentionDays} days after
-                  creation, even if unfinished. Download its record before then.
-                  Deleting a record does not cancel real-world debt.
+                  creation, even if unfinished, so download its record before then
+                </p>
+                <p>
+                  Deleting a record does not cancel real-world debt
                 </p>
               </Disclosure>
             </Card>
@@ -752,7 +761,7 @@ export function PeopleTab() {
         {panel === "activity" && (
           <div className="space-y-3">
             <p className="text-[14px] text-muted">
-              Recent changes, newest first.
+              Recent changes, newest first
             </p>
             <Card className="p-0">
               <ul className="divide-y divide-line text-[14px]">
@@ -779,7 +788,7 @@ export function PeopleTab() {
                 ))}
               </ul>
               {!view.audit.length && (
-                <p className="p-4 text-muted">No changes yet.</p>
+                <p className="p-4 text-muted">No changes yet</p>
               )}
             </Card>
           </div>
@@ -788,8 +797,8 @@ export function PeopleTab() {
           <div className="space-y-4">
             <Notice tone="info" title={`On ${person.displayName}’s phone`}>
               Open Hatian, tap <b>I have a recovery key</b>, and paste this
-              key. From then on {person.displayName} makes their own choices,
-              with the same items and payments.
+              key, and from then on {person.displayName} makes their own choices
+              with the same items and payments
             </Notice>
             <CredentialReveal
               recoveryKey={guestKey}
@@ -801,14 +810,14 @@ export function PeopleTab() {
         {panel === "reissue" && canReissue && person && (
           <div className="space-y-4">
             <Notice tone="pay" title="Check who you are giving access to">
-              Only do this with {person.displayName} present. Anyone with this
-              key can use their membership, including confirming payments. Their
-              receipts, items and payment history stay the same.
+              Only do this with {person.displayName} present, since anyone with
+              this key can use their membership, including confirming payments
+              (their receipts, items and payment history stay the same)
             </Notice>
             <p className="text-[14px] text-muted">
               The new key expires in 15 minutes and replaces their old recovery
-              key. Their old phone loses access when the replacement is used.
-              Add Hatian to their Home Screen first, then enter the key there.
+              key, so their old phone loses access once it’s used (add Hatian to
+              their Home Screen first, then enter the key there)
             </p>
             <label className="flex min-h-12 items-center gap-3 text-[15px]">
               <input
@@ -848,12 +857,12 @@ export function PeopleTab() {
           <div className="space-y-4">
             <Notice tone="info" title={`On ${person.displayName}’s phone`}>
               Open Hatian from the Home Screen, tap{" "}
-              <b>I have a recovery key</b>, and paste this key. Use it before{" "}
+              <b>I have a recovery key</b>, and paste this key before{" "}
               {new Date(reissuedKey.expiresAt).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
-              . They will receive their own new recovery key to save.
+              , and they’ll then get their own new recovery key to save
             </Notice>
             <p
               className="rounded-xl border border-dashed border-line bg-surface-2 p-3 font-mono text-[14px] break-all select-all"
@@ -863,8 +872,8 @@ export function PeopleTab() {
             </p>
             <CopyButton text={reissuedKey.key} label="Copy replacement key" />
             <Notice tone="warn">
-              Give this key privately to {person.displayName}. It grants their
-              access; don’t post it in the group chat or keep a copy.
+              Give this key privately to {person.displayName}, since it grants
+              their access, and don’t post it in the group chat or keep a copy
             </Notice>
             <Button full onClick={back}>
               Done
@@ -888,9 +897,9 @@ export function PeopleTab() {
                 tone="pay"
                 title="This permanently deletes the event for everyone"
               >
-                Receipts, claims, photos and history are destroyed. Deleting
-                records does not cancel any real-world debt. Exported files and
-                backups may still exist.
+                Receipts, claims, photos and history are destroyed, but real-world
+                debt isn’t cancelled and exported files or backups may still
+                exist
               </Notice>
               <Field label={`Type “${event.title}” to confirm`}>
                 {(p) => (
@@ -959,8 +968,8 @@ function AddGuest({ onAdded }: { onAdded: () => void }) {
   return (
     <div className="space-y-4">
       <p className="text-[15px] text-muted">
-        For a kid, a grandparent, or anyone without a phone. You can claim
-        items and record payments for them.
+        For a kid, a grandparent, or anyone without a phone, so you can claim
+        items and record payments for them
       </p>
       <form
         className="space-y-4"
@@ -993,7 +1002,7 @@ function AddGuest({ onAdded }: { onAdded: () => void }) {
             />
           )}
         </Field>
-        {full && <Notice tone="warn">This event already has 20 people.</Notice>}
+        {full && <Notice tone="warn">This event already has 20 people</Notice>}
         <Button full type="submit" icon="plus" disabled={full || !name.trim()}>
           Add
         </Button>
@@ -1019,7 +1028,7 @@ function SettleCurrencyCard({ hasReports }: { hasReports: boolean }) {
     <Card className="space-y-3" data-testid="settle-currency">
       <h3 className="font-semibold">Settle-up currency</h3>
       <p className="text-[14px] text-muted">
-        Everyone’s share and every transfer is in {currencyInfo(event.currency).name} ({event.currency}). Receipts in other currencies are converted at the ECB rate of the day they were bought.
+        Everyone’s share and every transfer is in {currencyInfo(event.currency).name} ({event.currency}), and receipts in other currencies are converted at the ECB rate of the day they were bought
       </p>
       {canChange ? (
         <>
@@ -1047,15 +1056,15 @@ function SettleCurrencyCard({ hasReports }: { hasReports: boolean }) {
           >
             Settle up in {code}
           </Button>
-          <p className="text-[13px] text-muted">Receipts keep the numbers people typed. Only the currency everyone settles in changes.</p>
+          <p className="text-[13px] text-muted">Receipts keep the numbers people typed, and only the currency everyone settles in changes</p>
         </>
       ) : (
         <Notice tone="info">
           {hasReports
-            ? "Payments were already reported in this currency, so it can’t change."
+            ? "Payments were already reported in this currency, so it can’t change"
             : event.phase === "COLLECTING"
-              ? "Reopen the event to change it."
-              : "The bill is frozen. To change its currency, use “Something wrong with the bill?” on Home first (only before anyone reports a payment)."}
+              ? "Reopen the event to change it"
+              : "The bill is frozen, so use “Something wrong with the bill?” on Home before changing its currency (only before anyone reports a payment)"}
         </Notice>
       )}
     </Card>

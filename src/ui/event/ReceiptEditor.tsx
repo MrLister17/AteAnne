@@ -189,7 +189,7 @@ export function ReceiptEditor({
   const dirty = !!scanState || JSON.stringify(d) !== initial;
   const close = () => {
     if (busy) return;
-    if (dirty && !confirm(receipt ? "Discard your changes to this receipt?" : "Discard this receipt? Nothing has been saved yet.")) return;
+    if (dirty && !confirm(receipt ? "Discard your changes to this receipt?" : "Discard this receipt? Nothing has been saved yet")) return;
     scanner.cancel();
     onClose();
   };
@@ -209,7 +209,7 @@ export function ReceiptEditor({
       (calc.bad || calc.payable === null) && "every amount",
     ].filter(Boolean) as string[];
     if (missing.length) {
-      toast(`Not saved yet. Fill in ${missing.join(", ").replace(/, ([^,]*)$/, " and $1")}.`, "error");
+      toast(`Not saved yet: fill in ${missing.join(", ").replace(/, ([^,]*)$/, " and $1")}`, "error");
       requestAnimationFrame(() => {
         const first = scroller.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
         first?.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -244,7 +244,7 @@ export function ReceiptEditor({
     setBusy(true);
     const ok = await act(
       () => (receipt ? api.put(`/api/receipts/${receipt.id}`, { ...body, expectedVersion: receipt.version }) : api.post<{ receiptId: string }>(`/api/events/${event.id}/receipts`, body)),
-      receipt ? "Receipt updated. Everyone checks their claims on it again." : "Receipt saved",
+      receipt ? "Receipt updated, and everyone checks their claims on it again" : "Receipt saved",
     );
     // The scanned photo is never uploaded or kept (D54): only the details saved here are stored.
     setBusy(false);
@@ -291,8 +291,8 @@ export function ReceiptEditor({
         )}
         {scanState && !receipt && (
           <Notice tone="warn" title="Drafted from your photo — please check it">
-            <p>Compare every item, quantity and the total with the receipt before saving. Photos can be misread, and you decide what’s right.</p>
-            {!scanState.reconciled && <p className="font-semibold">The items don’t add up to the total yet. Look for a missed or misread line; the bar above Save shows the gap.</p>}
+            <p>Compare every item, quantity and the total with the receipt before saving, since photos can be misread and you decide what’s right</p>
+            {!scanState.reconciled && <p className="font-semibold">The items don’t add up to the total yet, so look for a missed or misread line (the bar above Save shows the gap)</p>}
             {scanState.warnings.length > 0 && (
               <ul className="mt-1 list-disc space-y-0.5 pl-4">
                 {scanState.warnings.map((w) => (
@@ -313,17 +313,17 @@ export function ReceiptEditor({
               <button type="button" className="btn btn-tonal !min-h-11 shrink-0 !px-4 !text-[15px]" onClick={() => setBigPhoto((v) => !v)}>
                 {bigPhoto ? "Smaller photo" : "Bigger photo"}
               </button>
-              <p className="text-[13px] text-muted">We don’t keep this photo. Only what you save is kept.</p>
+              <p className="text-[13px] text-muted">We don’t keep this photo, only what you save</p>
             </div>
           </div>
         )}
-        {receipt && <Notice tone="warn">Saving a change asks everyone to check their claims on this receipt again.</Notice>}
+        {receipt && <Notice tone="warn">Saving a change asks everyone to check their claims on this receipt again</Notice>}
         <Field label="Store or label" error={tried && !d.label.trim() ? "Required" : null}>
           {(p) => <input {...p} className="field" maxLength={80} value={d.label} onChange={(e) => setD({ ...d, label: e.target.value })} placeholder="e.g. Pizza place" />}
         </Field>
         <Field
           label="Who actually paid the merchant?"
-          hint={d.payerMemberId === view.me.memberId ? undefined : "They’ll confirm the amount once."}
+          hint={d.payerMemberId === view.me.memberId ? undefined : "They’ll confirm the amount once"}
         >
           {(p) => (
             <select {...p} className="field" value={d.payerMemberId} onChange={(e) => setD({ ...d, payerMemberId: e.target.value })}>
@@ -352,7 +352,7 @@ export function ReceiptEditor({
             <input type="checkbox" className="mt-1 size-5 shrink-0 accent-violet" checked={d.equalSplit} onChange={(e) => setD({ ...d, equalSplit: e.target.checked })} />
             <span className="font-semibold">Split this receipt equally among everyone</span>
           </label>
-          {d.equalSplit && <p className="text-[14px] text-muted">Split the total evenly. No need to claim items.</p>}
+          {d.equalSplit && <p className="text-[14px] text-muted">Split the total evenly, with no need to claim items</p>}
         </div>
 
         <div>
@@ -386,7 +386,7 @@ export function ReceiptEditor({
                       </button>
                     ))}
                   </div>
-                  {!d.equalSplit && <p className="mt-1 text-[12px] text-muted">{l.mode === "SHARED" ? "Split among whoever had some." : "Each person claims how many they had."}</p>}
+                  {!d.equalSplit && <p className="mt-1 text-[12px] text-muted">{l.mode === "SHARED" ? "Split among whoever had some" : "Each person claims how many they had"}</p>}
                 </fieldset>
               </li>
             ))}
@@ -398,7 +398,7 @@ export function ReceiptEditor({
 
         <div>
           <h3 className="mb-1 text-[15px] font-bold">Discounts & charges</h3>
-          <p className="mb-2 text-[13px] text-muted">Only add what’s on the receipt. VAT already in the prices doesn’t go here.</p>
+          <p className="mb-2 text-[13px] text-muted">Only add what’s on the receipt (VAT already in the prices doesn’t go here)</p>
           <ol className="space-y-3">
             {d.adjustments.map((a, i) => (
               <li key={i} className="card space-y-3 p-3">
@@ -485,8 +485,8 @@ export function ReceiptEditor({
           label="Total paid to the merchant"
           hint={
             d.payableAuto
-              ? "Added up for you. Type the printed total to double-check."
-              : "The final amount on the receipt. Clear it to add it up for you."
+              ? "Added up for you, or type the printed total to double-check"
+              : "The final amount on the receipt (clear it to add it up for you)"
           }
           error={err(resolved.payable)}
         >
@@ -507,12 +507,12 @@ function Reconciliation({ calc, currency, onUse }: { calc: { gross: bigint; disc
   if (calc.invalid) {
     return (
       <p className="text-[14px] text-warn">
-        {currency === "PHP" ? "Some amounts aren’t valid peso values. Use numbers like 120 or 120.50." : currencyInfo(currency).exponent === 0 ? `Some amounts aren’t valid ${currency} values. ${currency} has no decimals: use numbers like 1200.` : `Some amounts aren’t valid ${currency} values. Use numbers like 120 or 120.50.`}
+        {currency === "PHP" ? "Some amounts aren’t valid peso values, so use numbers like 120 or 120.50" : currencyInfo(currency).exponent === 0 ? `Some amounts aren’t valid ${currency} values (${currency} has no decimals, so use numbers like 1200)` : `Some amounts aren’t valid ${currency} values, so use numbers like 120 or 120.50`}
       </p>
     );
   }
-  if (calc.empty) return <p className="text-[14px] text-muted">Enter each item’s price. We’ll add everything up for you.</p>;
-  if (calc.computed < 0n) return <p className="text-[14px] text-warn">Discounts are bigger than the items. Check the discount amounts.</p>;
+  if (calc.empty) return <p className="text-[14px] text-muted">Enter each item’s price and we’ll add everything up for you</p>;
+  if (calc.computed < 0n) return <p className="text-[14px] text-warn">Discounts are bigger than the items, so check the discount amounts</p>;
   if (calc.auto) {
     return (
       <div className="flex items-center gap-2 rounded-xl bg-violet-soft px-3 py-2 text-[14px] text-violet" role="status" aria-live="polite">
@@ -596,14 +596,14 @@ function LineAmounts({ currency, index, line, shownTotal, invalid, onChange }: {
       {mismatch && (
         <div className="flex items-center gap-2 rounded-xl bg-warn-soft px-3 py-2 text-[13px] text-warn">
           <span className="tnum flex-1">
-            {q} × {php(unit!)} = {php(product!)}, but the line total says {php(typed!)}. The line total is used.
+            {q} × {php(unit!)} = {php(product!)}, but the line total says {php(typed!)}, so the line total is used
           </span>
           <button type="button" className="btn btn-secondary !min-h-11 shrink-0 !rounded-xl !px-3 !text-[14px]" onClick={() => onChange({ amount: "", autoTotal: true })}>
             Use {php(product!)}
           </button>
         </div>
       )}
-      {!derived && !mismatch && unit === null && <p className="text-[12px] text-muted">Type the price each, or the line total.</p>}
+      {!derived && !mismatch && unit === null && <p className="text-[12px] text-muted">Type the price each, or the line total</p>}
     </div>
   );
 }
@@ -658,13 +658,13 @@ function CurrencyAndDay({
           />
         </label>
       </div>
-      {detected === false && draft.currency !== event.currency && <p className="text-[13px] text-muted">The photo didn’t show a currency. Check that {draft.currency} is right.</p>}
+      {detected === false && draft.currency !== event.currency && <p className="text-[13px] text-muted">The photo didn’t show a currency, so check that {draft.currency} is right</p>}
       {foreign && (
         <p className="text-[14px] text-muted" data-testid="receipt-conversion">
           {known && payable !== null
             ? `= ${fmt(known.convert(payable))} · 1 ${draft.currency} = ${known.rateText()} ${event.currency} (ECB, ${shortDay(known.date)})`
-            : `Counted in ${event.currency} at the ECB rate for ${shortDay(draft.purchasedOn)}.`}
-          {draft.purchasedOn === today && known && known.date !== today ? " Today’s rate comes out tonight; the bill uses it if it freezes later." : ""}
+            : `Counted in ${event.currency} at the ECB rate for ${shortDay(draft.purchasedOn)}`}
+          {draft.purchasedOn === today && known && known.date !== today ? " Today’s rate comes out tonight; the bill uses it if it freezes later" : ""}
         </p>
       )}
     </div>

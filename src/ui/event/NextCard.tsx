@@ -66,14 +66,14 @@ function NextBody({ next, where }: { next: NextView; where: Where }) {
         const s = next.sent;
         return (
           <>
-            <Status title={`Sent ${money(s.amount)} · Waiting for ${name(s.toId)}`} line={s.left !== "0" ? `${money(s.left)} left` : `${name(s.toId)} will confirm it arrived.`} />
+            <Status title={`Sent ${money(s.amount)} · Waiting for ${name(s.toId)}`} line={s.left !== "0" ? `${money(s.left)} left` : `${name(s.toId)} will confirm it arrived`} />
             {s.left !== "0" && where !== "pay" && <Secondary onClick={() => goTo("money", { transferId: s.transferId })}>I sent more</Secondary>}
           </>
         );
       }
       if (next.incoming) {
         const i = next.incoming;
-        return <Status title={`Waiting for ${name(i.fromId)}`} line={`${name(i.fromId)} will pay you ${money(i.amount)}.`} />;
+        return <Status title={`Waiting for ${name(i.fromId)}`} line={`${name(i.fromId)} will pay you ${money(i.amount)}`} />;
       }
       return (
         <>
@@ -89,7 +89,7 @@ function NextBody({ next, where }: { next: NextView; where: Where }) {
     case "allPaid":
       return (
         <>
-          <Status title="Everyone’s paid" line="It closes by itself tomorrow, so a mistake can still be fixed." />
+          <Status title="Everyone’s paid" line="It closes by itself tomorrow, so a mistake can still be fixed" />
           {owner && (
             <>
               <Button
@@ -98,8 +98,8 @@ function NextBody({ next, where }: { next: NextView; where: Where }) {
                 icon="check"
                 busyLabel="Closing…"
                 onClick={() => {
-                  if (!confirm("Close this split? Nobody can change it after this.")) return;
-                  return run(() => api.post(`/api/events/${event.id}/phase`, { target: "DONE", expectedFinancialVersion: event.financialVersion }), "Closed. Everything’s settled.");
+                  if (!confirm("Close this split? Nobody can change it after this")) return;
+                  return run(() => api.post(`/api/events/${event.id}/phase`, { target: "DONE", expectedFinancialVersion: event.financialVersion }), "Closed, everything’s settled");
                 }}
               >
                 Close it now
@@ -112,7 +112,7 @@ function NextBody({ next, where }: { next: NextView; where: Where }) {
     case "closed":
       return (
         <>
-          <Status title="All paid and closed" line="Every payment was confirmed by the person who got it." />
+          <Status title="All paid and closed" line="Every payment was confirmed by the person who got it" />
           {where !== "pay" && (
             <Button full variant="secondary" onClick={() => goTo("money")}>
               See summary
@@ -121,7 +121,7 @@ function NextBody({ next, where }: { next: NextView; where: Where }) {
         </>
       );
     case "cancelled":
-      return <Status title="This split was cancelled" line="Amounts that weren’t settled still count." />;
+      return <Status title="This split was cancelled" line="Amounts that weren’t settled still count" />;
     default:
       void view;
       return null;
@@ -137,7 +137,7 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
     case "recheck":
       return (
         <>
-          <Status title={`${task.label} changed`} line="Check your items again." />
+          <Status title={`${task.label} changed`} line="Check your items again" />
           <Button full onClick={() => goTo("claim", { receiptId: task.receiptId })}>
             Check {task.label} again
           </Button>
@@ -166,7 +166,7 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
         <>
           <Status
             title={task.reason === "doesntAddUp" ? `${task.label} doesn’t add up` : `Someone disagreed with splitting ${task.label} equally`}
-            line={task.reason === "doesntAddUp" ? "Fix the items or the total so they match." : "Change it to item-by-item, or talk it over."}
+            line={task.reason === "doesntAddUp" ? "Fix the items or the total so they match" : "Change it to item-by-item, or talk it over"}
           />
           <Button full onClick={() => goTo("receipts", { receiptId: task.receiptId })}>
             {task.reason === "doesntAddUp" ? `Fix ${task.label}` : `Open ${task.label}`}
@@ -180,7 +180,7 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
       if (owesReceipt) {
         return (
           <>
-            <Status title="Add the receipt you paid" line="Scan a photo or type the items." />
+            <Status title="Add the receipt you paid" line="Scan a photo or type the items" />
             <Button full icon="receipt" disabled={event.cancelled} onClick={() => setTab("receipts")}>
               Add a receipt
             </Button>
@@ -191,7 +191,7 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
       }
       return (
         <>
-          <Status title={view.receipts.length ? "Did you pay for anything else?" : "Did you pay for anything?"} line={view.receipts.length ? null : "If you didn’t pay, you’re done."} />
+          <Status title={view.receipts.length ? "Did you pay for anything else?" : "Did you pay for anything?"} line={view.receipts.length ? null : "If you didn’t pay, you’re done"} />
           <Button full busyLabel="Saving…" disabled={event.cancelled} onClick={markDone}>
             I’m done adding receipts
           </Button>
@@ -204,14 +204,14 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
       const people = view.members.filter((m) => m.active).length;
       return (
         <>
-          <Status title="Is everyone here?" line="Nobody can join after this." />
+          <Status title="Is everyone here?" line="Nobody can join after this" />
           <Button
             full
             icon="lock"
             busyLabel="Closing…"
             disabled={event.cancelled}
             onClick={() => {
-              if (!confirm(`Close joining? ${people} ${people === 1 ? "person is" : "people are"} in. Nobody else can join after this.`)) return;
+              if (!confirm(`Close joining? ${people} ${people === 1 ? "person is" : "people are"} in and nobody else can join after this`)) return;
               return run(() => api.post(`/api/events/${event.id}/lock`), "Joining closed");
             }}
           >
@@ -225,13 +225,13 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
     case "freeze":
       return (
         <>
-          <Status title={task.corrected ? "Bill fixed?" : "Ready to freeze"} line="Freeze it so everyone sees what to pay." />
+          <Status title={task.corrected ? "Bill fixed?" : "Ready to freeze"} line="Freeze it so everyone sees what to pay" />
           <Button
             full
             icon="lock"
             busyLabel="Freezing…"
             disabled={event.cancelled}
-            onClick={() => run(() => api.post(`/api/events/${event.id}/phase`, { target: "SETTLING", expectedFinancialVersion: event.financialVersion }), "Bill frozen. Time to pay.")}
+            onClick={() => run(() => api.post(`/api/events/${event.id}/phase`, { target: "SETTLING", expectedFinancialVersion: event.financialVersion }), "Bill frozen, time to pay")}
           >
             {task.corrected ? "Freeze the corrected bill" : "Freeze the bill now"}
           </Button>
@@ -243,7 +243,7 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
         <>
           <Status
             title={task.recordAgain ? `Record the money you sent to ${name(task.withId)}` : `Sort this out with ${name(task.withId)}`}
-            line={task.recordAgain ? "You both agreed it was sent. Don’t send it again." : "A payment was marked as not arrived."}
+            line={task.recordAgain ? "You both agreed it was sent, so don’t send it again" : "A payment was marked as not arrived"}
           />
           <Button full onClick={() => goTo("money", { transferId: task.transferId })}>
             {task.recordAgain ? "Record it again" : "Open payment"}
@@ -253,13 +253,13 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
     case "confirmReceived":
       return (
         <>
-          <Status title={`Did ${receivedAmount(task, currency)} from ${name(task.fromId)} arrive?`} line={task.paid ? `Counts as ${money(task.amount)}. Not there yet? Leave this and check later.` : "Not there yet? Leave this and check later."} />
+          <Status title={`Did ${receivedAmount(task, currency)} from ${name(task.fromId)} arrive?`} line={task.paid ? `Counts as ${money(task.amount)} · Not there yet? Leave this and check later` : "Not there yet? Leave this and check later"} />
           <Button
             full
             variant="receive"
             icon="check"
             busyLabel="Confirming…"
-            onClick={() => run(() => api.post(`/api/payments/${task.reportId}/verify`, { expectedVersion: task.reportVersion }), `Got it. ${receivedAmount(task, currency)} from ${name(task.fromId)}.`)}
+            onClick={() => run(() => api.post(`/api/payments/${task.reportId}/verify`, { expectedVersion: task.reportVersion }), `Got it, ${receivedAmount(task, currency)} from ${name(task.fromId)}`)}
           >
             Yes, I got it
           </Button>
@@ -272,13 +272,13 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
       const report = view.cash.reports.find((c) => c.id === task.reportId);
       return (
         <>
-          <Status title={`Did ${cashAmount(task, currency)} from ${name(task.fromId)} arrive?`} line={task.paid ? `Counts as ${money(task.amount)}. Not there yet? Leave this and check later.` : "Not there yet? Leave this and check later."} />
+          <Status title={`Did ${cashAmount(task, currency)} from ${name(task.fromId)} arrive?`} line={task.paid ? `Counts as ${money(task.amount)} · Not there yet? Leave this and check later` : "Not there yet? Leave this and check later"} />
           <Button
             full
             variant="receive"
             icon="check"
             busyLabel="Confirming…"
-            onClick={() => run(() => api.post(`/api/cash-payments/${task.reportId}/verify`, { expectedVersion: task.reportVersion }), `Confirmed. ${cashAmount(task, currency)} from ${name(task.fromId)}.`)}
+            onClick={() => run(() => api.post(`/api/cash-payments/${task.reportId}/verify`, { expectedVersion: task.reportVersion }), `Confirmed ${cashAmount(task, currency)} from ${name(task.fromId)}`)}
           >
             Confirm received
           </Button>
@@ -306,10 +306,10 @@ function TaskBody({ task, where }: { task: TaskView; where: Where }) {
     }
     case "pay": {
       const instr = view.instructions[task.toId];
-      const how = instr ? [instr.acceptsCash && "Cash", instr.hasQr && "QR"].filter(Boolean).join(" or ") + "." : `Ask ${name(task.toId)} how to pay.`;
+      const how = instr ? [instr.acceptsCash && "Cash", instr.hasQr && "QR"].filter(Boolean).join(" or ") : `Ask ${name(task.toId)} how to pay`;
       return (
         <>
-          <Status title={`Pay ${name(task.toId)} ${money(task.amount)}`} line={task.received !== "0" ? `${name(task.toId)} got ${money(task.received)} so far.` : how} />
+          <Status title={`Pay ${name(task.toId)} ${money(task.amount)}`} line={task.received !== "0" ? `${name(task.toId)} got ${money(task.received)} so far` : how} />
           {where !== "pay" && (
             <Button full icon="arrowUp" onClick={() => goTo("money", { transferId: task.transferId })}>
               Pay {name(task.toId)}
@@ -328,7 +328,7 @@ function WhatsLeft({ onClose }: { onClose: () => void }) {
   return (
     <Sheet open onClose={onClose} title="What’s left">
       <div className="space-y-4">
-        {rows.length === 0 && view.group.reasons.length === 0 && <p className="text-muted">Nothing. The bill moves on by itself in a moment.</p>}
+        {rows.length === 0 && view.group.reasons.length === 0 && <p className="text-muted">Nothing, the bill moves on by itself in a moment</p>}
         {rows.map((g) => (
           <div key={g.memberId} className="card p-4">
             <p className="font-semibold">{name(g.memberId)}</p>
@@ -370,7 +370,7 @@ function CashProblem({ reportId, version, fromId, onClose }: { reportId: string;
             busyLabel="Sending…"
             disabled={reason.trim().length < 3}
             onClick={async () => {
-              const ok = await run(() => api.post(`/api/cash-payments/${reportId}/reject`, { reason: reason.trim(), expectedVersion: version }), `Saved. ${name(fromId)} will see it.`);
+              const ok = await run(() => api.post(`/api/cash-payments/${reportId}/reject`, { reason: reason.trim(), expectedVersion: version }), `Saved, ${name(fromId)} will see it`);
               if (ok) onClose();
               return ok;
             }}
@@ -381,7 +381,7 @@ function CashProblem({ reportId, version, fromId, onClose }: { reportId: string;
       }
     >
       <div className="space-y-4">
-        <p className="text-[15px] text-muted">Only continue if {name(fromId)} says they gave it to you and nothing came.</p>
+        <p className="text-[15px] text-muted">Only continue if {name(fromId)} says they gave it to you and nothing came</p>
         <textarea aria-label="What happened?" className="field min-h-24" maxLength={200} value={reason} placeholder="e.g. I never got the cash" onChange={(e) => setReason(e.target.value)} />
       </div>
     </Sheet>

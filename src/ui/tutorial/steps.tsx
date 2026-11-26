@@ -55,8 +55,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Everyone",
     title: "Welcome to Hatian",
     points: [
-      "Split a bill by what each person actually had.",
-      "3 steps: Add & claim → Pay → Done.",
+      "Split a bill by what each person actually had",
+      "3 steps: Add & claim → Pay → Done",
     ],
     art: (
       <div aria-hidden className="flex items-center justify-center gap-2">
@@ -76,8 +76,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Everyone",
     title: "Add it to your Home Screen",
     points: [
-      "iPhone: in Safari, tap Share → Add to Home Screen. Android: tap “Install app”.",
-      "Then open Hatian from its icon. After joining, copy your recovery key somewhere safe.",
+      "On iPhone, tap Share → Add to Home Screen in Safari, or on Android tap “Install app”",
+      "Then open Hatian from its icon and, after joining, copy your recovery key somewhere safe",
     ],
     art: (
       <Phone>
@@ -94,8 +94,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Organizer",
     title: "Start a split and invite friends",
     points: [
-      "Tap “Start a split” and name it.",
-      "Tap “Share link” to send the code to your group chat.",
+      "Tap “Start a split” and name it",
+      "Tap “Share link” to send the code to your group chat",
     ],
     art: (
       <Phone>
@@ -115,8 +115,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Whoever paid",
     title: "Add the receipt",
     points: [
-      "Scan a photo of the receipt, or type the items.",
-      "Pick “Shared equally” or “By piece” for each item.",
+      "Scan a photo of the receipt, or type the items",
+      "Pick “Shared equally” or “By piece” for each item",
     ],
     art: (
       <Phone>
@@ -133,8 +133,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Everyone",
     title: "Claim what you had",
     points: [
-      "Tap “I had some”, or use − / + for pieces.",
-      "Had nothing? Tap “I got nothing from this receipt”.",
+      "Tap “I had some”, or use − / + for pieces",
+      "Had nothing? Tap “I got nothing from this receipt”",
     ],
     art: (
       <Phone>
@@ -150,8 +150,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Everyone",
     title: "Say you’re done",
     points: [
-      "On Home, say when you’re done adding receipts. The organizer taps “Everyone’s here”.",
-      "The bill then locks by itself and shows who pays whom.",
+      "On Home, say when you’re done adding receipts, and the organizer taps “Everyone’s here”",
+      "The bill then locks by itself and shows who pays whom",
     ],
     art: (
       <Phone>
@@ -167,8 +167,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Everyone",
     title: "Pay, then tap “I sent”",
     points: [
-      "Pay by cash or QR, then tap “I sent”.",
-      "The person you paid taps “Yes, I got it”. Only then does it count.",
+      "Pay by cash or QR, then tap “I sent”",
+      "It only counts once the person you paid taps “Yes, I got it”",
     ],
     art: (
       <Phone>
@@ -184,8 +184,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     who: "Everyone",
     title: "Done!",
     points: [
-      "When everyone has paid, the split closes by itself.",
-      "Lost your phone? Tap “I have a recovery key” on the first screen.",
+      "When everyone has paid, the split closes by itself",
+      "Lost your phone? Tap “I have a recovery key” on the first screen",
     ],
     art: (
       <div aria-hidden className="space-y-3">

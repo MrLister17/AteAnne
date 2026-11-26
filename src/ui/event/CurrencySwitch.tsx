@@ -58,10 +58,10 @@ export function CurrencySwitch() {
       </div>
       {rate && reverse ? (
         <p id={rateId} hidden={!showRate} className="px-1 text-[13px] text-muted" data-testid="view-rate">
-          1 {viewCurrency} = {reverse.rateText()} {currency} (ECB, {shortDay(rate.date)}). Settlement balances are calculated in {currency}.
+          1 {viewCurrency} = {reverse.rateText()} {currency} (ECB, {shortDay(rate.date)}), and settlement balances are calculated in {currency}
         </p>
       ) : (
-        !view.fx.today && <p className="text-[13px] text-muted">Rates unavailable · showing {currency}.</p>
+        !view.fx.today && <p className="text-[13px] text-muted">Rates unavailable · showing {currency}</p>
       )}
     </div>
   );

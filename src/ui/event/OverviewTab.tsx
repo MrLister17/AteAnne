@@ -57,7 +57,7 @@ export function OverviewTab() {
               </div>
             </dl>
             <p className="text-[14px] text-muted">
-              {phase === "DONE" ? "All payments confirmed." : myPos ? "Frozen bill · confirmed payments included" : "Estimate until the bill is frozen."}
+              {phase === "DONE" ? "All payments confirmed" : myPos ? "Frozen bill · confirmed payments included" : "Estimate until the bill is frozen"}
             </p>
           </Disclosure>
         </>
@@ -115,7 +115,7 @@ function ConfirmSplit() {
           onClose={() => setReviewedVersion(null)}
           footer={
             <div className="space-y-2">
-              <ActionError message={changed ? "The bill changed. Close this and check the latest split." : error} />
+              <ActionError message={changed ? "The bill changed, so close this and check the latest split" : error} />
               <Button
                 full
                 busyLabel="Confirming…"
@@ -123,7 +123,7 @@ function ConfirmSplit() {
                 onClick={async () => {
                   const result = await run(
                     () => api.post(`/api/events/${event.id}/confirm-split`, { expectedFinancialVersion: reviewedVersion }),
-                    "Split confirmed for everyone.",
+                    "Split confirmed for everyone",
                   );
                   if (result) setReviewedVersion(null);
                   return result;
@@ -135,7 +135,7 @@ function ConfirmSplit() {
           }
         >
           <div className="space-y-4">
-            <p>You’re confirming that all receipts are in and the payers below are correct.</p>
+            <p>You’re confirming that all receipts are in and the payers below are correct</p>
             <ul className="space-y-2" aria-label="Receipts and payers">
               {view.receipts.map((receipt) => (
                 <li key={receipt.id} className="card p-3">
@@ -144,8 +144,8 @@ function ConfirmSplit() {
                 </li>
               ))}
             </ul>
-            <p className="text-[15px] text-muted">Itemized receipts use saved claims. Anyone with no items saved gets no share.</p>
-            <p className="text-[15px] text-muted">Each recipient still confirms the money they receive.</p>
+            <p className="text-[15px] text-muted">Itemized receipts use saved claims, so anyone with no items saved gets no share</p>
+            <p className="text-[15px] text-muted">Each recipient still confirms the money they receive</p>
           </div>
         </Sheet>
       )}
@@ -174,7 +174,7 @@ function DeletionNotice({ quiet = false }: { quiet?: boolean }) {
   return (
     <Notice tone="warn" title={`Deletes in ${daysLeft} day${daysLeft === 1 ? "" : "s"} (${date})`}>
       <p>
-        What people owe still counts after it’s deleted. {exportLink}
+        What people owe still counts after it’s deleted · {exportLink}
       </p>
     </Notice>
   );
@@ -208,7 +208,7 @@ function UndoDoneAdding() {
         <button
           type="button"
           className="inline-flex min-h-11 items-center font-semibold text-violet underline underline-offset-2"
-          onClick={() => void run(() => api.patch(`/api/events/${event.id}/me`, { entryComplete: false }), "Okay. Add your other receipts.")}
+          onClick={() => void run(() => api.patch(`/api/events/${event.id}/me`, { entryComplete: false }), "Okay, add your other receipts")}
         >
           Undo
         </button>
@@ -252,19 +252,19 @@ function NextStep() {
           <Disclosure summary="How payments close" icon="info" className="border-t border-line pt-1">
             <p className="text-[14px] text-muted">
               {done.ready
-                ? "The event closes a day after the last confirmation, leaving time to correct a mistake."
-                : "The recipient confirms each payment. The event closes a day after the last confirmation."}
+                ? "The event closes a day after the last confirmation, leaving time to correct a mistake"
+                : "The recipient confirms each payment, and the event closes a day after the last confirmation"}
             </p>
           </Disclosure>
           {owner && (
             <Disclosure summary="Something wrong with the bill?" className="border-t border-line pt-1">
-              <p className="text-[14px] text-muted">Reopens receipts and claims so you can fix them. Confirmed payments are kept. Freeze the bill again when it’s right.</p>
+              <p className="text-[14px] text-muted">Reopens receipts and claims so you can fix them (confirmed payments are kept), then freeze the bill again when it’s right</p>
               {reopenAllowed ? (
                 <Button full variant="tonal" busy={busy} busyLabel="Reopening…" onClick={() => {
-                  const reason = prompt("Why does the bill need a correction? Confirmed payments will carry forward. Correct any mistaken payment confirmations first; prior statements become read-only.");
+                  const reason = prompt("Why does the bill need a correction? Confirmed payments carry forward and prior statements become read-only, so correct any mistaken payment confirmations first");
                   if (reason === null) return;
                   if (reason.trim().length < 3 || reason.trim().length > 300) {
-                    toast("Enter a correction reason between 3 and 300 characters.", "error");
+                    toast("Enter a correction reason between 3 and 300 characters", "error");
                     return;
                   }
                   void move("COLLECTING", "Reopened for correction; prior payments and statement are preserved", reason.trim());
@@ -288,11 +288,11 @@ function NextStep() {
   const byHand = correcting || event.phase !== "COLLECTING";
   const detail = owner
     ? correcting
-      ? "Fix receipts or claims. Confirmed payments carry over. Freeze it when it’s right."
-      : "The bill freezes by itself once everyone is done. Then each person sees exactly who to pay."
+      ? "Fix receipts or claims, then freeze it when it’s right (confirmed payments carry over)"
+      : "The bill freezes by itself once everyone is done, then each person sees exactly who to pay"
     : correcting
-      ? `${organizer} is fixing the bill. Check your claims; you’ll see what to pay once it’s frozen again.`
-      : "The bill freezes by itself once everyone is done. Then you’ll see exactly who to pay.";
+      ? `${organizer} is fixing the bill, so check your claims and you’ll see what to pay once it’s frozen again`
+      : "The bill freezes by itself once everyone is done, then you’ll see exactly who to pay";
   return (
     <>
       <SectionTitle>The group</SectionTitle>
@@ -303,7 +303,7 @@ function NextStep() {
         </div>
         <Blockers items={freeze.blockers} title="Waiting on" limit={3} quiet />
         {owner && byHand && !freeze.ready && (
-          <p className="text-[14px] text-muted">{correcting ? "“Freeze the corrected bill” appears above once everyone is done." : "“Freeze the bill now” appears above once everyone is done."}</p>
+          <p className="text-[14px] text-muted">{correcting ? "“Freeze the corrected bill” appears above once everyone is done" : "“Freeze the bill now” appears above once everyone is done"}</p>
         )}
         {!(owner && view.next.kind === "waiting") && <ReminderButton />}
         {owner && event.phase !== "COLLECTING" && (
@@ -357,7 +357,7 @@ function InviteCard() {
   // When "Everyone's here" is the organizer's next step, the Next card already shows it.
   const everyonesHere = view.next.kind !== "everyoneHere" && (
     <div className="space-y-2 border-t border-line pt-3">
-      <p className="text-[14px] text-muted">Closes joining for this event.</p>
+      <p className="text-[14px] text-muted">Closes joining for this event</p>
       <Button
         full
         variant="secondary"
@@ -365,7 +365,7 @@ function InviteCard() {
         busyLabel="Closing…"
         disabled={event.cancelled}
         onClick={() => {
-          if (!confirm(`Close joining? ${people} ${people === 1 ? "person is" : "people are"} in. Nobody else can join after this.`)) return;
+          if (!confirm(`Close joining? ${people} ${people === 1 ? "person is" : "people are"} in and nobody else can join after this`)) return;
           return act(() => api.post(`/api/events/${event.id}/lock`), "Joining closed");
         }}
       >
@@ -392,7 +392,7 @@ function InviteCard() {
             {addGuest}
             {everyonesHere}
             <Disclosure summary="More join options" className="border-t border-line pt-1">
-              <p className="text-[14px] text-muted">A new code stops the old one from working.</p>
+              <p className="text-[14px] text-muted">A new code stops the old one from working</p>
               <Button full variant="tonal" onClick={() => act(() => api.post(`/api/events/${event.id}/code`), "New code created; the old one stopped working")}>
                 New code
               </Button>

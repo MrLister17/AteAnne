@@ -37,7 +37,7 @@ export default function Join() {
       <PageShell title={joined.recovered ? "Welcome back" : "You’re in"} back={null}>
         {joined.recovered && (
           <div className="mb-4">
-            <Notice tone="receive">This phone is you again in that event. Your old key stopped working; save the new one below.</Notice>
+            <Notice tone="receive">This phone is you again in that event, so save the new key below (the old one stopped working)</Notice>
           </div>
         )}
         <CredentialReveal recoveryKey={joined.recoveryKey} onDone={() => router.replace(`/e/${joined.eventId}`)} doneLabel="Open the event" />
@@ -70,7 +70,7 @@ export default function Join() {
           }
         }}
       >
-        <Field label="Join code" hint={isKey ? "That’s your personal recovery key, not a join code. We’ll use it to bring you back into your event." : "Ask the organizer for the 10-character code."}>
+        <Field label="Join code" hint={isKey ? "That’s your personal recovery key, not a join code, so we’ll use it to bring you back into your event" : "Ask the organizer for the 10-character code"}>
           {(p) => (
             <input
               {...p}
@@ -91,7 +91,7 @@ export default function Join() {
         </Field>
         {!isKey && (
           <>
-            <Field label="Your name in this group" hint="A name your friends will recognize.">
+            <Field label="Your name in this group" hint="A name your friends will recognize">
               {(p) => <input {...p} className="field" required maxLength={40} autoComplete="nickname" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Juan" />}
             </Field>
             <IntentPicker value={intent} onChange={setIntent} />

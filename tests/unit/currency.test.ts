@@ -157,7 +157,7 @@ describe("EventLedger with mixed currencies", () => {
   it("waits, never guesses, when a rate is missing", () => {
     const out = new EventLedger().calculate([{ ...breakfast, conversion: { currency: "THB", day: "2026-11-19", rate: null } }], ["mark", "ana"]);
     expect(out.ok).toBe(false);
-    if (!out.ok) expect(out.issues[0]).toMatchObject({ code: "RATE_UNAVAILABLE", message: "Waiting for the 19 Nov THB exchange rate." });
+    if (!out.ok) expect(out.issues[0]).toMatchObject({ code: "RATE_UNAVAILABLE", message: "Waiting for the 19 Nov THB exchange rate" });
   });
 });
 

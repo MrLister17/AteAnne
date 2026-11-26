@@ -52,12 +52,12 @@ export class CashPaymentService extends BaseService {
   private assertPayPhaseCalm(agg: EventAggregate, ignoreReportId?: string) {
     const snap = agg.activeSnapshot();
     for (const edge of snap?.edges ?? []) {
-      if (edge.reports.some((r) => r.status === "REPORTED")) throw new ConflictError("edge_payment_pending", "Someone is waiting to confirm a payment. Confirm or cancel it first.");
-      if (edge.disputes.some((d) => d.status !== "RESOLVED")) throw new ConflictError("edge_payment_disputed", "A payment is being sorted out. Finish that first.");
+      if (edge.reports.some((r) => r.status === "REPORTED")) throw new ConflictError("edge_payment_pending", "Someone is waiting to confirm a payment, so confirm or cancel it first");
+      if (edge.disputes.some((d) => d.status !== "RESOLVED")) throw new ConflictError("edge_payment_disputed", "A payment is being sorted out, so finish that first");
     }
     const { pending, disputed } = agg.cashOutstanding();
     if ([...pending, ...disputed].some((c) => c.id !== ignoreReportId)) {
-      throw new ConflictError("cash_outstanding", "Another cash payment is waiting for a decision. Finish that first.");
+      throw new ConflictError("cash_outstanding", "Another cash payment is waiting for a decision, so finish that first");
     }
   }
 
@@ -99,20 +99,20 @@ export class CashPaymentService extends BaseService {
       if (paid) {
         const instruction = await tx.paymentInstruction.findFirst({ where: { memberId: recipient.id, current: true } });
         if (!agg.acceptedCurrencies(instruction?.acceptedCurrencies ?? []).includes(paid.currency)) {
-          throw new ValidationError("currency_not_accepted", `${recipient.displayName} doesn't accept ${paid.currency}. Use ${agg.currency}, or ask them.`);
+          throw new ValidationError("currency_not_accepted", `${recipient.displayName} doesn't accept ${paid.currency}, so use ${agg.currency} or ask them`);
         }
         if (replaces?.paidCurrency) {
           fx = new ExchangeRate(paid.currency, agg.currency, Decimal.parse(replaces.rate!), replaces.rateDate!.toISOString().slice(0, 10), replaces.rateSource!);
         } else {
           const today = this.today();
           fx = rateFromDay((await RateService.load(tx, [today])).get(today), paid.currency, agg.currency);
-          if (!fx) throw new ConflictError("rate_unavailable", `Today's exchange rate isn't available yet. Use ${agg.currency}, or try again later.`);
+          if (!fx) throw new ConflictError("rate_unavailable", `Today's exchange rate isn't available yet, so use ${agg.currency} or try again later`);
         }
-        if (fx.date !== paid.rateDate) throw new ConflictError("rate_changed", `The exchange rate changed (now ${fx.date}). Check the new amount.`, { rate: fx.toWire() });
+        if (fx.date !== paid.rateDate) throw new ConflictError("rate_changed", `The exchange rate changed (now ${fx.date}), so check the new amount`, { rate: fx.toWire() });
         const credit = fx.convert(paid.amount);
         if (credit <= 0n) throw new ValidationError("amount_too_small", "That amount is too small to count after conversion");
         if (credit !== data.amount) {
-          throw new ConflictError("rate_changed", `At today's rate, ${formatMinor(paid.amount, paid.currency)} counts as ${formatMinor(credit, agg.currency)}. Check the amount again.`, { rate: fx.toWire(), credit: credit.toString() });
+          throw new ConflictError("rate_changed", `At today's rate, ${formatMinor(paid.amount, paid.currency)} counts as ${formatMinor(credit, agg.currency)}, so check the amount again`, { rate: fx.toWire(), credit: credit.toString() });
         }
       }
 
@@ -168,7 +168,7 @@ export class CashPaymentService extends BaseService {
       if (report.status === "VERIFIED") return { status: "VERIFIED" }; // idempotent double tap
       this.assertOpenForDecisions(agg);
       if (report.status !== "REPORTED") throw new ConflictError("not_pending", "Only a payment that's waiting can be confirmed");
-      if (data.expectedVersion && data.expectedVersion !== report.version) throw new ConflictError("stale_report", "This payment changed. Reload and check again.");
+      if (data.expectedVersion && data.expectedVersion !== report.version) throw new ConflictError("stale_report", "This payment changed, so reload and check again");
       const res = await tx.cashReport.updateMany({ where: { id: reportId, status: "REPORTED" }, data: { status: "VERIFIED", version: { increment: 1 }, decidedAt: new Date() } });
       if (res.count !== 1) throw new ConflictError("not_pending", "This payment was already decided");
       await this.bumpFinancial(tx, eventId);
@@ -188,7 +188,7 @@ export class CashPaymentService extends BaseService {
       if (report.status === "REJECTED" && report.dispute) return { disputeId: report.dispute.id };
       this.assertOpenForDecisions(agg);
       if (report.status !== "REPORTED") throw new ConflictError("not_pending", "Only a payment that's waiting can be rejected");
-      if (data.expectedVersion && data.expectedVersion !== report.version) throw new ConflictError("stale_report", "This payment changed. Reload and check again.");
+      if (data.expectedVersion && data.expectedVersion !== report.version) throw new ConflictError("stale_report", "This payment changed, so reload and check again");
       const res = await tx.cashReport.updateMany({ where: { id: reportId, status: "REPORTED" }, data: { status: "REJECTED", rejectReason: data.reason, version: { increment: 1 }, decidedAt: new Date() } });
       if (res.count !== 1) throw new ConflictError("not_pending", "This payment was already decided");
       const dispute = await tx.cashDispute.create({ data: { eventId, reportId } });
@@ -244,7 +244,7 @@ export class CashPaymentService extends BaseService {
       if (!side) throw new PermissionError("not_counterparty", "Only the two people involved can sort this out");
       agg.guests.assertNoConflict(by, me, side === "senderChoice" ? report.recipientMemberId : report.senderMemberId);
       if (d.status !== "OPEN") throw new ConflictError("dispute_closed", "This is no longer open");
-      if (d.version !== data.expectedVersion) throw new ConflictError("stale_dispute", "The other person changed their answer. Reload and check.");
+      if (d.version !== data.expectedVersion) throw new ConflictError("stale_dispute", "The other person changed their answer, so reload and check");
       const next = { senderChoice: d.senderChoice, recipientChoice: d.recipientChoice, [side]: data.choice };
       const agreed = next.senderChoice && next.senderChoice === next.recipientChoice ? next.senderChoice : null;
       const status = agreed === "NO_TRANSFER" ? "RESOLVED" : agreed === "REPLACEMENT" ? "AWAITING_REPLACEMENT" : "OPEN";

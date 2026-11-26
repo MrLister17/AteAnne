@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "Hatian — split the bill",
     short_name: "Hatian",
-    description: "Split shared bills by what each person actually had, and settle with recipient-confirmed payments.",
+    description: "Split shared bills by what each person actually had, and settle with recipient-confirmed payments",
     start_url: "/?source=pwa",
     scope: "/",
     display: "standalone",

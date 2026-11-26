@@ -20,7 +20,7 @@ export function SetupBanner() {
   return (
     <div role="status" className="safe-top bg-warn-soft text-ink">
       <p className="mx-auto max-w-[520px] px-4 py-2 text-center text-[14px] font-medium">
-        {state === "not_configured" ? "Preview mode: the database isn’t connected yet. Tap around freely, but nothing will be saved." : "Can’t reach the database right now. Nothing will be saved until it’s back."}
+        {state === "not_configured" ? "Preview mode: the database isn’t connected yet, so tap around freely but nothing will be saved" : "Can’t reach the database right now, so nothing will be saved until it’s back"}
       </p>
     </div>
   );

@@ -75,7 +75,7 @@ test("event Home: one next action first, invite + “Everyone’s here”, the g
   await expect(page.getByRole("status").filter({ hasText: /Net to (pay|receive)/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Everyone’s here" })).toHaveCount(1);
   await expect(page.getByText("Waiting on", { exact: true })).toBeVisible();
-  await expect(page.getByText("The bill freezes by itself once everyone is done.", { exact: false })).toBeVisible();
+  await expect(page.getByText("The bill freezes by itself once everyone is done", { exact: false })).toBeVisible();
 
   // Rarely used join controls: one tap behind "More join options".
   await expect(page.getByTestId("join-code")).toHaveText(/^[A-Z2-9]{5}-[A-Z2-9]{5}$/);
@@ -102,7 +102,7 @@ test("event Home: one next action first, invite + “Everyone’s here”, the g
   await expect(juanCard.getByTestId("next-status")).toHaveText("Next: Kusina");
   await expect(juanCard.getByRole("button", { name: "Claim from Kusina" })).toBeInViewport();
   await expect(juanPage.getByRole("heading", { name: "The group" })).toBeVisible();
-  await expect(juanPage.getByText("The bill freezes by itself once everyone is done. Then you’ll see exactly who to pay.")).toBeVisible();
+  await expect(juanPage.getByText("The bill freezes by itself once everyone is done, then you’ll see exactly who to pay")).toBeVisible();
   await expect(juanPage.getByText("Waiting on", { exact: true })).toBeVisible();
   await expect(juanPage.getByRole("button", { name: /Everyone’s here/ })).toHaveCount(0);
   await expect(juanPage.getByRole("heading", { name: "Invite people" })).toHaveCount(0);

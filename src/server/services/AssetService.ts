@@ -65,7 +65,7 @@ export class AssetService extends BaseService {
    * is deleted.
    */
   async upload(caller: Caller, eventId: string, kind: "RECEIPT" | "QR", file: Buffer): Promise<{ assetId: string }> {
-    if (kind === "RECEIPT") throw new GoneError("receipt_photos_off", "Receipt photos aren’t saved anymore. Your typed details are kept.");
+    if (kind === "RECEIPT") throw new GoneError("receipt_photos_off", "Receipt photos aren’t saved anymore, but your typed details are kept");
     // Authorise before doing expensive decoding (acting for a guest is re-checked inside the event lock).
     const { actorId } = callerParts(caller);
     const member = await this.db.member.findFirst({ where: { eventId, actorId, active: true } });

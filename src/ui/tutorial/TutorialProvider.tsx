@@ -118,7 +118,7 @@ function WelcomeAsk({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
             Maybe later
           </button>
         </div>
-        <p className="mt-3 text-center text-[13px] text-muted">Tap ? anytime to see it again.</p>
+        <p className="mt-3 text-center text-[13px] text-muted">Tap ? anytime to see it again</p>
       </div>
     </Modal>
   );

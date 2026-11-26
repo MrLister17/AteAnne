@@ -7,7 +7,7 @@ import { InstallProvider } from "@/ui/pwa/InstallProvider";
 
 export const metadata: Metadata = {
   title: { default: "Hatian", template: "%s · Hatian" },
-  description: "Split shared bills by what each person actually had, then settle with recipient-confirmed payments.",
+  description: "Split shared bills by what each person actually had, then settle with recipient-confirmed payments",
   applicationName: "Hatian",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Hatian", statusBarStyle: "default" },

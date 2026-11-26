@@ -8,11 +8,23 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ---
 
+## Unreleased: no period at the end of a statement (2026-11-26 Manila) · branch `claude/nice-einstein-jqrcjj`, not merged
+
+Decision **D66**. UI copy only: no migration and no money-rule change. Built on PR #4 (English-only copy below), which was still open, so production kept showing "Hatian na malinaw. Bayaran na tama." on Home.
+
+- **Includes PR #4.** The branch fast-forwards over `codex/hatian-english-copy` (`ce03498`, `00209c0`). Merging this branch also merges that work.
+- **No closing periods.** About 400 user-facing strings dropped their final period: screens, toasts, errors, confirm and prompt dialogs, tutorial steps, copied reminders, and server and domain error messages.
+- **One sentence per string.** About 250 two- or three-sentence strings were rewritten as one sentence. For example, "Bill frozen. Time to pay." became "Bill frozen, time to pay", "Sent. Mark will confirm." became "Sent, Mark will confirm", and "No bank logins. No payment processing. Money moves outside the app." became "Money moves outside the app, with no bank logins or payment processing". Long paragraphs in People → Help & privacy were split into bullets or separate lines.
+- **Kept:** abbreviations (`e.g.`, `est.`), numbered list markers, the receipt reader's LLM prompt, and code comments.
+- **Leftover Tagalog removed** from `README.md`, the `package.json` description, and the GUIDE line about the big "Show amount" screen.
+- **Rule for agents.** `CLAUDE.md` now says English only and no closing periods.
+- **Tests:** 1 unit, 5 integration and 31 browser assertions were updated to the new wording. Results are in [test report](docs/test-report.md).
+
 ## Organizer confirmation
 
 - Home → **Confirm for everyone** lets the organizer finish receipt entry, confirm receipt payers, and accept the saved split for the group. It preserves item assignments and equal-split objections, and records the organizer’s action in Activity.
 
-## Unreleased: English-only copy and fewer words (2026-11-25 Manila) · proposed patch, not merged
+## Unreleased: English-only copy and fewer words (2026-11-25 Manila) · PR #4, open; included in the 2026-11-26 branch above
 
 UI copy and small UX fixes only: no migration, no money-rule change. Prepared as a patch against `main` `8ad4dac` after a full live walkthrough on ateanne.vercel.app (create → receipt → claim → guest → freeze → cash → confirm → Done).
 

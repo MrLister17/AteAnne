@@ -5,8 +5,8 @@ type Intent = "WILL_PAY_ONLY" | "PAID_EXPENSE";
 /** Initial intention — guides the UI only; anyone can both pay and consume later. */
 export function IntentPicker({ value, onChange }: { value: Intent; onChange: (v: Intent) => void }) {
   const options: { v: Intent; title: string; text: string }[] = [
-    { v: "PAID_EXPENSE", title: "I paid", text: "I’ll add the receipt." },
-    { v: "WILL_PAY_ONLY", title: "Someone else paid", text: "I’ll just claim what I had." },
+    { v: "PAID_EXPENSE", title: "I paid", text: "I’ll add the receipt" },
+    { v: "WILL_PAY_ONLY", title: "Someone else paid", text: "I’ll just claim what I had" },
   ];
   return (
     <fieldset className="space-y-2">

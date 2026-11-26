@@ -107,12 +107,12 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
                   avatar={{ name: name(e.from), seq: seq(e.from) }}
                 />
               ))}
-              {pays.length === 0 && gets.length === 0 && <Big tone="done" title="Nothing to pay" amount="0" note="Your share was covered by what you paid." />}
+              {pays.length === 0 && gets.length === 0 && <Big tone="done" title="Nothing to pay" amount="0" note="Your share was covered by what you paid" />}
               {done && <p className="text-center text-[17px] font-semibold text-receive">All settled</p>}
             </div>
           ) : pos ? (
             <div className="mt-8 space-y-4">
-              <Big tone="neutral" title="Your share so far" amount={pos.cost} note="Not final yet." />
+              <Big tone="neutral" title="Your share so far" amount={pos.cost} note="Not final yet" />
               {BigInt(pos.funding) > 0n && <Line label="You paid the store" value={money(pos.funding, ccy)} />}
               {(BigInt(pos.funding) > 0n || view.paymentHistory.length > 0) && (
                 <Line
@@ -121,10 +121,10 @@ export function PersonScreen({ memberId, onClose }: { memberId: string; onClose:
                   strong
                 />
               )}
-              {view.paymentHistory.length > 0 && <p className="text-[16px] text-muted">Confirmed payments are included. Wait for the corrected bill to be frozen before paying.</p>}
+              {view.paymentHistory.length > 0 && <p className="text-[16px] text-muted">Confirmed payments are included, but wait for the corrected bill to be frozen before paying</p>}
             </div>
           ) : (
-            <p className="mt-8 text-[20px] text-muted">Nothing to show yet. Your amount appears once the items are claimed.</p>
+            <p className="mt-8 text-[20px] text-muted">Your amount appears once the items are claimed</p>
           )}
 
           {rows.length > 0 && (

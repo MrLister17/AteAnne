@@ -100,35 +100,35 @@ export function myTaskLine(task: TaskView, name: (id: string) => string, ccy = "
 
 /** The sentence under "You're done for now" / "You're all set". */
 export function waitingSentence(w: WaitingView, name: (id: string) => string, ccy = "PHP"): string {
-  if (!w.on.length) return w.reasons[0] ?? "Almost there.";
+  if (!w.on.length) return w.reasons[0] ?? "Almost there";
   const only = w.on.length === 1 ? w.on[0] : null;
   if (w.on.every((o) => o.task.kind === "fixReceipt" && o.task.reason === "doesntAddUp")) {
     const labels = [...new Set(w.on.map((o) => (o.task.kind === "fixReceipt" ? o.task.label : "")))];
-    return `Waiting for ${labels.length === 1 ? labels[0] : `${labels.length} receipts`} to add up.`;
+    return `Waiting for ${labels.length === 1 ? labels[0] : `${labels.length} receipts`} to add up`;
   }
   if (only) {
     const who = name(only.memberId);
     switch (only.task.kind) {
       case "everyoneHere":
-        return `Waiting for ${who} to tap Everyone’s here.`;
+        return `Waiting for ${who} to tap Everyone’s here`;
       case "freeze":
-        return `Waiting for ${who} to freeze the ${only.task.corrected ? "corrected " : ""}bill.`;
+        return `Waiting for ${who} to freeze the ${only.task.corrected ? "corrected " : ""}bill`;
       case "recheck":
-        return `Waiting for ${who} to check ${only.task.label} again.`;
+        return `Waiting for ${who} to check ${only.task.label} again`;
       case "confirmReceived":
-        return `Waiting for ${who} to confirm ${receivedAmount(only.task, ccy)}.`;
+        return `Waiting for ${who} to confirm ${receivedAmount(only.task, ccy)}`;
       case "confirmCash":
-        return `Waiting for ${who} to confirm ${cashAmount(only.task, ccy)}.`;
+        return `Waiting for ${who} to confirm ${cashAmount(only.task, ccy)}`;
       case "sortOutCash":
-        return `Waiting for ${who} to sort out a payment.`;
+        return `Waiting for ${who} to sort out a payment`;
       case "pay":
-        return `Waiting for ${who} to pay ${name(only.task.toId)}.`;
+        return `Waiting for ${who} to pay ${name(only.task.toId)}`;
       default:
-        return `Waiting for ${who}.`;
+        return `Waiting for ${who}`;
     }
   }
   return `Waiting for ${namesList(
     w.on.map((o) => o.memberId),
     name,
-  )}.`;
+  )}`;
 }

@@ -52,7 +52,7 @@ export function creditLabel(view: View, memberId: string, fmt: (v: bigint) => st
   if (!b || b.remaining === null) return {};
   const credit = BigInt(b.credit);
   if (credit <= 0n) return {};
-  return credit >= BigInt(b.remaining) ? { label: "Credit", caption: "You paid ahead. It counts toward anything you share later." } : { caption: `Includes ${fmt(credit)} credit from paying ahead.` };
+  return credit >= BigInt(b.remaining) ? { label: "Credit", caption: "You paid ahead, and it counts toward anything you share later" } : { caption: `Includes ${fmt(credit)} credit from paying ahead` };
 }
 
 /**
@@ -92,14 +92,14 @@ export function CashPayments({ where }: { where: "home" | "pay" | "done" }) {
         <div className="space-y-0.5 text-[15px]" data-testid="cash-summary">
           {sentLine && <p>{sentLine}</p>}
           {receivedLine && <p>{receivedLine}</p>}
-          {mine && mine.remaining === null && <p className="text-muted">Balance pending until the split can be worked out.</p>}
+          {mine && mine.remaining === null && <p className="text-muted">Balance pending until the split can be worked out</p>}
         </div>
       )}
       {!sentLine && !receivedLine && !actionable.length && where === "home" && (
-        <p className="text-[14px] text-muted">Already gave someone money? Record it here.</p>
+        <p className="text-[14px] text-muted">Already gave someone money? Record it here</p>
       )}
       {where === "pay" && view.cash.paused && (
-        <Notice tone="warn">A cash payment is waiting for a decision. Other payments are paused until it’s confirmed or sorted out.</Notice>
+        <Notice tone="warn">Other payments are paused until the waiting cash payment is confirmed or sorted out</Notice>
       )}
       {actionable.map((c) => (
         <CashItem key={c.id} report={c} />
@@ -136,7 +136,7 @@ function CashItem({ report: c }: { report: CashView }) {
       <CashDetails report={c} />
       {iAmRecipient ? (
         <>
-          <Button full variant="receive" icon="check" busyLabel="Confirming…" onClick={() => run(() => api.post(`/api/cash-payments/${c.id}/verify`, { expectedVersion: c.version }), `Confirmed. ${cashSent(c, currency)} from ${name(c.from)}.`)}>
+          <Button full variant="receive" icon="check" busyLabel="Confirming…" onClick={() => run(() => api.post(`/api/cash-payments/${c.id}/verify`, { expectedVersion: c.version }), `Confirmed ${cashSent(c, currency)} from ${name(c.from)}`)}>
             Confirm received
           </Button>
           <button type="button" onClick={() => setProblem(true)} className="inline-flex min-h-11 items-center px-1 text-[15px] font-semibold text-pay underline underline-offset-2">
@@ -189,9 +189,9 @@ function CashRow({ report: c }: { report: CashView }) {
           className="mt-2"
           busyLabel="Saving…"
           onClick={() => {
-            const reason = prompt("Undo this confirmation? This fixes a mistake in the record; it isn’t a refund (record money given back as a payment the other way). Reason:");
+            const reason = prompt("Undo this confirmation? It fixes a mistake in the record and isn’t a refund (record money given back as a payment the other way)\n\nReason:");
             if (!reason || reason.trim().length < 3) return;
-            return act(() => api.post(`/api/cash-payments/${c.id}/reverse`, { reason: reason.trim() }), "Undone. Balances updated.");
+            return act(() => api.post(`/api/cash-payments/${c.id}/reverse`, { reason: reason.trim() }), "Undone, balances updated");
           }}
         >
           Undo confirmation
@@ -220,7 +220,7 @@ function CashProblemSheet({ report: c, onClose }: { report: CashView; onClose: (
             busyLabel="Sending…"
             disabled={reason.trim().length < 3}
             onClick={async () => {
-              const ok = await run(() => api.post(`/api/cash-payments/${c.id}/reject`, { reason: reason.trim(), expectedVersion: c.version }), `Saved. ${name(c.from)} will see it.`);
+              const ok = await run(() => api.post(`/api/cash-payments/${c.id}/reject`, { reason: reason.trim(), expectedVersion: c.version }), `Saved, ${name(c.from)} will see it`);
               if (ok) onClose();
               return ok;
             }}
@@ -231,8 +231,8 @@ function CashProblemSheet({ report: c, onClose }: { report: CashView; onClose: (
       }
     >
       <div className="space-y-4">
-        <p className="text-[15px] text-muted">Only continue if {name(c.from)} says they gave it to you and nothing came.</p>
-        <Field label="What happened?" hint="At least 3 characters.">
+        <p className="text-[15px] text-muted">Only continue if {name(c.from)} says they gave it to you and nothing came</p>
+        <Field label="What happened?" hint="At least 3 characters">
           {(p) => <textarea {...p} className="field min-h-24" maxLength={200} value={reason} placeholder="e.g. I never got the cash" onChange={(e) => setReason(e.target.value)} />}
         </Field>
       </div>
@@ -257,14 +257,14 @@ export function CashDisputeCard({ report: c }: { report: CashView }) {
         <p className="font-semibold">Agreed: record the {cashSent(c, currency)} again</p>
         {iAmSender ? (
           <>
-            <p className="text-[14px]">Record the same money you already handed over. Don’t hand it over again.</p>
+            <p className="text-[14px]">Record the same money you already handed over, but don’t hand it over again</p>
             <Button full onClick={() => setRecordAgain(true)}>
               Record it again
             </Button>
             {recordAgain && <CashPaymentSheet replaces={c} onClose={() => setRecordAgain(false)} />}
           </>
         ) : (
-          <p className="text-[14px]">{other} will record it again. You’ll confirm it here.</p>
+          <p className="text-[14px]">{other} will record it again, then you’ll confirm it here</p>
         )}
       </div>
     );
@@ -280,7 +280,7 @@ export function CashDisputeCard({ report: c }: { report: CashView }) {
           {label[choice]}
         </Button>
       ))}
-      <p className="text-[13px] text-muted">{theirs ? `${other} chose: ${label[theirs as keyof typeof label]}` : `Waiting for ${other}.`}</p>
+      <p className="text-[13px] text-muted">{theirs ? `${other} chose: ${label[theirs as keyof typeof label]}` : `Waiting for ${other}`}</p>
     </div>
   );
 }
@@ -333,7 +333,7 @@ export function CashPaymentSheet({ onClose, replaces, prefill }: { onClose: () =
                 ...(payIn !== currency ? { paid: { currency: payIn, amount: sent.toString(), rateDate: replaces?.paid ? replaces.paid.rateDate : rate!.date } } : {}),
                 ...(replaces ? { replacesReportId: replaces.id } : {}),
               };
-              const ok = await run(() => api.post(`/api/events/${event.id}/cash-payments`, body), `Recorded. ${name(to)} will confirm.`);
+              const ok = await run(() => api.post(`/api/events/${event.id}/cash-payments`, body), `Recorded, ${name(to)} will confirm`);
               if (ok) onClose();
               return ok;
             }}
@@ -344,7 +344,7 @@ export function CashPaymentSheet({ onClose, replaces, prefill }: { onClose: () =
       }
     >
       <div className="space-y-4" data-testid="cash-sheet">
-        <Notice tone="info">Only record money you already handed over. It counts once {to ? name(to) : "they"} confirm{to ? "s" : ""} it arrived.</Notice>
+        <Notice tone="info">Only record money you already handed over, which counts once {to ? name(to) : "they"} confirm{to ? "s" : ""} it arrived</Notice>
         <Field label="Who did you give it to?">
           {(p) => (
             <select {...p} className="field" value={to} disabled={Boolean(replaces)} onChange={(e) => setTo(e.target.value)}>
@@ -377,7 +377,7 @@ export function CashPaymentSheet({ onClose, replaces, prefill }: { onClose: () =
             </div>
           </div>
         )}
-        <Field label={`Amount handed over (${payIn})`} hint={replaces ? "The same amount as before." : "It can be more than you owe: the rest becomes credit."}>
+        <Field label={`Amount handed over (${payIn})`} hint={replaces ? "The same amount as before" : "It can be more than you owe: the rest becomes credit"}>
           {(p) => <MoneyInput {...p} currency={payIn} value={replaces ? money(amount, payIn).replace(`${payIn} `, "") : amount} readOnly={Boolean(replaces)} onChange={(e) => setAmount(e.target.value)} />}
         </Field>
         {rate && credit !== null && (
@@ -388,7 +388,7 @@ export function CashPaymentSheet({ onClose, replaces, prefill }: { onClose: () =
         {credit !== null && (
           <p className="rounded-xl bg-surface-2 px-3 py-2 text-[15px]" data-testid="cash-estimate">
             {after === null
-              ? "Balance pending: it’s worked out once the receipts add up."
+              ? "Balance pending: it’s worked out once the receipts add up"
               : `Once ${name(to)} confirms: ${balanceWords(after, afterCredit > 0n ? afterCredit : 0n)} ${fmt(after < 0n ? -after : after)}${afterCredit > 0n && afterCredit < after ? ` (includes ${fmt(afterCredit)} credit)` : ""}`}
           </p>
         )}
@@ -403,7 +403,7 @@ export function CashPaymentSheet({ onClose, replaces, prefill }: { onClose: () =
             ))}
           </div>
         </fieldset>
-        <Field label="Note (optional)" hint="e.g. “Taxi money” or a GCash ref ending 4821.">
+        <Field label="Note (optional)" hint="e.g. “Taxi money” or a GCash ref ending 4821">
           {(p) => <input {...p} className="field" maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />}
         </Field>
       </div>

@@ -39,7 +39,7 @@ export class PaymentService extends BaseService {
     if (!snap || !edge) {
       // A transfer from a statement that was re-planned (a confirmed cash payment, D64) or corrected.
       if (agg.record.snapshots.some((s) => s.edges.some((e) => e.id === edgeId))) {
-        throw new ConflictError("stale_transfer", "The payment plan changed. Refresh to see what's left to pay.");
+        throw new ConflictError("stale_transfer", "The payment plan changed, so refresh to see what's left to pay");
       }
       throw new NotFoundError("Transfer not found");
     }
@@ -120,7 +120,7 @@ export class PaymentService extends BaseService {
       agg.machine.assertIn("SETTLING");
       const { snap, edge } = this.findEdge(agg, edgeId);
       // While a cash payment awaits a decision, the plan may change under it: other payments pause (D64).
-      if (agg.hasCashOutstanding()) throw new ConflictError("cash_outstanding", "A cash payment is waiting to be confirmed or sorted out. Other payments are paused until then.");
+      if (agg.hasCashOutstanding()) throw new ConflictError("cash_outstanding", "Other payments are paused until the waiting cash payment is confirmed or sorted out");
       const ledger = agg.paymentLedger(snap)!;
 
       let replaces: string | undefined;
@@ -134,7 +134,7 @@ export class PaymentService extends BaseService {
       const instruction = await tx.paymentInstruction.findFirst({ where: { memberId: edge.toMemberId, current: true } });
       const foreign = paid ? await this.foreignCredit(tx, agg, edge, ledger.edgeState(edgeId).capacity, paid, instruction?.acceptedCurrencies ?? [], replaces) : null;
       if (foreign && foreign.credit !== data.amount) {
-        throw new ConflictError("rate_changed", `At today's rate, ${formatMinor(paid!.amount, paid!.currency)} counts as ${formatMinor(foreign.credit, agg.currency)}. Check the amount again.`, { rate: foreign.rate.toWire(), credit: foreign.credit.toString() });
+        throw new ConflictError("rate_changed", `At today's rate, ${formatMinor(paid!.amount, paid!.currency)} counts as ${formatMinor(foreign.credit, agg.currency)}, so check the amount again`, { rate: foreign.rate.toWire(), credit: foreign.credit.toString() });
       }
       ledger.assertCanReport(edgeId, me.id, data.amount, { isAgreedReplacement: Boolean(replaces) });
       if (data.method === "QR" && !instruction?.qrAssetId) throw new ValidationError("no_qr", "The recipient has not shared a payment QR");
@@ -186,20 +186,20 @@ export class PaymentService extends BaseService {
     replaces: string | undefined,
   ): Promise<{ credit: bigint; rate: ExchangeRate }> {
     if (!agg.acceptedCurrencies(accepted).includes(paid.currency)) {
-      throw new ValidationError("currency_not_accepted", `${agg.member(edge.toMemberId).displayName} doesn't accept ${paid.currency}. Pay in ${agg.currency}, or ask them.`);
+      throw new ValidationError("currency_not_accepted", `${agg.member(edge.toMemberId).displayName} doesn't accept ${paid.currency}, so pay in ${agg.currency} or ask them`);
     }
     let rate: ExchangeRate | null;
     const rejected = replaces ? edge.reports.find((r) => r.id === replaces) : undefined;
     if (rejected?.paidCurrency) {
-      if (rejected.paidCurrency !== paid.currency) throw new ValidationError("replacement_currency", `Record the same money: it was sent in ${rejected.paidCurrency}.`);
+      if (rejected.paidCurrency !== paid.currency) throw new ValidationError("replacement_currency", `Record the same money: it was sent in ${rejected.paidCurrency}`);
       rate = new ExchangeRate(paid.currency, agg.currency, Decimal.parse(rejected.rate!), rejected.rateDate!.toISOString().slice(0, 10), rejected.rateSource!);
     } else {
       const today = this.today();
       rate = rateFromDay((await RateService.load(tx, [today])).get(today), paid.currency, agg.currency);
-      if (!rate) throw new ConflictError("rate_unavailable", `Today's exchange rate isn't available yet. Pay in ${agg.currency}, or try again later.`);
+      if (!rate) throw new ConflictError("rate_unavailable", `Today's exchange rate isn't available yet, so pay in ${agg.currency} or try again later`);
     }
     if (rate.date !== paid.rateDate) {
-      throw new ConflictError("rate_changed", `The exchange rate changed (now ${rate.date}). Check the new amount.`, { rate: rate.toWire() });
+      throw new ConflictError("rate_changed", `The exchange rate changed (now ${rate.date}), so check the new amount`, { rate: rate.toWire() });
     }
     return { credit: new ForeignPayment(rate).creditFor(paid.amount, capacity), rate };
   }
@@ -229,7 +229,7 @@ export class PaymentService extends BaseService {
       agg.machine.assertIn("SETTLING");
       if (snap.status !== "ACTIVE") throw new ConflictError("superseded", "This settlement was superseded");
       PaymentLedger.assertCanDecide({ recipientId: report.recipientMemberId, status: report.status }, me.id);
-      if (data.expectedVersion && data.expectedVersion !== report.version) throw new ConflictError("stale_report", "This report changed. Reload and check again.");
+      if (data.expectedVersion && data.expectedVersion !== report.version) throw new ConflictError("stale_report", "This report changed, so reload and check again");
       const state = agg.paymentLedger(snap)!.edgeState(edge.id);
       if (state.verified + report.amountCentavos > edge.amountCentavos) throw new ConflictError("over_settle", "Confirming would exceed the transfer amount");
       // Conditional update guards against any concurrent decision.
@@ -252,7 +252,7 @@ export class PaymentService extends BaseService {
         return { disputeId: existing.id };
       }
       PaymentLedger.assertCanDecide({ recipientId: report.recipientMemberId, status: report.status }, me.id);
-      if (data.expectedVersion && data.expectedVersion !== report.version) throw new ConflictError("stale_report", "This report changed. Reload and check again.");
+      if (data.expectedVersion && data.expectedVersion !== report.version) throw new ConflictError("stale_report", "This report changed, so reload and check again");
       const res = await tx.paymentReport.updateMany({
         where: { id: reportId, status: "REPORTED" },
         data: { status: "REJECTED", rejectReason: data.reason, version: { increment: 1 }, decidedAt: new Date() },
@@ -271,7 +271,7 @@ export class PaymentService extends BaseService {
     await this.inEvent(caller, eventId, async ({ tx, agg, me }) => {
       const { snap, report } = this.findReport(agg, reportId);
       PaymentLedger.assertCanReverse({ recipientId: report.recipientMemberId, status: report.status, reversed: Boolean(report.reversal) }, me.id, agg.phase === "DONE", data.reason);
-      if (snap.status !== "ACTIVE") throw new ConflictError("superseded", "This confirmation was carried into a revised bill and cannot be changed. Resolve confirmation mistakes before starting a bill correction.");
+      if (snap.status !== "ACTIVE") throw new ConflictError("superseded", "This confirmation was carried into a revised bill and can't be changed (fix confirmation mistakes before starting a bill correction)");
       agg.machine.assertIn("SETTLING");
       await tx.paymentReversal.create({ data: { reportId, actorMemberId: me.id, reason: data.reason } });
       await this.audit(tx, eventId, me.id, "payment.verification_reversed", { reportId, amount: report.amountCentavos.toString() });
@@ -291,7 +291,7 @@ export class PaymentService extends BaseService {
       if (!side) throw new PermissionError("not_counterparty", "Only the sender and recipient can resolve this");
       agg.guests.assertNoConflict(by, me, side === "senderChoice" ? e.toMemberId : e.fromMemberId);
       if (d.status !== "OPEN") throw new ConflictError("dispute_closed", "This dispute is no longer open");
-      if (d.version !== data.expectedVersion) throw new ConflictError("stale_dispute", "The other person changed their answer. Reload and check.");
+      if (d.version !== data.expectedVersion) throw new ConflictError("stale_dispute", "The other person changed their answer, so reload and check");
       const next = { senderChoice: d.senderChoice, recipientChoice: d.recipientChoice, [side]: data.choice };
       const agreed = next.senderChoice && next.senderChoice === next.recipientChoice ? next.senderChoice : null;
       const status = agreed === "NO_TRANSFER" ? "RESOLVED" : agreed === "REPLACEMENT" ? "AWAITING_REPLACEMENT" : "OPEN";

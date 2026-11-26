@@ -91,17 +91,17 @@ export function useEvent() {
  * blame the person; 409 conflicts keep the server's own explanation.
  */
 export function actionErrorMessage(e: unknown): string {
-  if (!(e instanceof ApiError)) return "Something went wrong. Nothing was changed.";
-  if (e.status === 0) return e.code === "aborted" ? "Stopped." : "Couldn’t save. Check your connection and try again.";
+  if (!(e instanceof ApiError)) return "Something went wrong and nothing was changed";
+  if (e.status === 0) return e.code === "aborted" ? "Stopped" : "Couldn’t save, so check your connection and try again";
   if (e.status === 429) {
     const seconds = Number(e.data.retryAfterSeconds);
     if (Number.isFinite(seconds) && seconds > 0) {
       const minutes = Math.max(1, Math.ceil(seconds / 60));
-      return `Too many tries. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`;
+      return `Too many tries, try again in ${minutes} minute${minutes === 1 ? "" : "s"}`;
     }
-    return "Too many tries. Try again in a minute.";
+    return "Too many tries, try again in a minute";
   }
-  if (e.status >= 500 || e.status === 408) return "Couldn’t save. Try again.";
+  if (e.status >= 500 || e.status === 408) return "Couldn’t save, try again";
   const extra = e.blockers.length ? ` ${e.blockers.slice(0, 2).join(" ")}` : "";
   return `${e.message}${extra}`;
 }

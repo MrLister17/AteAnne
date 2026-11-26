@@ -177,7 +177,7 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
     await expect(p.getByText("You said you’re done adding receipts")).toBeVisible();
   }
   await expect(paolo.page.getByTestId("next-status")).toHaveText("You’re done for now");
-  await expect(paolo.page.getByText("Waiting for Mark to tap Everyone’s here.")).toBeVisible();
+  await expect(paolo.page.getByText("Waiting for Mark to tap Everyone’s here")).toBeVisible();
 
   // ---------------------------------------------------------------- one organizer tap, then it freezes by itself
   await mark.page.reload();
@@ -256,7 +256,7 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
   await expect(mark.page.getByText("Did PHP 200.00 from Juan arrive?")).toBeVisible();
   await mark.page.getByRole("button", { name: "Yes, I got it" }).click();
   // Wait until the confirmation is saved before looking from Juan's phone (was a race: CI run 44322635354).
-  await expect(mark.page.getByText("Got it. PHP 200.00 from Juan.").first()).toBeVisible();
+  await expect(mark.page.getByText("Got it, PHP 200.00 from Juan").first()).toBeVisible();
   await juan.page.reload();
   await tab(juan.page, "Pay");
   await expect(juan.page.getByRole("status").filter({ hasText: "Net to pay" })).toContainText("−PHP 295.00");
@@ -295,7 +295,7 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
   await paolo.page.goto(eventUrl);
   await tab(paolo.page, "Summary");
   await expect(paolo.page.getByRole("status").filter({ hasText: "Settled" })).toBeVisible();
-  await expect(paolo.page.getByText("Every payment was confirmed by the person who got it.").first()).toBeVisible();
+  await expect(paolo.page.getByText("Every payment was confirmed by the person who got it").first()).toBeVisible();
   await shot(paolo.page, "10-done");
   await expectNoHorizontalScroll(paolo.page);
 

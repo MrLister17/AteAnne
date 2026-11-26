@@ -35,8 +35,8 @@ export function SettlementSection() {
         exact={viewRate ? moneyAbs(mine.remaining) : undefined}
         {...creditLabel(view, me.memberId, (v) => moneyAbs(v))}
       />
-      {event.phase === "DONE" && <Notice tone="receive" title="Done">Every payment was confirmed by the person who got it. This record is read-only.</Notice>}
-      {s.edges.length === 0 && <Notice tone="receive">Nobody owes anybody in this event.</Notice>}
+      {event.phase === "DONE" && <Notice tone="receive" title="Done">Every payment was confirmed by the person who got it, and this record is read-only</Notice>}
+      {s.edges.length === 0 && <Notice tone="receive">Nobody owes anybody in this event</Notice>}
 
       {toPay.length > 0 && <SectionTitle>You pay</SectionTitle>}
       {toPay.map((e) => (
@@ -161,12 +161,12 @@ function PayEdge({ edge, focused }: { edge: EdgeView; focused: boolean }) {
                     <Icon name="qr" size={18} className="text-violet" /> QR{instr.qrLabel ? ` — ${instr.qrLabel}` : ""}
                   </p>
                   <img src={`/api/assets/${instr.qrAssetId}`} alt={`Payment QR shared by ${name(edge.to)}`} className="mt-2 w-full max-w-[260px] rounded-xl border border-line bg-white p-2" />
-                  <p className="mt-1 text-[12px] text-muted">Check the name in your e-wallet before sending.</p>
+                  <p className="mt-1 text-[12px] text-muted">Check the name in your e-wallet before sending</p>
                 </div>
               )}
             </div>
           ) : (
-            <p className="mt-1 text-muted">Not shared yet. Ask {name(edge.to)}, or pay cash.</p>
+            <p className="mt-1 text-muted">Not shared yet, so ask {name(edge.to)} or pay cash</p>
           )}
         </div>
       )}
@@ -263,7 +263,7 @@ function ReportSheet({ edge, replaces, hasQr, payIn, rate, onClose }: { edge: Ed
                 ...(rate ? { paid: { currency: payIn, amount: sent, rateDate: rate.date } } : {}),
                 ...(replaces ? { replacesReportId: replaces } : {}),
               };
-              const ok = await run(() => api.post(`/api/edges/${edge.id}/reports`, body), `Sent. ${name(edge.to)} will confirm.`);
+              const ok = await run(() => api.post(`/api/edges/${edge.id}/reports`, body), `Sent, ${name(edge.to)} will confirm`);
               if (ok) onClose();
               return ok;
             }}
@@ -274,17 +274,17 @@ function ReportSheet({ edge, replaces, hasQr, payIn, rate, onClose }: { edge: Ed
       }
     >
       <div className="space-y-4">
-        <Notice tone="info">Only record money you’ve already sent. It stays “sent” until {name(edge.to)} says it arrived.</Notice>
+        <Notice tone="info">Only record money you’ve already sent, which stays “sent” until {name(edge.to)} says it arrived</Notice>
         <Field
           label={rate ? `Amount sent in ${currencyInfo(payIn).name}` : "Amount sent"}
-          hint={rate ? `Up to ${php(maxSend, payIn)} (= ${php(capacity)} at 1 ${payIn} = ${rate.rateText()} ${currency}, ECB ${shortDay(rate.date)}). Sending part of it is fine.` : `Up to ${php(capacity)}. Sending part of it is fine.`}
+          hint={rate ? `Up to ${php(maxSend, payIn)} (= ${php(capacity)} at 1 ${payIn} = ${rate.rateText()} ${currency}, ECB ${shortDay(rate.date)}), and sending part of it is fine` : `Up to ${php(capacity)}, and sending part of it is fine`}
           error={tooMuch ? `More than the ${php(maxSend, payIn)} still open` : creditError}
         >
           {(p) => <MoneyInput {...p} currency={payIn} value={amount} onChange={(e) => setAmount(e.target.value)} />}
         </Field>
         {rate && credit !== null && (
           <p className="text-[15px]" data-testid="counts-as">
-            Counts as <b className="tnum">{php(credit)}</b> of the {php(capacity)} still open.
+            Counts as <b className="tnum">{php(credit)}</b> of the {php(capacity)} still open
           </p>
         )}
         <fieldset>
@@ -298,7 +298,7 @@ function ReportSheet({ edge, replaces, hasQr, payIn, rate, onClose }: { edge: Ed
             ))}
           </div>
         </fieldset>
-        <Field label="Reference (optional)" hint="e.g. GCash ref ending 4821. Never paste full account numbers.">
+        <Field label="Reference (optional)" hint="e.g. GCash ref ending 4821 (never paste full account numbers)">
           {(p) => <input {...p} className="field" maxLength={200} value={note} onChange={(e) => setNote(e.target.value)} />}
         </Field>
       </div>
@@ -329,7 +329,7 @@ export function DidntArriveSheet({ reportId, reportVersion, senderId, onClose }:
             busyLabel="Sending…"
             disabled={!ok}
             onClick={async () => {
-              const done = await run(() => api.post(`/api/payments/${reportId}/reject`, { reason: reason.trim(), expectedVersion: reportVersion }), `Saved. ${name(senderId)} will see it.`);
+              const done = await run(() => api.post(`/api/payments/${reportId}/reject`, { reason: reason.trim(), expectedVersion: reportVersion }), `Saved, ${name(senderId)} will see it`);
               if (done) onClose();
               return done;
             }}
@@ -340,8 +340,8 @@ export function DidntArriveSheet({ reportId, reportVersion, senderId, onClose }:
       }
     >
       <div className="space-y-4">
-        <p className="text-[15px] text-muted">Not there yet? Close this and check later. Only continue if {name(senderId)} says it was sent and nothing came.</p>
-        <Field label="What happened?" hint="At least 3 characters." error={null}>
+        <p className="text-[15px] text-muted">Not there yet? Close this and check later, and only continue if {name(senderId)} says it was sent and nothing came</p>
+        <Field label="What happened?" hint="At least 3 characters" error={null}>
           {(p) => <textarea {...p} className="field min-h-24" maxLength={200} value={reason} placeholder="e.g. Nothing came into my GCash" onChange={(e) => setReason(e.target.value)} />}
         </Field>
       </div>
@@ -401,8 +401,8 @@ function PendingReport({ edge, report: r }: { edge: EdgeView; report: ReportView
         {r.method === "CASH" ? "Cash" : "QR / e-wallet"} · {timeAgo(r.createdAt)}
         {r.note ? ` · “${r.note}”` : ""}
       </p>
-      {r.replacesReportId && <p className="text-[13px] text-muted">Recorded again after you both agreed. It isn’t new money.</p>}
-      <Button full variant="receive" icon="check" busyLabel="Confirming…" onClick={() => run(() => api.post(`/api/payments/${r.id}/verify`, { expectedVersion: r.version }), `Got it. ${sentAmount(r, currency)} from ${name(edge.from)}.`)}>
+      {r.replacesReportId && <p className="text-[13px] text-muted">Recorded again after you both agreed, so it isn’t new money</p>}
+      <Button full variant="receive" icon="check" busyLabel="Confirming…" onClick={() => run(() => api.post(`/api/payments/${r.id}/verify`, { expectedVersion: r.version }), `Got it, ${sentAmount(r, currency)} from ${name(edge.from)}`)}>
         Yes, I got it
       </Button>
       <ActionError message={error} />
@@ -410,7 +410,7 @@ function PendingReport({ edge, report: r }: { edge: EdgeView; report: ReportView
         <button type="button" onClick={() => setDidntArrive(true)} className="inline-flex min-h-11 items-center px-1 text-[15px] font-semibold text-pay underline underline-offset-2">
           It didn’t arrive
         </button>
-        <span className="text-[13px] text-muted">Not there yet? Leave this and check later.</span>
+        <span className="text-[13px] text-muted">Not there yet? Leave this and check later</span>
       </div>
       {didntArrive && <DidntArriveSheet reportId={r.id} reportVersion={r.version} senderId={edge.from} onClose={() => setDidntArrive(false)} />}
     </div>
@@ -432,7 +432,7 @@ function ReportRow({ edge, report: r, role }: { edge: EdgeView; report: ReportVi
       </div>
       {r.paid && <p className="mt-1 text-[13px] text-muted">{paidLine(r, currency)}</p>}
       {r.note && <p className="mt-1 text-[14px] text-muted">“{r.note}”</p>}
-      {r.replacesReportId && <p className="mt-1 text-[13px] text-muted">Recorded again after you both agreed. It isn’t new money.</p>}
+      {r.replacesReportId && <p className="mt-1 text-[13px] text-muted">Recorded again after you both agreed, so it isn’t new money</p>}
       {r.rejectReason && <p className="mt-1 text-[14px] text-pay">What happened: {r.rejectReason}</p>}
       {r.reversal && <p className="mt-1 text-[14px] text-warn">Undone by {name(edge.to)}: {r.reversal.reason}</p>}
       {role === "sender" && r.status === "REPORTED" && (
@@ -446,9 +446,9 @@ function ReportRow({ edge, report: r, role }: { edge: EdgeView; report: ReportVi
           className="mt-2"
           busyLabel="Saving…"
           onClick={() => {
-            const reason = prompt("You can undo your confirmation once, before the event is Done. This fixes the record; it isn’t a refund. Reason:");
+            const reason = prompt("You can undo your confirmation once, before the event is Done (it fixes the record and isn’t a refund)\n\nReason:");
             if (!reason || reason.trim().length < 3) return;
-            return act(() => api.post(`/api/payments/${r.id}/reverse`, { reason }), "Undone. The amount is open again.");
+            return act(() => api.post(`/api/payments/${r.id}/reverse`, { reason }), "Undone, the amount is open again");
           }}
         >
           I confirmed this by mistake
@@ -468,18 +468,18 @@ function DisputeCard({ edge }: { edge: EdgeView }) {
   const other = name(iAmSender ? edge.to : edge.from);
   const label = { NO_TRANSFER: "No money was sent", REPLACEMENT: "Money was sent — record it again" } as const;
   if (d.status === "AWAITING_REPLACEMENT") {
-    return <Notice tone="warn" title="Agreed: record it again">{iAmSender ? "Record the money you already sent. Don’t send it again. Then they confirm it." : `${other} will record the money already sent. You’ll confirm it here.`}</Notice>;
+    return <Notice tone="warn" title="Agreed: record it again">{iAmSender ? "Record the money you already sent without sending it again, then they confirm it" : `${other} will record the money already sent, then you’ll confirm it here`}</Notice>;
   }
   return (
     <div className="space-y-2 rounded-xl bg-pay-soft p-3">
       <p className="font-semibold">Sort this out with {other}</p>
-      <p className="text-[14px]">A payment was marked as not arrived. You both pick the same answer. Nobody else, not even the organizer, can decide for you.</p>
+      <p className="text-[14px]">A payment was marked as not arrived, and you both pick the same answer (nobody else, not even the organizer, can decide for you)</p>
       {(["NO_TRANSFER", "REPLACEMENT"] as const).map((c) => (
         <Button key={c} full variant={myChoice === c ? "primary" : "secondary"} icon={myChoice === c ? "check" : undefined} busyLabel="Saving…" onClick={() => act(() => api.post(`/api/disputes/${d.id}`, { choice: c, expectedVersion: d.version }), "Answer saved")}>
           {label[c]}
         </Button>
       ))}
-      <p className="text-[13px] text-muted">{theirChoice ? `${other} chose: ${label[theirChoice]}` : `Waiting for ${other}.`}</p>
+      <p className="text-[13px] text-muted">{theirChoice ? `${other} chose: ${label[theirChoice]}` : `Waiting for ${other}`}</p>
     </div>
   );
 }
@@ -535,7 +535,7 @@ function InstructionsEditor() {
                 const img = file ? await prepareImage(file, "QR") : null;
                 if (img && img.size > MAX_CLIENT_UPLOAD_BYTES) {
                   setBusy(false);
-                  alert("That QR image is too large. Try a screenshot of your QR instead.");
+                  alert("That QR image is too large, so try a screenshot of your QR instead");
                   return;
                 }
                 const ok = img
@@ -568,10 +568,10 @@ function InstructionsEditor() {
                 {(p) => <input {...p} className="field" maxLength={200} value={cashNote} onChange={(e) => setCashNote(e.target.value)} />}
               </Field>
             )}
-            <Field label="Your payment QR (optional)" hint="A screenshot of your GCash, Maya or bank QR. Only people who owe you see it.">
+            <Field label="Your payment QR (optional)" hint="A screenshot of your GCash, Maya or bank QR that only people who owe you can see">
               {(p) => <input {...p} type="file" accept="image/jpeg,image/png,image/webp" className="field" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />}
             </Field>
-            <Field label="QR label (optional)" hint="e.g. “GCash — Mark”. No full account numbers.">
+            <Field label="QR label (optional)" hint="e.g. “GCash — Mark” (no full account numbers)">
               {(p) => <input {...p} className="field" maxLength={60} value={qrLabel} onChange={(e) => setQrLabel(e.target.value)} />}
             </Field>
             {cur?.hasQr && !file && (
@@ -595,10 +595,10 @@ function InstructionsEditor() {
                     {c === event.currency && <span className="text-[13px] text-muted">(the bill’s currency)</span>}
                   </label>
                 ))}
-                <p className="text-[13px] text-muted">Money sent in another currency counts at the ECB rate of the day it’s sent.</p>
+                <p className="text-[13px] text-muted">Money sent in another currency counts at the ECB rate of the day it’s sent</p>
               </fieldset>
             )}
-            <p className="text-[13px] text-muted">Changing these never changes what anyone owes.</p>
+            <p className="text-[13px] text-muted">Changing these never changes what anyone owes</p>
           </div>
         </Sheet>
       )}

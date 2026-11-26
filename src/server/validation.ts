@@ -53,7 +53,7 @@ export const recoverSchema = z.object({
       const k = s.replace(/[\s\u200b-\u200d\ufeff]+/g, "").replace(/^[“"'`]+|[”"'`.,]+$/g, "");
       return /^aa-/i.test(k) ? `AA-${k.slice(3)}` : `AA-${k}`;
     })
-    .pipe(z.string().min(20, "That doesn’t look like a whole recovery key. It starts with AA- and is about 46 characters long.").max(80)),
+    .pipe(z.string().min(20, "That doesn’t look like a whole recovery key (it starts with AA- and is about 46 characters long)").max(80)),
 });
 
 export const addGuestSchema = z.object({ displayName, intent: intent.default("WILL_PAY_ONLY") });

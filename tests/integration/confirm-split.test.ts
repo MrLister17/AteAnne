@@ -69,7 +69,7 @@ it("rolls back receipt funding, claims and entry status when an item has no assi
     expectedFinancialVersion: before.event.financialVersion,
   })).rejects.toMatchObject({
     code: "split_incomplete",
-    details: { blockers: ['Lunch: "Lunch plates": 0 of 2 units assigned.'] },
+    details: { blockers: ['Lunch: "Lunch plates": 0 of 2 units assigned'] },
   });
   const after = await app.queries.view(owner, eventId);
   expect(after.event.phase).toBe("COLLECTING");

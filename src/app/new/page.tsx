@@ -58,7 +58,7 @@ export default function NewEvent() {
           <Field label="Note (optional)">
             {(p) => <textarea {...p} className="field min-h-20" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Anything the group should know" />}
           </Field>
-          <Field label="Settle up in" hint="Receipts in other currencies are converted to this one.">
+          <Field label="Settle up in" hint="Receipts in other currencies are converted to this one">
             {(p) => (
               <select {...p} className="field" value={currency} onChange={(e) => setCurrency(e.target.value)}>
                 {CURRENCIES.map((c) => (
@@ -74,7 +74,7 @@ export default function NewEvent() {
         <Button type="submit" full busy={busy}>
           Create event
         </Button>
-        <p className="text-center text-[13px] text-muted">You’ll be the organizer. Events are deleted after 30 days.</p>
+        <p className="text-center text-[13px] text-muted">You’ll be the organizer, and events are deleted after 30 days</p>
       </form>
       </InstallFirst>
     </PageShell>

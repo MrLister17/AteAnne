@@ -73,7 +73,7 @@ export class ReceiptCalculator {
       const lineEntries = scope.map((l) => ({ key: l.id, weight: sum(remaining.get(l.id)!) }));
       const base = lineEntries.reduce((a, e) => a + e.weight, 0n);
       if (adj.amount > base) {
-        return { ok: false, receiptId: receipt.id, issues: [{ code: "DISCOUNT_EXCEEDS_BASE", receiptId: receipt.id, adjustmentId: adj.id, message: `Discount "${adj.label}" exceeds its remaining eligible items.` }] };
+        return { ok: false, receiptId: receipt.id, issues: [{ code: "DISCOUNT_EXCEEDS_BASE", receiptId: receipt.id, adjustmentId: adj.id, message: `Discount "${adj.label}" exceeds its remaining eligible items` }] };
       }
       const perLine = this.allocator.allocate(adj.amount, lineEntries);
       for (const [lineId, lineDiscount] of perLine) {
@@ -99,7 +99,7 @@ export class ReceiptCalculator {
       const entries = ordered(basis);
       const basisTotal = entries.reduce((a, e) => a + e.weight, 0n);
       if (adj.amount > 0n && basisTotal === 0n) {
-        return { ok: false, receiptId: receipt.id, issues: [{ code: "ZERO_BASIS_CHARGE", receiptId: receipt.id, adjustmentId: adj.id, message: `"${adj.label}" has no eligible spending to be proportional to. Correct the receipt explicitly.` }] };
+        return { ok: false, receiptId: receipt.id, issues: [{ code: "ZERO_BASIS_CHARGE", receiptId: receipt.id, adjustmentId: adj.id, message: `"${adj.label}" has no eligible spending to be proportional to, so correct the receipt explicitly` }] };
       }
       if (adj.amount === 0n) continue;
       for (const [memberId, c] of this.allocator.allocate(adj.amount, entries)) {
@@ -125,14 +125,14 @@ export class ReceiptCalculator {
     for (const line of receipt.lines) {
       if (line.mode === "SHARED") {
         if (line.amount > 0n && line.claims.length === 0) {
-          issues.push({ code: "LINE_UNALLOCATED", receiptId: receipt.id, lineId: line.id, message: `Nobody has claimed "${line.label}" yet.` });
+          issues.push({ code: "LINE_UNALLOCATED", receiptId: receipt.id, lineId: line.id, message: `Nobody has claimed "${line.label}" yet` });
         }
       } else {
         const claimed = line.claims.reduce((a, c) => a + c.units, 0);
         if (claimed > line.quantity) {
-          issues.push({ code: "UNITS_OVER_ALLOCATED", receiptId: receipt.id, lineId: line.id, message: `"${line.label}": ${claimed} of ${line.quantity} units claimed.` });
+          issues.push({ code: "UNITS_OVER_ALLOCATED", receiptId: receipt.id, lineId: line.id, message: `"${line.label}": ${claimed} of ${line.quantity} units claimed` });
         } else if (claimed < line.quantity && (line.amount > 0n || claimed > 0)) {
-          issues.push({ code: "UNITS_UNDER_ALLOCATED", receiptId: receipt.id, lineId: line.id, message: `"${line.label}": ${claimed} of ${line.quantity} units assigned.` });
+          issues.push({ code: "UNITS_UNDER_ALLOCATED", receiptId: receipt.id, lineId: line.id, message: `"${line.label}": ${claimed} of ${line.quantity} units assigned` });
         }
       }
     }
