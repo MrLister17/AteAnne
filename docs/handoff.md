@@ -1,6 +1,6 @@
 # Handoff
 
-_Last updated: 2026-11-26 Manila (Start a split steps D67)_
+_Last updated: 2026-11-26 Manila (Start a split steps D67, deployed at `ab0f54d`)_
 
 ## Start a split steps (2026-11-26, D67)
 

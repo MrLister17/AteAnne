@@ -8,7 +8,7 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ---
 
-## Start a split, one question at a time (2026-11-26 Manila)
+## Start a split, one question at a time (2026-11-26 Manila) · merged to `main` and deployed
 
 Decision **D67**. UI only: no API, migration or money-rule change.
 
@@ -17,6 +17,7 @@ Decision **D67**. UI only: no API, migration or money-rule change.
 - **Last step.** Note and settle-up currency stay under *More options* next to **Create event**.
 - **Keyboard stays up.** The two typing questions reuse one text box, and tapping Next leaves the cursor in it, so on iPhone the keyboard doesn’t drop and reopen between them. The first question gets the cursor as soon as the screen opens.
 - **Tests.** New browser test at iPhone 15 and 360px covering focus, the empty-answer message, the same text box carrying over (by Enter and by tapping Next), progress, Back keeping answers, touch target sizes and creating the event. The 8 flows that start a split now tap Next between questions.
+- **Release.** `main` was fast-forwarded to `ab0f54d` and main CI run 45732969739 passed. Production `/api/health` returned `version` `ab0f54d`. On production `/new`, question 1 showed alone ("Step 1 of 3"), and Next moved to question 2 with the cursor in the box. The check stopped before Create, so no event was made.
 
 ## No period at the end of a statement (2026-11-26 Manila) · merged to `main` and deployed
 
