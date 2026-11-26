@@ -8,7 +8,7 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ---
 
-## Unreleased: no period at the end of a statement (2026-11-26 Manila) · branch `claude/nice-einstein-jqrcjj`, not merged
+## No period at the end of a statement (2026-11-26 Manila) · merged to `main` and deployed
 
 Decision **D66**. UI copy only: no migration and no money-rule change. Built on PR #4 (English-only copy below), which was still open, so production kept showing "Hatian na malinaw. Bayaran na tama." on Home.
 
@@ -19,12 +19,13 @@ Decision **D66**. UI copy only: no migration and no money-rule change. Built on 
 - **Leftover Tagalog removed** from `README.md`, the `package.json` description, and the GUIDE line about the big "Show amount" screen.
 - **Rule for agents.** `CLAUDE.md` now says English only and no closing periods.
 - **Tests:** 1 unit, 5 integration and 31 browser assertions were updated to the new wording. Results are in [test report](docs/test-report.md).
+- **Release.** At the owner's instruction ("always merge and push to main to deploy"), `main` was fast-forwarded from `bf3deb5` to `04f23f0`. Production `/api/health` returned `version` `04f23f0`, and the live Home page shows "Split the bill by what each person had" and "Start a split". Main CI run 45728880767 was still running when this was written.
 
 ## Organizer confirmation
 
 - Home → **Confirm for everyone** lets the organizer finish receipt entry, confirm receipt payers, and accept the saved split for the group. It preserves item assignments and equal-split objections, and records the organizer’s action in Activity.
 
-## Unreleased: English-only copy and fewer words (2026-11-25 Manila) · PR #4, open; included in the 2026-11-26 branch above
+## English-only copy and fewer words (2026-11-25 Manila) · PR #4, merged to `main` and deployed with the 2026-11-26 release above
 
 UI copy and small UX fixes only: no migration, no money-rule change. Prepared as a patch against `main` `8ad4dac` after a full live walkthrough on ateanne.vercel.app (create → receipt → claim → guest → freeze → cash → confirm → Done).
 

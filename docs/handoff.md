@@ -1,10 +1,10 @@
 # Handoff
 
-_Last updated: 2026-11-26 Manila (copy rules D66 on branch `claude/nice-einstein-jqrcjj`)_
+_Last updated: 2026-11-26 Manila (copy rules D66, deployed at `04f23f0`)_
 
 ## Copy rules (2026-11-26, D66)
 
-UI copy is English only, with no period at the end of a statement. Branch `claude/nice-einstein-jqrcjj` holds PR #4 (English-only copy, still open) plus the closing-period sweep. Production shows the Tagalog tagline until this branch, or PR #4, is merged and deployed. The rule is in `CLAUDE.md`. Strings are one sentence each, and periods stay only in abbreviations, list markers, the LLM prompt and code comments.
+UI copy is English only, with no period at the end of a statement. PR #4 (English-only copy) and the closing-period sweep are live: `main` `04f23f0`, and production health reports `04f23f0`. The owner's standing instruction is to merge to `main` and push to deploy once checks pass (in `CLAUDE.md`). The rule is in `CLAUDE.md`. Strings are one sentence each, and periods stay only in abbreviations, list markers, the LLM prompt and code comments.
 
 ## Organizer confirmation
 
