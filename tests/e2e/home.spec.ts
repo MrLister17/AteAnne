@@ -188,8 +188,10 @@ test("Start a split asks one question at a time, keeps answers on Back, and keep
   // Back returns to each earlier question with its answer kept
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page.getByLabel("Your name in this group")).toHaveValue("Mark");
+  await expect(page.getByLabel("Your name in this group")).toBeFocused();
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page.getByLabel("What’s the occasion?")).toHaveValue("Friday dinner");
+  await expect(page.getByLabel("What’s the occasion?")).toBeFocused();
 
   // Forward again by tapping Next: the cursor stays in the box, so the keyboard would too
   await next.click();

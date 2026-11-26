@@ -13,7 +13,7 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 Decision **D67**. UI only: no API, migration or money-rule change.
 
 - **One question per screen.** Start a split now asks *What’s the occasion?*, then *Your name in this group*, then *Who paid the bill?*. A thin 3-part progress bar shows "1 of 3", and each question slides in gently (still when reduced motion is on).
-- **Moving around.** **Next**, or the keyboard’s Enter/next key, moves forward. An empty answer is caught in place ("Give the occasion a name", "Add your name so the group knows it’s you"). The header **Back** returns to the previous question with the answer kept, and on the first question it goes Home.
+- **Moving around.** **Next**, or the keyboard’s Enter/next key, moves forward. An empty answer is caught in place ("Give the occasion a name", "Add your name so the group knows it’s you"). The header **Back** returns to the previous question with the answer kept and the cursor back in the box, and on the first question it goes Home.
 - **Last step.** Note and settle-up currency stay under *More options* next to **Create event**.
 - **Keyboard stays up.** The two typing questions reuse one text box, and tapping Next leaves the cursor in it, so on iPhone the keyboard doesn’t drop and reopen between them. The first question gets the cursor as soon as the screen opens.
 - **Tests.** New browser test at iPhone 15 and 360px covering focus, the empty-answer message, the same text box carrying over (by Enter and by tapping Next), progress, Back keeping answers, touch target sizes and creating the event. The 8 flows that start a split now tap Next between questions.

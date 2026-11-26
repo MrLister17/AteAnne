@@ -45,6 +45,9 @@ export default function NewEvent() {
     setMissing(null);
     setError(null);
     setStep((s) => s - 1);
+    // From the name back to the occasion it's the same box: focus it during the tap so the iPhone keyboard comes up.
+    // From "Who paid?" the box mounts again and autoFocus handles it.
+    if (step === 1) inputRef.current?.focus();
   };
 
   const create = async () => {
