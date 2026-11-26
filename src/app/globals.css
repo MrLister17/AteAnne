@@ -384,6 +384,20 @@ button {
 .animate-sheet {
   animation: sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+/* Start a split: each new question slides in gently from the side. */
+@keyframes step-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.animate-step {
+  animation: step-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
 
 /* ---- Tap feedback: every button visibly dips the moment it is pressed. ---- */
 button,

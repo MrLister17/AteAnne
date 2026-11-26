@@ -2,12 +2,16 @@ import Link from "next/link";
 import { Icon } from "./Icon";
 
 /** Simple page frame for entry screens: safe areas, narrow column, back link. */
-export function PageShell({ title, back = "/", children }: { title?: string; back?: string | null; children: React.ReactNode }) {
+export function PageShell({ title, back = "/", onBack, children }: { title?: string; back?: string | null; onBack?: () => void; children: React.ReactNode }) {
   return (
     <main className="safe-top safe-bottom mx-auto min-h-[100dvh] w-full max-w-[520px] px-4 pb-10">
       {title && (
         <header className="flex min-h-14 items-center gap-1">
-          {back && (
+          {onBack ? (
+            <button type="button" onClick={onBack} className="-ml-2 inline-flex size-11 items-center justify-center rounded-full text-violet active:bg-violet-soft" aria-label="Back">
+              <Icon name="back" />
+            </button>
+          ) : back && (
             <Link href={back} className="-ml-2 inline-flex size-11 items-center justify-center rounded-full text-violet active:bg-violet-soft" aria-label="Back">
               <Icon name="back" />
             </Link>

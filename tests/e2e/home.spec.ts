@@ -144,3 +144,58 @@ test("start screen: newcomers see how it works, returning people see their event
   await page.screenshot({ path: "test-results/screens/32-start-returning.png", fullPage: true, animations: "disabled" });
   await ctx.close();
 });
+
+test("Start a split asks one question at a time, keeps answers on Back, and keeps the same text box for the keyboard", async ({ browser }, testInfo) => {
+  const ctx = await phone(browser, testInfo.project.use as object);
+  const page = await ctx.newPage();
+  await page.goto("/new");
+  const progress = page.getByRole("progressbar", { name: "Progress" });
+  const next = page.getByRole("button", { name: "Next", exact: true });
+
+  // Question 1 only
+  const occasion = page.getByLabel("What’s the occasion?");
+  await expect(occasion).toBeFocused();
+  await expect(progress).toHaveAttribute("aria-valuetext", "Step 1 of 3");
+  await expect(page.getByLabel("Your name in this group")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Create event" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/");
+  await expectPhoneFriendly(page);
+
+  // An empty answer is caught before moving on
+  await next.click();
+  await expect(page.getByRole("alert").filter({ hasText: "Give the occasion a name" })).toBeVisible();
+  await occasion.fill("Friday dinner");
+  await expect(page.getByText("Give the occasion a name")).toHaveCount(0);
+
+  // Enter moves on, and the same focused box carries over so the iPhone keyboard stays up
+  await occasion.evaluate((el) => { el.dataset.sameBox = "yes"; });
+  await occasion.press("Enter");
+  const name = page.getByLabel("Your name in this group");
+  await expect(name).toHaveAttribute("data-same-box", "yes");
+  await expect(name).toBeFocused();
+  await expect(name).toHaveValue("");
+  await expect(progress).toHaveAttribute("aria-valuetext", "Step 2 of 3");
+  await name.fill("Mark");
+  await next.click();
+
+  // Question 3: who paid, then create
+  await expect(page.getByRole("group", { name: "Who paid the bill?" })).toBeVisible();
+  await expect(progress).toHaveAttribute("aria-valuetext", "Step 3 of 3");
+  await expect(page.getByRole("button", { name: "Create event" })).toBeVisible();
+  await expect(page.getByLabel("Your name in this group")).toHaveCount(0);
+  await expectPhoneFriendly(page);
+
+  // Back returns to each earlier question with its answer kept
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByLabel("Your name in this group")).toHaveValue("Mark");
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByLabel("What’s the occasion?")).toHaveValue("Friday dinner");
+
+  // Forward again and create
+  await next.click();
+  await next.click();
+  await page.getByText("Someone else paid").click();
+  await page.getByRole("button", { name: "Create event" }).click();
+  await expect(page.getByRole("heading", { name: "Event created" })).toBeVisible();
+  await ctx.close();
+});

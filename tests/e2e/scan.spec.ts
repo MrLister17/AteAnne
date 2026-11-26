@@ -12,7 +12,9 @@ test("scan a receipt, check the draft, save only the details (no photo kept)", a
 
   await page.goto("/new");
   await page.getByLabel("What’s the occasion?").fill("Scan test");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByLabel("Your name in this group").fill("Mark");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("button", { name: "Create event" }).click();
   await page.getByLabel("I saved my recovery key somewhere safe").check();
   await page.getByRole("button", { name: /Open my event/ }).click();
@@ -61,7 +63,9 @@ test("the Add-receipt form itself offers 'Fill in from a photo'", async ({ page 
   writeFileSync(photoPath, await sharp({ create: { width: 800, height: 1200, channels: 3, background: "#fff" } }).jpeg().toBuffer());
   await page.goto("/new");
   await page.getByLabel("What’s the occasion?").fill("Form scan test");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByLabel("Your name in this group").fill("Juan");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("button", { name: "Create event" }).click();
   await page.getByLabel("I saved my recovery key somewhere safe").check();
   await page.getByRole("button", { name: /Open my event/ }).click();
@@ -93,7 +97,9 @@ test("a failed scan stays on screen with a way to retry; buttons respond to pres
   writeFileSync(badPath, "this is not an image");
   await page.goto("/new");
   await page.getByLabel("What’s the occasion?").fill("Scan error test");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByLabel("Your name in this group").fill("Ana");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("button", { name: "Create event" }).click();
   await page.getByLabel("I saved my recovery key somewhere safe").check();
   await page.getByRole("button", { name: /Open my event/ }).click();

@@ -24,7 +24,9 @@ test("organizer acts for a guest without a phone and shows her the amount", asyn
 
   await page.goto("/new");
   await page.getByLabel("What’s the occasion?").fill("Merienda");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByLabel("Your name in this group").fill("Mark");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("button", { name: "Create event" }).click();
   const key = (await page.getByTestId("recovery-key").textContent())!.trim();
   expect(key).toMatch(/^AA-/);

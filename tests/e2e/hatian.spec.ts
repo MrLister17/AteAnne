@@ -51,7 +51,9 @@ test("complete hatian from create to Done on phones", async ({ browser }, testIn
   await expectNoHorizontalScroll(mark.page);
   await mark.page.getByRole("link", { name: "Start a split" }).click();
   await mark.page.getByLabel("What’s the occasion?").fill("Dinner sa Lucena");
+  await mark.page.getByRole("button", { name: "Next", exact: true }).click();
   await mark.page.getByLabel("Your name in this group").fill("Mark");
+  await mark.page.getByRole("button", { name: "Next", exact: true }).click();
   await mark.page.getByRole("button", { name: "Create event" }).click();
   const code = (await mark.page.getByLabel(/^Join code/).first().textContent())!.replace(/\s/g, "");
   expect(code).toMatch(/^[A-Z2-9]{5}-[A-Z2-9]{5}$/);
@@ -306,7 +308,9 @@ test("a stranger's browser cannot open the event or private API", async ({ brows
   const owner = await newPhone(browser, testInfo);
   await owner.page.goto("/new");
   await owner.page.getByLabel("What’s the occasion?").fill("Private lunch");
+  await owner.page.getByRole("button", { name: "Next", exact: true }).click();
   await owner.page.getByLabel("Your name in this group").fill("Ana");
+  await owner.page.getByRole("button", { name: "Next", exact: true }).click();
   await owner.page.getByRole("button", { name: "Create event" }).click();
   await saveRecoveryAndContinue(owner.page, /Open my event/);
   await owner.page.waitForURL(/\/e\//);

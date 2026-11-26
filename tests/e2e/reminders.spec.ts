@@ -9,7 +9,9 @@ test("preview and copy a manual reminder without sending it", async ({ page, con
   });
   await page.goto("/new");
   await page.getByLabel("What’s the occasion?").fill("Reminder dinner");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByLabel("Your name in this group").fill("Mark");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("button", { name: "Create event", exact: true }).click();
   const key = (await page.getByTestId("recovery-key").textContent())!.trim();
   await page.getByRole("button", { name: "Copy recovery key", exact: true }).click();

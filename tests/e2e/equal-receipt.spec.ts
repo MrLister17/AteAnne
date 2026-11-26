@@ -9,7 +9,9 @@ test("one-tap equal receipt confirmation preserves each person’s consent", asy
   const page = await ctx.newPage();
   await page.goto("/new");
   await page.getByLabel("What’s the occasion?").fill("Equal merienda");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByLabel("Your name in this group").fill("Mark");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
   await page.getByRole("button", { name: "Create event", exact: true }).click();
   await page.getByLabel("I saved my recovery key somewhere safe").check();
   await page.getByRole("button", { name: /Open my event/ }).click();

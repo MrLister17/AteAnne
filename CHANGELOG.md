@@ -8,6 +8,16 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ---
 
+## Start a split, one question at a time (2026-11-26 Manila)
+
+Decision **D67**. UI only: no API, migration or money-rule change.
+
+- **One question per screen.** Start a split now asks *What’s the occasion?*, then *Your name in this group*, then *Who paid the bill?*. A thin 3-part progress bar shows "1 of 3", and each question slides in gently (still when reduced motion is on).
+- **Moving around.** **Next**, or the keyboard’s Enter/next key, moves forward. An empty answer is caught in place ("Give the occasion a name", "Add your name so the group knows it’s you"). The header **Back** returns to the previous question with the answer kept, and on the first question it goes Home.
+- **Last step.** Note and settle-up currency stay under *More options* next to **Create event**.
+- **Keyboard stays up.** The two typing questions reuse one text box, so on iPhone the keyboard doesn’t drop and reopen between them.
+- **Tests.** New browser test at iPhone 15 and 360px covering focus, the empty-answer message, the same text box carrying over, progress, Back keeping answers, touch target sizes and creating the event. The 8 flows that start a split now tap Next between questions.
+
 ## No period at the end of a statement (2026-11-26 Manila) · merged to `main` and deployed
 
 Decision **D66**. UI copy only: no migration and no money-rule change. Built on PR #4 (English-only copy below), which was still open, so production kept showing "Hatian na malinaw. Bayaran na tama." on Home.
