@@ -1,5 +1,25 @@
 # Test report
 
+## No closing periods, English-only copy (2026-11-26 Manila)
+
+Branch `claude/nice-einstein-jqrcjj`: PR #4 (`00209c0`) plus the D66 copy sweep. Ran on Linux with Node 22.23.5, a local PostgreSQL 16 (isolated `ateanne_test`), and the pre-installed Playwright Chromium, using synthetic data, the fake receipt reader and fake exchange rates.
+
+Before any change, the PR #4 commit passed 260 unit and 87 integration tests in this container. Final run on the committed code:
+
+| Check | Result |
+| --- | --- |
+| `npm run test:reference` | PASS |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run test:unit` | 260 passed |
+| `npm run test:integration` | 87 passed in 15 files |
+| `npm run build` | Passed |
+| `npm run test:e2e` | 81 passed (iPhone 15 and 360px Android), 2.6 min |
+
+Assertions updated for the new wording: 1 unit, 5 integration and 31 browser assertions. They are the same checks with new text, and none were removed or skipped. One earlier full browser run, made before two People-tab lines were shortened, also passed 81/81.
+
+A dark-mode iPhone 15 screenshot of first-visit Home showed "Split the bill by what each person had", "Start a split", and "Money moves outside the app, with no bank logins or payment processing", with no Tagalog and no closing periods.
+
 ## English copy and UX patch (2026-11-25 Manila)
 
 Verified the patch on Windows with Node 22.23.5 and isolated PostgreSQL 18.4. The branch started from GitHub `main` at `bf3deb5`. The changelog entry came from the handoff copy and was added alongside the organizer confirmation entry.
