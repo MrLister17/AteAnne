@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { api, ApiError } from "@/ui/api";
 import { PageShell } from "@/ui/components/Shell";
 import { Button, Disclosure, Field, Notice } from "@/ui/components/ui";
@@ -27,12 +27,6 @@ export default function NewEvent() {
   const [created, setCreated] = useState<{ eventId: string; joinCode: string; recoveryKey: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
-
-  // The two typing questions share one text box, so going forward keeps it focused and the iPhone keyboard stays up.
-  // Coming back from "Who paid?" mounts the box again, so put the cursor back in it.
-  useEffect(() => {
-    if (step < 2) inputRef.current?.focus();
-  }, [step]);
 
   if (created) {
     return (
@@ -92,9 +86,12 @@ export default function NewEvent() {
                   {typing.label}
                 </span>
               </label>
+              {/* The two typing questions share this one box (no key), so going forward keeps it focused and the iPhone
+                  keyboard stays up. autoFocus puts the cursor in it when it first appears and when coming back from "Who paid?". */}
               <input
                 ref={inputRef}
                 id={inputId}
+                autoFocus
                 className="field"
                 maxLength={typing.max}
                 autoComplete={typing.autoComplete}
@@ -137,7 +134,8 @@ export default function NewEvent() {
           )}
 
           {error && <Notice tone="pay">{error}</Notice>}
-          <Button type="submit" full busy={busy}>
+          {/* Tapping Next leaves the cursor in the text box, so the iPhone keyboard doesn't drop between the two typing questions. */}
+          <Button type="submit" full busy={busy} onMouseDown={step < 2 ? (e) => e.preventDefault() : undefined}>
             {step < 2 ? "Next" : "Create event"}
           </Button>
           {step === 2 && <p className="text-center text-[13px] text-muted">You’ll be the organizer, and events are deleted after 30 days</p>}

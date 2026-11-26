@@ -4,7 +4,7 @@ _Last updated: 2026-11-26 Manila (Start a split steps D67)_
 
 ## Start a split steps (2026-11-26, D67)
 
-`/new` asks one question per screen: the occasion, your name, then who paid, with More options and Create event on the last step. `PageShell` has an `onBack` prop for in-page steps. Both typing questions use the same `<input>` on purpose, so the iPhone keyboard stays up. Don't key it by step. Join is still a single form, so applying the same pattern there is the natural next step if the owner wants it.
+`/new` asks one question per screen: the occasion, your name, then who paid, with More options and Create event on the last step. `PageShell` has an `onBack` prop for in-page steps. Both typing questions use the same `<input>` on purpose, and Next blocks `mousedown` focus, so the iPhone keyboard stays up. Don't key the input by step. Join is still a single form, so applying the same pattern there is the natural next step if the owner wants it.
 
 ## Copy rules (2026-11-26, D66)
 

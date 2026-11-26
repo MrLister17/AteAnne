@@ -191,8 +191,9 @@ test("Start a split asks one question at a time, keeps answers on Back, and keep
   await page.getByRole("button", { name: "Back" }).click();
   await expect(page.getByLabel("What’s the occasion?")).toHaveValue("Friday dinner");
 
-  // Forward again and create
+  // Forward again by tapping Next: the cursor stays in the box, so the keyboard would too
   await next.click();
+  await expect(page.getByLabel("Your name in this group")).toBeFocused();
   await next.click();
   await page.getByText("Someone else paid").click();
   await page.getByRole("button", { name: "Create event" }).click();
