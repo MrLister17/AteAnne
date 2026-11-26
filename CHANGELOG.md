@@ -8,7 +8,7 @@ Dates are Asia/Manila. Versions 0.1.0–0.4.0 were given numbers afterwards from
 
 ---
 
-## Join with a code, one question at a time (2026-11-26 Manila)
+## Join with a code, one question at a time (2026-11-26 Manila) · merged to `main` and deployed
 
 Decision **D68**. UI only: no API, migration or money-rule change.
 
@@ -18,6 +18,7 @@ Decision **D68**. UI only: no API, migration or money-rule change.
 - **Recovery key unchanged.** Pasting a recovery key into the code box still goes straight to **Get back into my event**.
 - **Shared progress bar.** The progress bar moved to `src/ui/components/StepProgress.tsx`, which both screens use.
 - **Tests.** New browser test at iPhone 15 and 360px covering focus, the empty and short code messages, an unknown code sending you back to question 1, the same text box carrying over, the shared link opening at the name, Back showing the code, and joining. The shared-link joins in `hatian` and `install` now expect to start at the name.
+- **Release.** `main` was fast-forwarded to `654e09e` and main CI run 45737643380 passed. Production `/api/health` returned `version` `654e09e`. On production `/join`, question 1 showed alone ("Step 1 of 3"), and a 3-character code was caught in place. Nothing was joined.
 
 ## Start a split, one question at a time (2026-11-26 Manila) · merged to `main` and deployed
 

@@ -1,6 +1,6 @@
 # Handoff
 
-_Last updated: 2026-11-26 Manila (Join steps D68)_
+_Last updated: 2026-11-26 Manila (Join steps D68, deployed at `654e09e`)_
 
 ## Join steps (2026-11-26, D68)
 
